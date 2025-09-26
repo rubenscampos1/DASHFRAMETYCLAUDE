@@ -41,7 +41,6 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     queryFn: async () => {
       const params = new URLSearchParams();
       
-      // Exclude "Aprovado" status from dashboard view
       Object.entries(filters || {}).forEach(([key, value]) => {
         if (value && value !== "all" && value !== "") params.append(key, value);
       });
@@ -53,8 +52,8 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       if (!response.ok) throw new Error("Erro ao carregar projetos");
       const data = await response.json();
       
-      // Filter out approved projects for dashboard
-      return data.filter((p: ProjetoWithRelations) => p.status !== "Aprovado");
+      // Show all projects including approved ones
+      return data;
     },
   });
 
@@ -70,7 +69,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       if (status === "Aprovado") {
         toast({
           title: "Projeto aprovado!",
-          description: "O projeto foi movido para a seção de finalizados.",
+          description: "O projeto foi aprovado com sucesso.",
         });
       } else {
         toast({
