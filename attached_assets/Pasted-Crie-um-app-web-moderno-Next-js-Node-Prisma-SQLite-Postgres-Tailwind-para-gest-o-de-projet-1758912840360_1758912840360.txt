@@ -1,0 +1,28 @@
+Crie um app web moderno (Next.js + Node + Prisma + SQLite/Postgres + Tailwind) para gestão de projetos de vídeo com login obrigatório (email/senha; papéis: Admin, Gestor, Membro).
+Modelos:
+
+Projetos: titulo*, descricao, tipo_video*, tags[], status(enum: Briefing, Roteiro, Captação, Edição, Revisão, Aguardando Aprovação, Aprovado, Em Pausa, Cancelado), responsavel*(ref Usuários), data_criacao, data_prevista_entrega, data_aprovacao, prioridade(enum: Baixa/Média/Alta), cliente, anexos, link_youtube (só em finalizados), atrasado(derivado), dias_restantes(derivado).
+
+TiposDeVideo(nome) • Tags(nome) • Usuarios(nome, email único, senha hash, papel, ativo) • LogsDeStatus(projeto, status_anterior, status_novo, alterado_por, data_hora).
+
+Páginas/Abas:
+
+Dashboard (Kanban por status): cards mostram titulo, tipo, tags, responsável (avatar), data_prevista_entrega e prioridade. Drag & drop entre colunas altera status e grava log. Regra: ao mover para Aprovado, remover do Dashboard e enviar para Finalizados.
+
+Métricas: contagem de projetos por status/responsável/tipo e atrasados vs no prazo (gráficos).
+
+Finalizados: lista/grade de projetos Aprovado, com edição do link_youtube no card e data_aprovacao.
+
+Novos Projetos: formulário; ao definir responsavel, o projeto aparece na aba dele.
+
+Minha Fila: visão do usuário logado (ou selecionar responsável se Admin/Gestor).
+
+Relatórios: tabela filtrável + Exportar CSV/PDF (totais por status, responsável, tipo).
+
+Filtros/busca: status, responsável, tipo, tag, cliente, prioridade, período (criação/entrega) + busca full-text.
+Validações: titulo/tipo/responsavel obrigatórios; link_youtube URL válida.
+Campos derivados: atrasado (hoje > data_prevista_entrega e não aprovado/cancelado) e dias_restantes.
+Área “Projetos Aprovados” no Kanban: ao arrastar o card para lá, mudar status para Aprovado, setar data_aprovacao e navegar para a aba Finalizados para inserir o link do YouTube.
+UI: Tailwind, dark/light, cantos arredondados, toasts, performance com paginação/lazy.
+Segurança: autenticação, autorização por papel (Admin tudo; Gestor CRUD projetos/relatórios; Membro edita apenas os seus).
+Entregar com seeds (tipos, tags, 8 projetos exemplo) e scripts dev, build, start.
