@@ -16,8 +16,8 @@ import { ptBR } from "date-fns/locale";
 export default function MinhaFila() {
   const { user } = useAuth();
   const [filters, setFilters] = useState({
-    status: "",
-    prioridade: "",
+    status: "all",
+    prioridade: "all",
     search: "",
   });
   const [selectedResponsavel, setSelectedResponsavel] = useState(user?.id || "");
@@ -61,8 +61,8 @@ export default function MinhaFila() {
 
   const clearFilters = () => {
     setFilters({
-      status: "",
-      prioridade: "",
+      status: "all",
+      prioridade: "all",
       search: "",
     });
   };

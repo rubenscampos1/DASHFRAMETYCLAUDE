@@ -16,9 +16,9 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [filters, setFilters] = useState({
-    responsavelId: "",
-    tipoVideoId: "",
-    prioridade: "",
+    responsavelId: "all",
+    tipoVideoId: "all",
+    prioridade: "all",
     search: "",
   });
 
@@ -57,9 +57,9 @@ export default function Dashboard() {
 
   const clearFilters = () => {
     setFilters({
-      responsavelId: "",
-      tipoVideoId: "",
-      prioridade: "",
+      responsavelId: "all",
+      tipoVideoId: "all",
+      prioridade: "all",
       search: "",
     });
   };

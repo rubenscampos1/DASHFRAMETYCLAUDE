@@ -28,10 +28,10 @@ export default function Relatorios() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [filters, setFilters] = useState({
-    status: "",
-    responsavelId: "",
-    tipoVideoId: "",
-    prioridade: "",
+    status: "all",
+    responsavelId: "all",
+    tipoVideoId: "all",
+    prioridade: "all",
     cliente: "",
     search: "",
     dataInicioCreated: undefined as Date | undefined,
@@ -77,10 +77,10 @@ export default function Relatorios() {
 
   const clearFilters = () => {
     setFilters({
-      status: "",
-      responsavelId: "",
-      tipoVideoId: "",
-      prioridade: "",
+      status: "all",
+      responsavelId: "all",
+      tipoVideoId: "all",
+      prioridade: "all",
       cliente: "",
       search: "",
       dataInicioCreated: undefined,

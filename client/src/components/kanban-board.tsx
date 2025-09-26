@@ -41,7 +41,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       
       // Exclude "Aprovado" status from dashboard view
       Object.entries(filters || {}).forEach(([key, value]) => {
-        if (value) params.append(key, value);
+        if (value && value !== "all") params.append(key, value);
       });
       
       const response = await fetch(`/api/projetos?${params}`, {
@@ -120,34 +120,30 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     return projetos.filter(projeto => projeto.status === status);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex space-x-4 overflow-x-auto pb-4">
-        {statusColumns.map((column) => (
-          <div key={column.id} className="flex-shrink-0 w-80">
-            <Card className="h-full">
-              <CardHeader className="p-4 border-b border-border">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${column.color}`} />
-                  <h3 className="text-sm font-medium">{column.title}</h3>
-                  <Badge variant="secondary" className="animate-pulse">...</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="space-y-3">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="h-32 bg-muted animate-pulse rounded-md" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
+  return isLoading ? (
+    <div className="flex space-x-4 overflow-x-auto pb-4">
+      {statusColumns.map((column) => (
+        <div key={column.id} className="flex-shrink-0 w-80">
+          <Card className="h-full">
+            <CardHeader className="p-4 border-b border-border">
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${column.color}`} />
+                <h3 className="text-sm font-medium">{column.title}</h3>
+                <Badge variant="secondary" className="animate-pulse">...</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-32 bg-muted animate-pulse rounded-md" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ))}
+    </div>
+  ) : (
     <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <div className="flex space-x-4 overflow-x-auto pb-4" data-testid="kanban-board">
         {statusColumns.map((column) => {
