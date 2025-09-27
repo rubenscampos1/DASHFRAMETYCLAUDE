@@ -38,6 +38,15 @@ export const tags = pgTable("tags", {
   nome: text("nome").notNull().unique(),
 });
 
+export const clientes = pgTable("clientes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nome: text("nome").notNull().unique(),
+  empresa: text("empresa"),
+  email: text("email"),
+  telefone: text("telefone"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const projetos = pgTable("projetos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   titulo: text("titulo").notNull(),
@@ -50,7 +59,7 @@ export const projetos = pgTable("projetos", {
   dataPrevistaEntrega: timestamp("data_prevista_entrega"),
   dataAprovacao: timestamp("data_aprovacao"),
   prioridade: priorityEnum("prioridade").notNull().default("Média"),
-  cliente: text("cliente"),
+  clienteId: varchar("cliente_id").references(() => clientes.id),
   anexos: text("anexos").array().default([]),
   linkYoutube: text("link_youtube"),
 });
@@ -74,6 +83,10 @@ export const tiposDeVideoRelations = relations(tiposDeVideo, ({ many }) => ({
   projetos: many(projetos),
 }));
 
+export const clientesRelations = relations(clientes, ({ many }) => ({
+  projetos: many(projetos),
+}));
+
 export const projetosRelations = relations(projetos, ({ one, many }) => ({
   tipoVideo: one(tiposDeVideo, {
     fields: [projetos.tipoVideoId],
@@ -83,6 +96,10 @@ export const projetosRelations = relations(projetos, ({ one, many }) => ({
     fields: [projetos.responsavelId],
     references: [users.id],
     relationName: "responsavel",
+  }),
+  cliente: one(clientes, {
+    fields: [projetos.clienteId],
+    references: [clientes.id],
   }),
   logsDeStatus: many(logsDeStatus),
 }));
@@ -120,6 +137,11 @@ export const insertTagSchema = createInsertSchema(tags).omit({
   id: true,
 });
 
+export const insertClienteSchema = createInsertSchema(clientes).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertProjetoSchema = createInsertSchema(projetos).omit({
   id: true,
   dataCriacao: true,
@@ -141,6 +163,8 @@ export type TipoVideo = typeof tiposDeVideo.$inferSelect;
 export type InsertTipoVideo = z.infer<typeof insertTipoVideoSchema>;
 export type Tag = typeof tags.$inferSelect;
 export type InsertTag = z.infer<typeof insertTagSchema>;
+export type Cliente = typeof clientes.$inferSelect;
+export type InsertCliente = z.infer<typeof insertClienteSchema>;
 export type Projeto = typeof projetos.$inferSelect;
 export type InsertProjeto = z.infer<typeof insertProjetoSchema>;
 export type LogStatus = typeof logsDeStatus.$inferSelect;
@@ -150,4 +174,5 @@ export type InsertLogStatus = z.infer<typeof insertLogStatusSchema>;
 export type ProjetoWithRelations = Projeto & {
   tipoVideo: TipoVideo;
   responsavel: User;
+  cliente?: Cliente;
 };

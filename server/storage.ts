@@ -4,6 +4,7 @@ import {
   tiposDeVideo, 
   tags, 
   logsDeStatus,
+  clientes,
   type User, 
   type InsertUser, 
   type Projeto,
@@ -14,6 +15,8 @@ import {
   type InsertTag,
   type LogStatus,
   type InsertLogStatus,
+  type Cliente,
+  type InsertCliente,
   type ProjetoWithRelations
 } from "@shared/schema";
 import { db } from "./db";
@@ -25,7 +28,7 @@ import { pool } from "./db";
 const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
-  sessionStore: session.SessionStore;
+  sessionStore: any;
   
   // Users
   getUser(id: string): Promise<User | undefined>;
@@ -54,6 +57,13 @@ export interface IStorage {
   getTags(): Promise<Tag[]>;
   createTag(tag: InsertTag): Promise<Tag>;
   
+  // Clientes
+  getClientes(): Promise<Cliente[]>;
+  getCliente(id: string): Promise<Cliente | undefined>;
+  createCliente(cliente: InsertCliente): Promise<Cliente>;
+  updateCliente(id: string, cliente: Partial<InsertCliente>): Promise<Cliente>;
+  deleteCliente(id: string): Promise<void>;
+  
   // Logs de Status
   createLogStatus(log: InsertLogStatus): Promise<LogStatus>;
   getLogsByProjeto(projetoId: string): Promise<LogStatus[]>;
@@ -72,7 +82,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  public sessionStore: session.SessionStore;
+  public sessionStore: any;
 
   constructor() {
     this.sessionStore = new PostgresSessionStore({ 
@@ -115,7 +125,8 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(projetos)
       .leftJoin(tiposDeVideo, eq(projetos.tipoVideoId, tiposDeVideo.id))
-      .leftJoin(users, eq(projetos.responsavelId, users.id));
+      .leftJoin(users, eq(projetos.responsavelId, users.id))
+      .leftJoin(clientes, eq(projetos.clienteId, clientes.id));
 
     const conditions = [];
 
@@ -136,7 +147,7 @@ export class DatabaseStorage implements IStorage {
         or(
           like(projetos.titulo, `%${filters.search}%`),
           like(projetos.descricao, `%${filters.search}%`),
-          like(projetos.cliente, `%${filters.search}%`)
+          like(clientes.nome, `%${filters.search}%`)
         )
       );
     }
@@ -151,6 +162,7 @@ export class DatabaseStorage implements IStorage {
       ...row.projetos,
       tipoVideo: row.tipos_de_video!,
       responsavel: row.users!,
+      cliente: row.clientes || undefined,
     }));
   }
 
@@ -160,6 +172,7 @@ export class DatabaseStorage implements IStorage {
       .from(projetos)
       .leftJoin(tiposDeVideo, eq(projetos.tipoVideoId, tiposDeVideo.id))
       .leftJoin(users, eq(projetos.responsavelId, users.id))
+      .leftJoin(clientes, eq(projetos.clienteId, clientes.id))
       .where(eq(projetos.id, id));
 
     if (!result) return undefined;
@@ -168,6 +181,7 @@ export class DatabaseStorage implements IStorage {
       ...result.projetos,
       tipoVideo: result.tipos_de_video!,
       responsavel: result.users!,
+      cliente: result.clientes || undefined,
     };
   }
 
@@ -218,6 +232,36 @@ export class DatabaseStorage implements IStorage {
       .values(tag)
       .returning();
     return newTag;
+  }
+
+  async getClientes(): Promise<Cliente[]> {
+    return await db.select().from(clientes).orderBy(asc(clientes.nome));
+  }
+
+  async getCliente(id: string): Promise<Cliente | undefined> {
+    const [cliente] = await db.select().from(clientes).where(eq(clientes.id, id));
+    return cliente;
+  }
+
+  async createCliente(cliente: InsertCliente): Promise<Cliente> {
+    const [newCliente] = await db
+      .insert(clientes)
+      .values(cliente)
+      .returning();
+    return newCliente;
+  }
+
+  async updateCliente(id: string, cliente: Partial<InsertCliente>): Promise<Cliente> {
+    const [updatedCliente] = await db
+      .update(clientes)
+      .set(cliente)
+      .where(eq(clientes.id, id))
+      .returning();
+    return updatedCliente;
+  }
+
+  async deleteCliente(id: string): Promise<void> {
+    await db.delete(clientes).where(eq(clientes.id, id));
   }
 
   async createLogStatus(log: InsertLogStatus): Promise<LogStatus> {
