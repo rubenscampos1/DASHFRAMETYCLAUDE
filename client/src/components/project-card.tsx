@@ -137,7 +137,7 @@ export function ProjectCard({ projeto, isDragging, onEdit, onDelete }: ProjectCa
         
         {projeto.cliente && (
           <div className="text-xs text-muted-foreground" data-testid="project-client">
-            Cliente: {projeto.cliente}
+            Cliente: {projeto.cliente.nome}
           </div>
         )}
       </CardContent>
