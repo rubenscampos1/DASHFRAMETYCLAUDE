@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertProjetoSchema, insertLogStatusSchema } from "@shared/schema";
+import { insertProjetoSchema, insertLogStatusSchema, insertClienteSchema } from "@shared/schema";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -161,6 +161,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tags = await storage.getTags();
       res.json(tags);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Clientes routes
+  app.get("/api/clientes", requireAuth, async (req, res, next) => {
+    try {
+      const clientes = await storage.getClientes();
+      res.json(clientes);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/clientes/:id", requireAuth, async (req, res, next) => {
+    try {
+      const cliente = await storage.getCliente(req.params.id);
+      if (!cliente) {
+        return res.status(404).json({ message: "Cliente não encontrado" });
+      }
+      res.json(cliente);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/clientes", requireAuth, async (req, res, next) => {
+    try {
+      const clienteData = insertClienteSchema.parse(req.body);
+      const cliente = await storage.createCliente(clienteData);
+      res.status(201).json(cliente);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/clientes/:id", requireAuth, async (req, res, next) => {
+    try {
+      const cliente = await storage.getCliente(req.params.id);
+      if (!cliente) {
+        return res.status(404).json({ message: "Cliente não encontrado" });
+      }
+
+      const clienteData = insertClienteSchema.parse(req.body);
+      const updatedCliente = await storage.updateCliente(req.params.id, clienteData);
+      res.json(updatedCliente);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/clientes/:id", requireAuth, async (req, res, next) => {
+    try {
+      const cliente = await storage.getCliente(req.params.id);
+      if (!cliente) {
+        return res.status(404).json({ message: "Cliente não encontrado" });
+      }
+
+      await storage.deleteCliente(req.params.id);
+      res.sendStatus(204);
     } catch (error) {
       next(error);
     }

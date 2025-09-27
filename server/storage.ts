@@ -71,6 +71,9 @@ export interface IStorage {
   // Métricas
   getMetricas(): Promise<{
     totalProjetos: number;
+    projetosAprovados: number;
+    projetosAtivos: number;
+    videosPorCliente: Record<string, number>;
     projetosPorStatus: Record<string, number>;
     projetosPorResponsavel: Record<string, number>;
     projetosPorTipo: Record<string, number>;
@@ -281,12 +284,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMetricas() {
-    // Contar apenas projetos ativos (excluindo "Aprovado")
+    // Total de Projetos: total menos "Aprovado"
     const totalProjetos = await db
       .select({ count: sql<number>`count(*)` })
       .from(projetos)
       .where(sql`${projetos.status} != 'Aprovado'`);
 
+    // Projetos Aprovados: apenas os "Aprovado"
+    const projetosAprovados = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(projetos)
+      .where(sql`${projetos.status} = 'Aprovado'`);
+
+    // Projetos Ativos: total menos "Aprovado" e "Briefing"
+    const projetosAtivos = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(projetos)
+      .where(sql`${projetos.status} NOT IN ('Aprovado', 'Briefing')`);
+
+    // Vídeos por Cliente: contagem agrupada por cliente
+    const videosPorCliente = await db
+      .select({
+        cliente: clientes.nome,
+        count: sql<number>`count(*)`
+      })
+      .from(projetos)
+      .leftJoin(clientes, eq(projetos.clienteId, clientes.id))
+      .groupBy(clientes.nome);
+
+    // Resumo por Status: todos os status
     const projetosPorStatus = await db
       .select({
         status: projetos.status,
@@ -295,6 +321,7 @@ export class DatabaseStorage implements IStorage {
       .from(projetos)
       .groupBy(projetos.status);
 
+    // Por Responsável: manter como está
     const projetosPorResponsavel = await db
       .select({
         responsavel: users.nome,
@@ -304,6 +331,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(projetos.responsavelId, users.id))
       .groupBy(users.nome);
 
+    // Por Tipo de Vídeo: manter como está
     const projetosPorTipo = await db
       .select({
         tipo: tiposDeVideo.nome,
@@ -325,6 +353,11 @@ export class DatabaseStorage implements IStorage {
 
     return {
       totalProjetos: totalProjetos[0]?.count || 0,
+      projetosAprovados: projetosAprovados[0]?.count || 0,
+      projetosAtivos: projetosAtivos[0]?.count || 0,
+      videosPorCliente: Object.fromEntries(
+        videosPorCliente.map(item => [item.cliente || "Sem cliente", item.count])
+      ),
       projetosPorStatus: Object.fromEntries(
         projetosPorStatus.map(item => [item.status, item.count])
       ),
