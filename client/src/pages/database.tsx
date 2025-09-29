@@ -476,6 +476,178 @@ export default function DatabasePage() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Tags Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tags Cadastradas</CardTitle>
+                  <CardDescription>
+                    Gerencie todas as tags do sistema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {tags.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Preview</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {tags.map((tag) => (
+                          <TableRow key={tag.id}>
+                            <TableCell className="font-medium">{tag.nome}</TableCell>
+                            <TableCell>
+                              <div 
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                style={{ 
+                                  backgroundColor: tag.backgroundColor, 
+                                  color: tag.textColor 
+                                }}
+                                data-testid={`tag-preview-${tag.id}`}
+                              >
+                                {tag.nome}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {user?.papel === "Admin" && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive"
+                                      data-testid={`delete-tag-${tag.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Tem certeza que deseja remover a tag "{tag.nome}"? Esta ação não pode ser desfeita.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeleteTag(tag.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        data-testid={`confirm-delete-tag-${tag.id}`}
+                                      >
+                                        Remover
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8" data-testid="empty-tags">
+                      <Tag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        Nenhuma tag cadastrada ainda.
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Clique em "Nova Tag" para adicionar a primeira tag.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Categories Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Categorias de Vídeo Cadastradas</CardTitle>
+                  <CardDescription>
+                    Gerencie todas as categorias de vídeo do sistema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {categorias.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Preview</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {categorias.map((tipo) => (
+                          <TableRow key={tipo.id}>
+                            <TableCell className="font-medium">{tipo.nome}</TableCell>
+                            <TableCell>
+                              <div 
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                style={{ 
+                                  backgroundColor: tipo.backgroundColor, 
+                                  color: tipo.textColor 
+                                }}
+                                data-testid={`category-preview-${tipo.id}`}
+                              >
+                                {tipo.nome}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {user?.papel === "Admin" && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive"
+                                      data-testid={`delete-category-${tipo.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Tem certeza que deseja remover a categoria "{tipo.nome}"? Esta ação não pode ser desfeita.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeleteCategory(tipo.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        data-testid={`confirm-delete-category-${tipo.id}`}
+                                      >
+                                        Remover
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8" data-testid="empty-categories">
+                      <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        Nenhuma categoria cadastrada ainda.
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Clique em "Nova Categoria" para adicionar a primeira categoria.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
         </main>
@@ -682,6 +854,240 @@ export default function DatabasePage() {
                   data-testid="button-edit-submit"
                 >
                   {updateMutation.isPending ? "Atualizando..." : "Atualizar Cliente"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Tag Dialog */}
+      <Dialog open={createTagDialogOpen} onOpenChange={setCreateTagDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <Form {...tagForm}>
+            <form onSubmit={tagForm.handleSubmit(onCreateTagSubmit)}>
+              <DialogHeader>
+                <DialogTitle>Adicionar Tag</DialogTitle>
+                <DialogDescription>
+                  Crie uma nova tag com cores personalizadas.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="grid gap-4 py-4">
+                <FormField
+                  control={tagForm.control}
+                  name="nome"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome da Tag *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Digite o nome da tag" 
+                          {...field} 
+                          data-testid="input-tag-name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={tagForm.control}
+                  name="backgroundColor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cor de Fundo</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Input 
+                            type="color"
+                            {...field}
+                            className="w-16 h-10 p-1 border rounded"
+                            data-testid="input-tag-bg-color"
+                          />
+                          <Input 
+                            type="text"
+                            {...field}
+                            placeholder="#FF0000"
+                            className="flex-1"
+                            data-testid="input-tag-bg-text"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={tagForm.control}
+                  name="textColor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cor do Texto</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Input 
+                            type="color"
+                            {...field}
+                            className="w-16 h-10 p-1 border rounded"
+                            data-testid="input-tag-text-color"
+                          />
+                          <Input 
+                            type="text"
+                            {...field}
+                            placeholder="#FFFFFF"
+                            className="flex-1"
+                            data-testid="input-tag-text-text"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Preview */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium">Preview:</span>
+                  <div 
+                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    style={{ 
+                      backgroundColor: tagForm.watch("backgroundColor") || "#3b82f6", 
+                      color: tagForm.watch("textColor") || "#ffffff" 
+                    }}
+                    data-testid="tag-preview"
+                  >
+                    {tagForm.watch("nome") || "Nome da Tag"}
+                  </div>
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button 
+                  type="submit" 
+                  disabled={createTagMutation.isPending}
+                  data-testid="button-tag-submit"
+                >
+                  {createTagMutation.isPending ? "Criando..." : "Criar Tag"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Category Dialog */}
+      <Dialog open={createCategoryDialogOpen} onOpenChange={setCreateCategoryDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <Form {...categoryForm}>
+            <form onSubmit={categoryForm.handleSubmit(onCreateCategorySubmit)}>
+              <DialogHeader>
+                <DialogTitle>Adicionar Categoria de Vídeo</DialogTitle>
+                <DialogDescription>
+                  Crie uma nova categoria de vídeo com cores personalizadas.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="grid gap-4 py-4">
+                <FormField
+                  control={categoryForm.control}
+                  name="nome"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome da Categoria *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Digite o nome da categoria" 
+                          {...field} 
+                          data-testid="input-category-name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={categoryForm.control}
+                  name="backgroundColor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cor de Fundo</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Input 
+                            type="color"
+                            {...field}
+                            className="w-16 h-10 p-1 border rounded"
+                            data-testid="input-category-bg-color"
+                          />
+                          <Input 
+                            type="text"
+                            {...field}
+                            placeholder="#FF0000"
+                            className="flex-1"
+                            data-testid="input-category-bg-text"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={categoryForm.control}
+                  name="textColor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cor do Texto</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Input 
+                            type="color"
+                            {...field}
+                            className="w-16 h-10 p-1 border rounded"
+                            data-testid="input-category-text-color"
+                          />
+                          <Input 
+                            type="text"
+                            {...field}
+                            placeholder="#FFFFFF"
+                            className="flex-1"
+                            data-testid="input-category-text-text"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Preview */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium">Preview:</span>
+                  <div 
+                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    style={{ 
+                      backgroundColor: categoryForm.watch("backgroundColor") || "#3b82f6", 
+                      color: categoryForm.watch("textColor") || "#ffffff" 
+                    }}
+                    data-testid="category-preview"
+                  >
+                    {categoryForm.watch("nome") || "Nome da Categoria"}
+                  </div>
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button 
+                  type="submit" 
+                  disabled={createCategoryMutation.isPending}
+                  data-testid="button-category-submit"
+                >
+                  {createCategoryMutation.isPending ? "Criando..." : "Criar Categoria"}
                 </Button>
               </DialogFooter>
             </form>
