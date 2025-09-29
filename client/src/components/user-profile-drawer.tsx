@@ -209,8 +209,8 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent 
           side="left" 
-          className="w-[400px] sm:w-[540px] p-0 flex flex-col"
-          style={{ left: isCollapsed ? "80px" : "256px", bottom: 0, top: "auto", height: "70vh" }}
+          className="w-[450px] sm:w-[600px] p-0 flex flex-col"
+          style={{ left: isCollapsed ? "80px" : "256px", bottom: "20px", top: "auto", height: "85vh" }}
         >
           <SheetHeader className="p-6 pb-4">
             <SheetTitle>Configurações</SheetTitle>
