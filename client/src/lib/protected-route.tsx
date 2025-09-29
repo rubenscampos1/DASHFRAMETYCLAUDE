@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { Redirect, Route } from "wouter";
+import { MobileTopbar } from "@/components/mobile-topbar";
 
 export function ProtectedRoute({
   path,
@@ -31,5 +32,10 @@ function ProtectedContent({ Component }: { Component: () => React.JSX.Element })
     return <Redirect to="/auth" />;
   }
 
-  return <Component />;
+  return (
+    <>
+      <MobileTopbar />
+      <Component />
+    </>
+  );
 }

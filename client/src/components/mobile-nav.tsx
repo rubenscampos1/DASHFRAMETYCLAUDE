@@ -27,7 +27,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/components/ui/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserProfileDrawer } from "@/components/user-profile-drawer";
 import frametyLogo from "@assets/Framety - PNG -  01_1759177448673.png";
 
 interface MobileNavProps {
@@ -148,18 +147,6 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                     {user.papel}
                   </p>
                 </div>
-              </div>
-              <div className="mt-3">
-                <UserProfileDrawer isCollapsed={false}>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    data-testid="mobile-nav-profile"
-                  >
-                    Ver Perfil
-                  </Button>
-                </UserProfileDrawer>
               </div>
             </div>
           )}
