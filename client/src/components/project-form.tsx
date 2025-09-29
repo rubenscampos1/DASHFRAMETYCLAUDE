@@ -7,15 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { insertProjetoSchema, type InsertProjeto, type User, type TipoVideo, type Cliente, type Tag } from "@shared/schema";
+import { insertProjetoSchema, type InsertProjeto, type User, type TipoVideo, type Cliente } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { z } from "zod";
 
-const formSchema = insertProjetoSchema.extend({
-  tags: z.string().optional(), // Form uses string, will convert to array before submit
-});
+const formSchema = insertProjetoSchema;
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -42,9 +40,6 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
     queryKey: ["/api/clientes"],
   });
 
-  const { data: tags = [] } = useQuery<Tag[]>({
-    queryKey: ["/api/tags"],
-  });
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -55,7 +50,6 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
       responsavelId: initialData?.responsavelId || "",
       prioridade: initialData?.prioridade || "Média",
       clienteId: initialData?.clienteId || "",
-      tags: initialData?.tags?.join(", ") || "",
       dataPrevistaEntrega: initialData?.dataPrevistaEntrega 
         ? new Date(initialData.dataPrevistaEntrega).toISOString().split('T')[0]
         : "",
@@ -111,7 +105,6 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
   const onSubmit = (data: FormData) => {
     const projectData: InsertProjeto = {
       ...data,
-      tags: data.tags ? data.tags.split(",").map(tag => tag.trim()).filter(Boolean) : [],
       dataPrevistaEntrega: data.dataPrevistaEntrega ? new Date(data.dataPrevistaEntrega) : undefined,
     };
 
@@ -266,88 +259,6 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tags</FormLabel>
-                  <FormControl>
-                    <div className="space-y-2">
-                      {/* Selected tags display */}
-                      {field.value && field.value.trim() && (
-                        <div className="flex flex-wrap gap-2">
-                          {field.value.split(',').map((tagName, index) => {
-                            const tag = tags.find(t => t.nome === tagName.trim());
-                            return (
-                              <div
-                                key={index}
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                style={{ 
-                                  backgroundColor: tag?.backgroundColor || "#3b82f6", 
-                                  color: tag?.textColor || "#ffffff" 
-                                }}
-                                data-testid={`selected-tag-${index}`}
-                              >
-                                {tagName.trim()}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const currentTags = field.value ? field.value.split(',').map(t => t.trim()) : [];
-                                    const newTags = currentTags.filter((_, i) => i !== index);
-                                    field.onChange(newTags.join(', '));
-                                  }}
-                                  className="ml-1 text-xs hover:opacity-70"
-                                  data-testid={`remove-tag-${index}`}
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      
-                      {/* Tag selector */}
-                      <Select 
-                        onValueChange={(value) => {
-                          const currentTags = field.value ? field.value.split(',').map(t => t.trim()).filter(Boolean) : [];
-                          const selectedTag = tags.find(t => t.id === value);
-                          if (selectedTag && !currentTags.includes(selectedTag.nome)) {
-                            const newTags = [...currentTags, selectedTag.nome];
-                            field.onChange(newTags.join(', '));
-                          }
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="select-tags">
-                            <SelectValue placeholder="Selecione tags para adicionar..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {tags.map((tag) => (
-                            <SelectItem key={tag.id} value={tag.id} data-testid={`option-tag-${tag.id}`}>
-                              <div className="flex items-center space-x-2">
-                                <div 
-                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                                  style={{ 
-                                    backgroundColor: tag.backgroundColor, 
-                                    color: tag.textColor 
-                                  }}
-                                >
-                                  {tag.nome}
-                                </div>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
