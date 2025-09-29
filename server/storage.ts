@@ -5,6 +5,7 @@ import {
   tags, 
   logsDeStatus,
   clientes,
+  empreendimentos,
   type User, 
   type InsertUser, 
   type Projeto,
@@ -17,6 +18,9 @@ import {
   type InsertLogStatus,
   type Cliente,
   type InsertCliente,
+  type Empreendimento,
+  type InsertEmpreendimento,
+  type EmpreendimentoWithRelations,
   type ProjetoWithRelations
 } from "@shared/schema";
 import { db } from "./db";
@@ -67,6 +71,13 @@ export interface IStorage {
   createCliente(cliente: InsertCliente): Promise<Cliente>;
   updateCliente(id: string, cliente: Partial<InsertCliente>): Promise<Cliente>;
   deleteCliente(id: string): Promise<void>;
+  
+  // Empreendimentos
+  getEmpreendimentos(): Promise<EmpreendimentoWithRelations[]>;
+  getEmpreendimento(id: string): Promise<EmpreendimentoWithRelations | undefined>;
+  createEmpreendimento(empreendimento: InsertEmpreendimento): Promise<Empreendimento>;
+  updateEmpreendimento(id: string, empreendimento: Partial<InsertEmpreendimento>): Promise<Empreendimento>;
+  deleteEmpreendimento(id: string): Promise<void>;
   
   // Logs de Status
   createLogStatus(log: InsertLogStatus): Promise<LogStatus>;
@@ -316,7 +327,69 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Não é possível excluir este cliente pois ele possui ${count} projeto(s) associado(s). Remova os projetos primeiro.`);
     }
     
+    // Verificar se há empreendimentos associados a este cliente
+    const empreendimentosDoCliente = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(empreendimentos)
+      .where(eq(empreendimentos.clienteId, id));
+    
+    const countEmpreendimentos = empreendimentosDoCliente[0]?.count || 0;
+    if (countEmpreendimentos > 0) {
+      throw new Error(`Não é possível excluir este cliente pois ele possui ${countEmpreendimentos} empreendimento(s) associado(s). Remova os empreendimentos primeiro.`);
+    }
+    
     await db.delete(clientes).where(eq(clientes.id, id));
+  }
+
+  async getEmpreendimentos(): Promise<EmpreendimentoWithRelations[]> {
+    const result = await db
+      .select()
+      .from(empreendimentos)
+      .leftJoin(clientes, eq(empreendimentos.clienteId, clientes.id))
+      .orderBy(asc(empreendimentos.nome));
+    
+    return result.map(row => ({
+      ...row.empreendimentos,
+      cliente: row.clientes!,
+    }));
+  }
+
+  async getEmpreendimento(id: string): Promise<EmpreendimentoWithRelations | undefined> {
+    const [result] = await db
+      .select()
+      .from(empreendimentos)
+      .leftJoin(clientes, eq(empreendimentos.clienteId, clientes.id))
+      .where(eq(empreendimentos.id, id));
+
+    if (!result) return undefined;
+
+    return {
+      ...result.empreendimentos,
+      cliente: result.clientes!,
+    };
+  }
+
+  async createEmpreendimento(empreendimento: InsertEmpreendimento): Promise<Empreendimento> {
+    const [newEmpreendimento] = await db
+      .insert(empreendimentos)
+      .values(empreendimento)
+      .returning();
+    return newEmpreendimento;
+  }
+
+  async updateEmpreendimento(id: string, empreendimento: Partial<InsertEmpreendimento>): Promise<Empreendimento> {
+    const [updatedEmpreendimento] = await db
+      .update(empreendimentos)
+      .set(empreendimento)
+      .where(eq(empreendimentos.id, id))
+      .returning();
+    return updatedEmpreendimento;
+  }
+
+  async deleteEmpreendimento(id: string): Promise<void> {
+    // Verificar se há projetos associados a este empreendimento (quando implementarmos)
+    // Por enquanto, apenas deletar o empreendimento
+    await db.delete(empreendimentos).where(eq(empreendimentos.id, id));
   }
 
   async createLogStatus(log: InsertLogStatus): Promise<LogStatus> {
