@@ -23,10 +23,12 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
 
 export default function Relatorios() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { mainContentClass } = useSidebarLayout();
   const [filters, setFilters] = useState({
     status: "all",
     responsavelId: "all",
@@ -183,7 +185,7 @@ export default function Relatorios() {
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       
-      <div className="lg:pl-64 flex flex-col flex-1 overflow-hidden">
+      <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         {/* Header */}
         <div className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm">
           <div className="flex-1 px-6 flex justify-between items-center">
@@ -440,7 +442,7 @@ export default function Relatorios() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell data-testid="cell-client">
-                                  {projeto.cliente || "-"}
+                                  {projeto.cliente?.nome || "-"}
                                 </TableCell>
                                 <TableCell data-testid="cell-created">
                                   {format(new Date(projeto.dataCriacao), "dd/MM/yyyy", { locale: ptBR })}
