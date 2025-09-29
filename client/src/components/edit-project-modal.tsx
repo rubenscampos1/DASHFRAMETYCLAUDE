@@ -368,7 +368,7 @@ export function EditProjectModal({
               name="linkYoutube"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>URL do YouTube</FormLabel>
+                  <FormLabel>Link Frame.io</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
