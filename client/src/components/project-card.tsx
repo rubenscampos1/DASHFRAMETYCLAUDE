@@ -91,15 +91,16 @@ export function ProjectCard({
         border-l-4 border-l-yellow-500 dark:border-l-yellow-400
         ${isDragging ? "opacity-50 rotate-2 scale-105" : ""}
         bg-card dark:bg-card/50 hover:bg-accent/10 dark:hover:bg-accent/5
+        overflow-hidden
       `}
       onClick={handleCardClick}
       data-testid={`project-card-${projeto.id}`}
     >
-      <CardContent className="p-4 space-y-4">
-        {/* Categoria - Badge grande no topo */}
+      <CardContent className="p-3 space-y-3">
+        {/* Categoria - Badge menor no topo */}
         {projeto.tipoVideo && (
           <Badge 
-            className="text-sm font-bold px-4 py-1.5 rounded-full"
+            className="text-xs font-semibold px-3 py-1 rounded-full inline-block"
             style={{
               backgroundColor: projeto.tipoVideo.backgroundColor,
               color: projeto.tipoVideo.textColor
@@ -111,27 +112,29 @@ export function ProjectCard({
         )}
 
         {/* Cliente e Empreendimento lado a lado */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap overflow-hidden">
           {projeto.cliente && (
             <Badge 
-              className="text-sm font-semibold px-3 py-1 rounded-md border-0"
+              className="text-xs font-semibold px-2.5 py-0.5 rounded-md border-0 truncate max-w-[120px]"
               style={{
                 backgroundColor: projeto.cliente.backgroundColor,
                 color: projeto.cliente.textColor,
               }}
               data-testid="project-client"
+              title={projeto.cliente.nome}
             >
               {projeto.cliente.nome}
             </Badge>
           )}
           {projeto.empreendimento && (
             <Badge 
-              className="text-sm font-semibold px-3 py-1 rounded-md border-0"
+              className="text-xs font-semibold px-2.5 py-0.5 rounded-md border-0 truncate max-w-[120px]"
               style={{
                 backgroundColor: projeto.empreendimento.backgroundColor,
                 color: projeto.empreendimento.textColor,
               }}
               data-testid="project-empreendimento"
+              title={projeto.empreendimento.nome}
             >
               {projeto.empreendimento.nome}
             </Badge>
@@ -140,29 +143,29 @@ export function ProjectCard({
 
         {/* Data V1 Interna - Destaque grande com ícone */}
         {formattedDate && (
-          <div className="flex items-center gap-3">
-            <Calendar className="w-6 h-6 text-muted-foreground" />
-            <span className="text-3xl font-bold text-cyan-400 dark:text-cyan-300" data-testid="project-internal-date">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            <span className="text-2xl font-bold text-cyan-400 dark:text-cyan-300" data-testid="project-internal-date">
               {formattedDate}
             </span>
           </div>
         )}
 
         {/* Rodapé: Esquerda (ações + complexidade + data) e Direita (ícones + avatar) */}
-        <div className="flex items-center justify-between pt-3 border-t border-border/50">
+        <div className="flex items-center justify-between pt-2 border-t border-border/50 gap-2">
           {/* Esquerda: Lixeira + Duplicar + Badge Prioridade + Data pequena */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-shrink min-w-0">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 opacity-50 hover:opacity-100 transition-opacity"
+                    className="h-7 w-7 p-0 opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
                     onClick={handleDelete}
                     data-testid={`delete-project-${projeto.id}`}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -177,11 +180,11 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 opacity-50 hover:opacity-100 transition-opacity"
+                    className="h-7 w-7 p-0 opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
                     onClick={handleDuplicate}
                     data-testid={`duplicate-project-${projeto.id}`}
                   >
-                    <Copy className="h-4 w-4" />
+                    <Copy className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -191,7 +194,7 @@ export function ProjectCard({
             </TooltipProvider>
 
             <Badge 
-              className={`${priorityColors[projeto.prioridade]} text-xs font-bold px-3 py-1 rounded-full shadow-sm`}
+              className={`${priorityColors[projeto.prioridade]} text-xs font-bold px-2.5 py-0.5 rounded-full shadow-sm flex-shrink-0`}
               data-testid="project-priority"
             >
               {projeto.prioridade}
@@ -199,14 +202,14 @@ export function ProjectCard({
 
             {/* Data pequena repetida */}
             {formattedDate && (
-              <span className="text-sm text-muted-foreground ml-2">
+              <span className="text-xs text-muted-foreground truncate">
                 {formattedDate}
               </span>
             )}
           </div>
 
           {/* Direita: Badge Comentários + Botões + Avatar */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {/* Badge de Comentários */}
             <TooltipProvider>
               <Tooltip>
@@ -214,11 +217,11 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 gap-1 opacity-70 hover:opacity-100"
+                    className="h-7 px-1.5 gap-1 opacity-70 hover:opacity-100"
                     onClick={handleViewComments}
                     data-testid={`comments-${projeto.id}`}
                   >
-                    <MessageSquare className="h-4 w-4" />
+                    <MessageSquare className="h-3.5 w-3.5" />
                     <span className="text-xs font-semibold">{commentCount}</span>
                   </Button>
                 </TooltipTrigger>
@@ -235,12 +238,12 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 opacity-50 hover:opacity-100 disabled:opacity-30"
+                    className="h-7 w-7 p-0 opacity-50 hover:opacity-100 disabled:opacity-30"
                     onClick={(e) => handleOpenLink(e, projeto.linkFrameIo)}
                     disabled={!projeto.linkFrameIo}
                     data-testid={`frameio-${projeto.id}`}
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    <ExternalLink className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -256,12 +259,12 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 opacity-50 hover:opacity-100 disabled:opacity-30"
+                    className="h-7 w-7 p-0 opacity-50 hover:opacity-100 disabled:opacity-30"
                     onClick={(e) => handleOpenLink(e, projeto.linkYoutube)}
                     disabled={!projeto.linkYoutube}
                     data-testid={`youtube-${projeto.id}`}
                   >
-                    <Youtube className="h-4 w-4" />
+                    <Youtube className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -277,11 +280,11 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 opacity-50 hover:opacity-100"
+                    className="h-7 w-7 p-0 opacity-50 hover:opacity-100"
                     onClick={handleMarkComplete}
                     data-testid={`complete-${projeto.id}`}
                   >
-                    <Check className="h-4 w-4" />
+                    <Check className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -290,15 +293,15 @@ export function ProjectCard({
               </Tooltip>
             </TooltipProvider>
 
-            {/* Avatar do responsável - maior e mais destacado */}
+            {/* Avatar do responsável */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Avatar className="h-10 w-10 cursor-pointer ring-2 ring-primary/20" data-testid="project-avatar">
+                  <Avatar className="h-9 w-9 cursor-pointer ring-2 ring-primary/20 flex-shrink-0" data-testid="project-avatar">
                     {projeto.responsavel?.fotoUrl && (
                       <AvatarImage src={projeto.responsavel.fotoUrl} alt={projeto.responsavel.nome} />
                     )}
-                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                       {projeto.responsavel?.nome?.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
