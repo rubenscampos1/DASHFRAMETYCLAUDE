@@ -45,11 +45,6 @@ export function Sidebar() {
       icon: CheckCircle,
     },
     {
-      name: "Novo Projeto",
-      href: "/novo-projeto",
-      icon: Plus,
-    },
-    {
       name: "Minha Fila",
       href: "/minha-fila",
       icon: User,
