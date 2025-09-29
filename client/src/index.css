@@ -5,8 +5,8 @@
  * - Configured container max-width and padding
  * - Enhanced viewport support for mobile devices
  * - Typography scales automatically: mobile (14px base) to desktop (16px base)
+ * - Font loaded via index.html for better performance (no duplicate @import)
  */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
