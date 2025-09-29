@@ -55,6 +55,15 @@ export const clientes = pgTable("clientes", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const empreendimentos = pgTable("empreendimentos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nome: text("nome").notNull(),
+  clienteId: varchar("cliente_id").references(() => clientes.id).notNull(),
+  backgroundColor: text("background_color").notNull().default("#3b82f6"),
+  textColor: text("text_color").notNull().default("#ffffff"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const projetos = pgTable("projetos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   titulo: text("titulo").notNull(),
@@ -93,6 +102,14 @@ export const tiposDeVideoRelations = relations(tiposDeVideo, ({ many }) => ({
 
 export const clientesRelations = relations(clientes, ({ many }) => ({
   projetos: many(projetos),
+  empreendimentos: many(empreendimentos),
+}));
+
+export const empreendimentosRelations = relations(empreendimentos, ({ one }) => ({
+  cliente: one(clientes, {
+    fields: [empreendimentos.clienteId],
+    references: [clientes.id],
+  }),
 }));
 
 export const projetosRelations = relations(projetos, ({ one, many }) => ({
@@ -158,6 +175,14 @@ export const insertClienteSchema = createInsertSchema(clientes).omit({
   createdAt: true,
 });
 
+export const insertEmpreendimentoSchema = createInsertSchema(empreendimentos).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  backgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Cor de fundo deve ser um código hexadecimal válido"),
+  textColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Cor do texto deve ser um código hexadecimal válido"),
+});
+
 export const insertProjetoSchema = createInsertSchema(projetos).omit({
   id: true,
   dataCriacao: true,
@@ -181,6 +206,8 @@ export type Tag = typeof tags.$inferSelect;
 export type InsertTag = z.infer<typeof insertTagSchema>;
 export type Cliente = typeof clientes.$inferSelect;
 export type InsertCliente = z.infer<typeof insertClienteSchema>;
+export type Empreendimento = typeof empreendimentos.$inferSelect;
+export type InsertEmpreendimento = z.infer<typeof insertEmpreendimentoSchema>;
 export type Projeto = typeof projetos.$inferSelect;
 export type InsertProjeto = z.infer<typeof insertProjetoSchema>;
 export type LogStatus = typeof logsDeStatus.$inferSelect;
@@ -191,4 +218,8 @@ export type ProjetoWithRelations = Projeto & {
   tipoVideo: TipoVideo;
   responsavel: User;
   cliente?: Cliente;
+};
+
+export type EmpreendimentoWithRelations = Empreendimento & {
+  cliente: Cliente;
 };
