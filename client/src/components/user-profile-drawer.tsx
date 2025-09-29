@@ -93,27 +93,6 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
     },
   });
 
-  const createUserMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof userManagementSchema>) => {
-      return await apiRequest("/api/users", "POST", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({
-        title: "Usuário criado!",
-        description: "O novo usuário foi adicionado com sucesso.",
-      });
-      userForm.reset();
-      setPhotoPreview(null);
-    },
-    onError: () => {
-      toast({
-        title: "Algo deu errado. Tente novamente.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const updateUserMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: z.infer<typeof userManagementSchema> }) => {
       return await apiRequest(`/api/users/${id}`, "PATCH", data);
@@ -174,8 +153,6 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
   const handleUserSubmit = (data: z.infer<typeof userManagementSchema>) => {
     if (editingUserId) {
       updateUserMutation.mutate({ id: editingUserId, data });
-    } else {
-      createUserMutation.mutate(data);
     }
   };
 
@@ -352,113 +329,168 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
             {user?.papel === "Admin" && (
               <TabsContent value="users" className="flex-1 overflow-y-auto mt-4 pb-6">
                 <div className="space-y-6">
-                  <div className="border rounded-lg p-4">
-                    <h3 className="text-lg font-semibold mb-4">
-                      {editingUserId ? "Editar Usuário" : "Novo Usuário"}
-                    </h3>
-                    <Form {...userForm}>
-                      <form onSubmit={userForm.handleSubmit(handleUserSubmit)} className="space-y-4">
-                        <div className="flex flex-col items-center space-y-4">
-                          <Avatar className="h-20 w-20">
-                            {photoPreview ? (
-                              <AvatarImage src={photoPreview} alt="Preview" />
-                            ) : null}
-                            <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                              U
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <Input
-                              type="file"
-                              accept="image/jpeg,image/png"
-                              className="hidden"
-                              id="user-photo"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handlePhotoUpload(file, userForm);
-                              }}
-                              data-testid="input-user-photo"
-                            />
-                            <Label htmlFor="user-photo">
-                              <Button type="button" variant="outline" size="sm" asChild>
-                                <span className="cursor-pointer">
-                                  <Upload className="h-4 w-4 mr-2" />
-                                  Carregar Foto
-                                </span>
-                              </Button>
-                            </Label>
+                  {!editingUserId ? (
+                    <div className="border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Usuário</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Papel</TableHead>
+                            <TableHead className="text-right">Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {allUsers?.map((u) => (
+                            <TableRow 
+                              key={u.id}
+                              onMouseEnter={() => setHoveredUserId(u.id)}
+                              onMouseLeave={() => setHoveredUserId(null)}
+                            >
+                              <TableCell className="flex items-center space-x-2">
+                                <Avatar className="h-8 w-8">
+                                  {u.fotoUrl ? (
+                                    <AvatarImage src={u.fotoUrl} alt={u.nome} />
+                                  ) : null}
+                                  <AvatarFallback className="text-xs">
+                                    {u.nome.substring(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{u.nome}</span>
+                              </TableCell>
+                              <TableCell>{u.email}</TableCell>
+                              <TableCell>{u.papel}</TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end space-x-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditUser(u)}
+                                    data-testid={`button-edit-user-${u.id}`}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  {u.id !== user?.id && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => deleteUserMutation.mutate(u.id)}
+                                      disabled={deleteUserMutation.isPending}
+                                      data-testid={`button-delete-user-${u.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg p-4">
+                      <h3 className="text-lg font-semibold mb-4">Editar Usuário</h3>
+                      <Form {...userForm}>
+                        <form onSubmit={userForm.handleSubmit(handleUserSubmit)} className="space-y-4">
+                          <div className="flex flex-col items-center space-y-4">
+                            <Avatar className="h-20 w-20">
+                              {photoPreview ? (
+                                <AvatarImage src={photoPreview} alt="Preview" />
+                              ) : null}
+                              <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                                {userForm.watch("nome")?.substring(0, 2).toUpperCase() || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <Input
+                                type="file"
+                                accept="image/jpeg,image/png"
+                                className="hidden"
+                                id="user-photo"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handlePhotoUpload(file, userForm);
+                                }}
+                                data-testid="input-user-photo"
+                              />
+                              <Label htmlFor="user-photo">
+                                <Button type="button" variant="outline" size="sm" asChild>
+                                  <span className="cursor-pointer">
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Carregar Foto
+                                  </span>
+                                </Button>
+                              </Label>
+                            </div>
                           </div>
-                        </div>
 
-                        <FormField
-                          control={userForm.control}
-                          name="nome"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Nome</FormLabel>
-                              <FormControl>
-                                <Input {...field} data-testid="input-user-name" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={userForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email</FormLabel>
-                              <FormControl>
-                                <Input type="email" {...field} data-testid="input-user-email" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={userForm.control}
-                          name="senha"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                Senha {editingUserId && "(deixe em branco para manter a atual)"}
-                              </FormLabel>
-                              <FormControl>
-                                <Input type="password" {...field} data-testid="input-user-password" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={userForm.control}
-                          name="papel"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Papel</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                          <FormField
+                            control={userForm.control}
+                            name="nome"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nome</FormLabel>
                                 <FormControl>
-                                  <SelectTrigger data-testid="select-user-role">
-                                    <SelectValue />
-                                  </SelectTrigger>
+                                  <Input {...field} data-testid="input-user-name" />
                                 </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="Admin">Admin</SelectItem>
-                                  <SelectItem value="Gestor">Gestor</SelectItem>
-                                  <SelectItem value="Membro">Membro</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                        <div className="flex justify-end space-x-2">
-                          {editingUserId && (
+                          <FormField
+                            control={userForm.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Email</FormLabel>
+                                <FormControl>
+                                  <Input type="email" {...field} data-testid="input-user-email" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={userForm.control}
+                            name="senha"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Senha (deixe em branco para manter a atual)</FormLabel>
+                                <FormControl>
+                                  <Input type="password" {...field} data-testid="input-user-password" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={userForm.control}
+                            name="papel"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Papel</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger data-testid="select-user-role">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="Admin">Admin</SelectItem>
+                                    <SelectItem value="Gestor">Gestor</SelectItem>
+                                    <SelectItem value="Membro">Membro</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="flex justify-end space-x-2">
                             <Button
                               type="button"
                               variant="outline"
@@ -467,79 +499,18 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
                             >
                               Cancelar
                             </Button>
-                          )}
-                          <Button
-                            type="submit"
-                            disabled={createUserMutation.isPending || updateUserMutation.isPending}
-                            data-testid="button-user-save"
-                          >
-                            {(createUserMutation.isPending || updateUserMutation.isPending) 
-                              ? "Salvando..." 
-                              : editingUserId ? "Salvar alterações" : "Criar Usuário"}
-                          </Button>
-                        </div>
-                      </form>
-                    </Form>
-                  </div>
-
-                  <div className="border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Usuário</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Papel</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {allUsers?.map((u) => (
-                          <TableRow 
-                            key={u.id}
-                            onMouseEnter={() => setHoveredUserId(u.id)}
-                            onMouseLeave={() => setHoveredUserId(null)}
-                          >
-                            <TableCell className="flex items-center space-x-2">
-                              <Avatar className="h-8 w-8">
-                                {u.fotoUrl ? (
-                                  <AvatarImage src={u.fotoUrl} alt={u.nome} />
-                                ) : null}
-                                <AvatarFallback className="text-xs">
-                                  {u.nome.substring(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span>{u.nome}</span>
-                            </TableCell>
-                            <TableCell>{u.email}</TableCell>
-                            <TableCell>{u.papel}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end space-x-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditUser(u)}
-                                  data-testid={`button-edit-user-${u.id}`}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                {u.id !== user?.id && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => deleteUserMutation.mutate(u.id)}
-                                    disabled={deleteUserMutation.isPending}
-                                    data-testid={`button-delete-user-${u.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                            <Button
+                              type="submit"
+                              disabled={updateUserMutation.isPending}
+                              data-testid="button-user-save"
+                            >
+                              {updateUserMutation.isPending ? "Salvando..." : "Salvar alterações"}
+                            </Button>
+                          </div>
+                        </form>
+                      </Form>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             )}
