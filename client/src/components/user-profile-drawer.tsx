@@ -74,7 +74,7 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: z.infer<typeof profileSchema>) => {
-      return await apiRequest("/api/user/profile", "PATCH", data);
+      return await apiRequest("PATCH", "/api/user/profile", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
@@ -95,7 +95,7 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: z.infer<typeof userManagementSchema> }) => {
-      return await apiRequest(`/api/users/${id}`, "PATCH", data);
+      return await apiRequest("PATCH", `/api/users/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -117,7 +117,7 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/users/${id}`, "DELETE");
+      return await apiRequest("DELETE", `/api/users/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
