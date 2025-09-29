@@ -182,6 +182,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteTipoVideo(req.params.id);
       res.sendStatus(204);
     } catch (error) {
+      // Se for erro de foreign key constraint, retornar mensagem amigável
+      if (error instanceof Error && error.message.includes("projeto(s) associado(s)")) {
+        return res.status(400).json({ message: error.message });
+      }
       next(error);
     }
   });
@@ -282,6 +286,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteCliente(req.params.id);
       res.sendStatus(204);
     } catch (error) {
+      // Se for erro de foreign key constraint, retornar mensagem amigável
+      if (error instanceof Error && error.message.includes("projeto(s) associado(s)")) {
+        return res.status(400).json({ message: error.message });
+      }
       next(error);
     }
   });

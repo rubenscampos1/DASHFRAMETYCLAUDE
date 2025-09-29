@@ -239,6 +239,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTipoVideo(id: string): Promise<void> {
+    // Verificar se há projetos associados a este tipo de vídeo
+    const projetosDoTipo = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(projetos)
+      .where(eq(projetos.tipoVideoId, id));
+    
+    const count = projetosDoTipo[0]?.count || 0;
+    if (count > 0) {
+      throw new Error(`Não é possível excluir este tipo de vídeo pois ele possui ${count} projeto(s) associado(s). Remova os projetos primeiro.`);
+    }
+    
     await db.delete(tiposDeVideo).where(eq(tiposDeVideo.id, id));
   }
 
@@ -294,6 +305,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCliente(id: string): Promise<void> {
+    // Verificar se há projetos associados a este cliente
+    const projetosDoCliente = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(projetos)
+      .where(eq(projetos.clienteId, id));
+    
+    const count = projetosDoCliente[0]?.count || 0;
+    if (count > 0) {
+      throw new Error(`Não é possível excluir este cliente pois ele possui ${count} projeto(s) associado(s). Remova os projetos primeiro.`);
+    }
+    
     await db.delete(clientes).where(eq(clientes.id, id));
   }
 
@@ -404,11 +426,11 @@ export class DatabaseStorage implements IStorage {
   async seedData(): Promise<void> {
     // Seed tipos de video
     const tiposData = [
-      { nome: "Institucional" },
-      { nome: "Comercial" },
-      { nome: "Tutorial" },
-      { nome: "Evento" },
-      { nome: "Webinar" }
+      { nome: "Institucional", backgroundColor: "#2563eb", textColor: "#ffffff" },
+      { nome: "Comercial", backgroundColor: "#dc2626", textColor: "#ffffff" },
+      { nome: "Tutorial", backgroundColor: "#16a34a", textColor: "#ffffff" },
+      { nome: "Evento", backgroundColor: "#9333ea", textColor: "#ffffff" },
+      { nome: "Webinar", backgroundColor: "#ea580c", textColor: "#ffffff" }
     ];
 
     for (const tipo of tiposData) {
@@ -421,14 +443,14 @@ export class DatabaseStorage implements IStorage {
 
     // Seed tags
     const tagsData = [
-      { nome: "Marketing" },
-      { nome: "Vendas" },
-      { nome: "Educação" },
-      { nome: "Produto" },
-      { nome: "Evento" },
-      { nome: "Tech" },
-      { nome: "Q1" },
-      { nome: "Promo" }
+      { nome: "Marketing", backgroundColor: "#ef4444", textColor: "#ffffff" },
+      { nome: "Vendas", backgroundColor: "#10b981", textColor: "#ffffff" },
+      { nome: "Educação", backgroundColor: "#3b82f6", textColor: "#ffffff" },
+      { nome: "Produto", backgroundColor: "#8b5cf6", textColor: "#ffffff" },
+      { nome: "Evento", backgroundColor: "#f59e0b", textColor: "#000000" },
+      { nome: "Tech", backgroundColor: "#6b7280", textColor: "#ffffff" },
+      { nome: "Q1", backgroundColor: "#06b6d4", textColor: "#ffffff" },
+      { nome: "Promo", backgroundColor: "#ec4899", textColor: "#ffffff" }
     ];
 
     for (const tag of tagsData) {
