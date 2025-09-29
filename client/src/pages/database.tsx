@@ -9,22 +9,36 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Plus, Edit, Trash2, Database, Building2 } from "lucide-react";
+import { Plus, Edit, Trash2, Database, Building2, Tag, Video } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertClienteSchema, type Cliente, type InsertCliente } from "@shared/schema";
+import { insertClienteSchema, insertTagSchema, insertTipoVideoSchema, type Cliente, type InsertCliente, type Tag as TagType, type InsertTag, type TipoVideo, type InsertTipoVideo } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function DatabasePage() {
   const { toast } = useToast();
   const { mainContentClass } = useSidebarLayout();
+  const { user } = useAuth();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  
+  // Tag/Category modals
+  const [createTagDialogOpen, setCreateTagDialogOpen] = useState(false);
+  const [createCategoryDialogOpen, setCreateCategoryDialogOpen] = useState(false);
 
   const { data: clientes = [], isLoading } = useQuery<Cliente[]>({
     queryKey: ["/api/clientes"],
+  });
+
+  const { data: tags = [] } = useQuery<TagType[]>({
+    queryKey: ["/api/tags"],
+  });
+
+  const { data: categorias = [] } = useQuery<TipoVideo[]>({
+    queryKey: ["/api/tipos-video"],
   });
 
   const createForm = useForm<InsertCliente>({
@@ -44,6 +58,24 @@ export default function DatabasePage() {
       email: "",
       telefone: "",
       empresa: "",
+    },
+  });
+
+  const tagForm = useForm<InsertTag>({
+    resolver: zodResolver(insertTagSchema),
+    defaultValues: {
+      nome: "",
+      backgroundColor: "#10b981",
+      textColor: "#ffffff",
+    },
+  });
+
+  const categoryForm = useForm<InsertTipoVideo>({
+    resolver: zodResolver(insertTipoVideoSchema),
+    defaultValues: {
+      nome: "",
+      backgroundColor: "#3b82f6",
+      textColor: "#ffffff",
     },
   });
 
@@ -113,6 +145,94 @@ export default function DatabasePage() {
     },
   });
 
+  // Tag mutations
+  const createTagMutation = useMutation({
+    mutationFn: async (data: InsertTag) => {
+      const response = await apiRequest("POST", "/api/tags", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tags"] });
+      setCreateTagDialogOpen(false);
+      tagForm.reset();
+      toast({
+        title: "Tag criada",
+        description: "Tag adicionada ao banco de dados com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao criar tag",
+        description: error.message || "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteTagMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/tags/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tags"] });
+      toast({
+        title: "Tag excluída",
+        description: "Tag removida do banco de dados com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao excluir tag",
+        description: error.message || "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Category mutations
+  const createCategoryMutation = useMutation({
+    mutationFn: async (data: InsertTipoVideo) => {
+      const response = await apiRequest("POST", "/api/tipos-video", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tipos-video"] });
+      setCreateCategoryDialogOpen(false);
+      categoryForm.reset();
+      toast({
+        title: "Categoria criada",
+        description: "Categoria adicionada ao banco de dados com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao criar categoria",
+        description: error.message || "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/tipos-video/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tipos-video"] });
+      toast({
+        title: "Categoria excluída",
+        description: "Categoria removida do banco de dados com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao excluir categoria",
+        description: error.message || "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onCreateSubmit = (data: InsertCliente) => {
     createMutation.mutate(data);
   };
@@ -135,6 +255,23 @@ export default function DatabasePage() {
 
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id);
+  };
+
+  // Tag/Category handlers
+  const onCreateTagSubmit = (data: InsertTag) => {
+    createTagMutation.mutate(data);
+  };
+
+  const onCreateCategorySubmit = (data: InsertTipoVideo) => {
+    createCategoryMutation.mutate(data);
+  };
+
+  const handleDeleteTag = (id: string) => {
+    deleteTagMutation.mutate(id);
+  };
+
+  const handleDeleteCategory = (id: string) => {
+    deleteCategoryMutation.mutate(id);
   };
 
   if (isLoading) {
@@ -168,14 +305,36 @@ export default function DatabasePage() {
               </h1>
             </div>
             
-            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-new-client">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Cliente
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+            <div className="flex items-center space-x-3">
+              <Button data-testid="button-new-client" onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Cliente
+              </Button>
+              
+              {user?.papel === "Admin" && (
+                <>
+                  <Button variant="outline" data-testid="button-new-tag" onClick={() => setCreateTagDialogOpen(true)}>
+                    <Tag className="h-4 w-4 mr-2" />
+                    Nova Tag
+                  </Button>
+                  
+                  <Button variant="outline" data-testid="button-new-category" onClick={() => setCreateCategoryDialogOpen(true)}>
+                    <Video className="h-4 w-4 mr-2" />
+                    Nova Categoria
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <main className="flex-1 relative overflow-y-auto focus:outline-none">
+          <div className="py-6">
+            <div className="max-w-7xl mx-auto px-6 space-y-6">
+              
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Form {...createForm}>
                   <form onSubmit={createForm.handleSubmit(onCreateSubmit)}>
                     <DialogHeader>
