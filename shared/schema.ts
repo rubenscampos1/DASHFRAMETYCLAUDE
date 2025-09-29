@@ -50,6 +50,8 @@ export const clientes = pgTable("clientes", {
   empresa: text("empresa"),
   email: text("email"),
   telefone: text("telefone"),
+  backgroundColor: text("background_color").notNull().default("#3b82f6"),
+  textColor: text("text_color").notNull().default("#ffffff"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
