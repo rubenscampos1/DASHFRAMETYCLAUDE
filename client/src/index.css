@@ -71,7 +71,7 @@
   --destructive-foreground: hsl(0, 0%, 100%);
   --border: hsl(0, 0%, 0%);
   --input: hsl(0, 0%, 42%);
-  --ring: hsl(0, 100%, 50%);
+  --ring: hsl(342, 85%, 53%);
   --chart-1: hsl(203.8863, 88.2845%, 53.1373%);
   --chart-2: hsl(159.7826, 100%, 36.0784%);
   --chart-3: hsl(42.0290, 92.8251%, 56.2745%);
@@ -79,12 +79,12 @@
   --chart-5: hsl(341.4894, 75.2000%, 50.9804%);
   --sidebar: hsl(20, 14%, 8%);
   --sidebar-foreground: hsl(0, 0%, 100%);
-  --sidebar-primary: hsl(9, 100%, 50%);
+  --sidebar-primary: hsl(342, 85%, 53%);
   --sidebar-primary-foreground: hsl(0, 0%, 100%);
   --sidebar-accent: hsl(0, 0%, 22%);
   --sidebar-accent-foreground: hsl(0, 0%, 100%);
   --sidebar-border: hsl(0, 0%, 0%);
-  --sidebar-ring: hsl(9, 100%, 50%);
+  --sidebar-ring: hsl(342, 85%, 53%);
 }
 
 @layer base {
