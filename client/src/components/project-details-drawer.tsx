@@ -228,7 +228,7 @@ export function ProjectDetailsDrawer({
 
   return (
     <Drawer open={isOpen} onOpenChange={onClose}>
-      <DrawerContent className="max-h-[90vh] w-full">
+      <DrawerContent className="max-h-[90vh] max-w-4xl mx-auto">
         <DrawerHeader className="flex items-center justify-between border-b px-6 py-4">
           <DrawerTitle className="text-xl font-semibold">
             {projeto.titulo}
@@ -275,9 +275,9 @@ export function ProjectDetailsDrawer({
 
         <ScrollArea className="flex-1 px-6 py-4">
           <Form {...form}>
-            <div className="space-y-6">
-              {/* Cliente - Empreendimento */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
+              {/* Cliente - Empreendimento - Categoria */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                     <Building2 className="h-4 w-4" />
@@ -348,10 +348,7 @@ export function ProjectDetailsDrawer({
                     </p>
                   )}
                 </div>
-              </div>
 
-              {/* Categoria - Fase */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                     <TagIcon className="h-4 w-4" />
@@ -387,7 +384,10 @@ export function ProjectDetailsDrawer({
                     </p>
                   )}
                 </div>
+              </div>
 
+              {/* Fase, Duração e Formato */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Fase
@@ -422,10 +422,7 @@ export function ProjectDetailsDrawer({
                     </Badge>
                   )}
                 </div>
-              </div>
 
-              {/* Duração - Formato */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                     <Clock className="h-4 w-4" />
