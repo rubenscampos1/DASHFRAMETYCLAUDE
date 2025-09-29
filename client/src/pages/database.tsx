@@ -483,7 +483,7 @@ export default function DatabasePage() {
                 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Com Empresa</CardTitle>
+                    <CardTitle className="text-sm font-medium">Com Responsável</CardTitle>
                     <Building2 className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
@@ -514,7 +514,7 @@ export default function DatabasePage() {
                           <TableHead>Preview</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Telefone</TableHead>
-                          <TableHead>Empresa</TableHead>
+                          <TableHead>Nome do Responsável</TableHead>
                           <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -880,10 +880,10 @@ export default function DatabasePage() {
                   name="empresa"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Empresa</FormLabel>
+                      <FormLabel>Nome do Responsável</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Nome da empresa" 
+                          placeholder="Nome do responsável" 
                           {...field}
                           value={field.value || ""}
                           data-testid="input-create-empresa"
@@ -1055,10 +1055,10 @@ export default function DatabasePage() {
                   name="empresa"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Empresa</FormLabel>
+                      <FormLabel>Nome do Responsável</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Nome da empresa" 
+                          placeholder="Nome do responsável" 
                           {...field}
                           value={field.value || ""}
                           data-testid="input-edit-empresa"
