@@ -330,63 +330,62 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
               <TabsContent value="users" className="flex-1 overflow-y-auto mt-4 pb-6">
                 <div className="space-y-6">
                   {!editingUserId ? (
-                    <div className="border rounded-lg">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Usuário</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Papel</TableHead>
-                            <TableHead className="text-right">Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {allUsers?.map((u) => (
-                            <TableRow 
-                              key={u.id}
-                              onMouseEnter={() => setHoveredUserId(u.id)}
-                              onMouseLeave={() => setHoveredUserId(null)}
+                    <div className="space-y-3">
+                      {allUsers?.map((u) => (
+                        <div
+                          key={u.id}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                          onMouseEnter={() => setHoveredUserId(u.id)}
+                          onMouseLeave={() => setHoveredUserId(null)}
+                        >
+                          <div className="flex items-center space-x-3 flex-1">
+                            <Avatar className="h-12 w-12">
+                              {u.fotoUrl ? (
+                                <AvatarImage src={u.fotoUrl} alt={u.nome} />
+                              ) : null}
+                              <AvatarFallback className="text-sm font-semibold">
+                                {u.nome.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-foreground truncate">{u.nome}</p>
+                              <p className="text-sm text-muted-foreground truncate">{u.email}</p>
+                              <div className="flex items-center mt-1">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                  u.papel === "Admin" ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
+                                  u.papel === "Gestor" ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" :
+                                  "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                                }`}>
+                                  {u.papel}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditUser(u)}
+                              data-testid={`button-edit-user-${u.id}`}
+                              className="h-9 w-9 p-0"
                             >
-                              <TableCell className="flex items-center space-x-2">
-                                <Avatar className="h-8 w-8">
-                                  {u.fotoUrl ? (
-                                    <AvatarImage src={u.fotoUrl} alt={u.nome} />
-                                  ) : null}
-                                  <AvatarFallback className="text-xs">
-                                    {u.nome.substring(0, 2).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span>{u.nome}</span>
-                              </TableCell>
-                              <TableCell>{u.email}</TableCell>
-                              <TableCell>{u.papel}</TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end space-x-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditUser(u)}
-                                    data-testid={`button-edit-user-${u.id}`}
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  {u.id !== user?.id && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => deleteUserMutation.mutate(u.id)}
-                                      disabled={deleteUserMutation.isPending}
-                                      data-testid={`button-delete-user-${u.id}`}
-                                    >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            {u.id !== user?.id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => deleteUserMutation.mutate(u.id)}
+                                disabled={deleteUserMutation.isPending}
+                                data-testid={`button-delete-user-${u.id}`}
+                                className="h-9 w-9 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="border rounded-lg p-4">
