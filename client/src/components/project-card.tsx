@@ -32,9 +32,9 @@ interface ProjectCardProps {
 }
 
 const priorityColors = {
-  "Alta": "bg-red-500 text-white hover:bg-red-600",
-  "Média": "bg-pink-500 text-white hover:bg-pink-600", 
-  "Baixa": "bg-gray-400 text-white hover:bg-gray-500",
+  "Alta": "bg-red-500/90 text-white hover:bg-red-600",
+  "Média": "bg-pink-500/90 text-white hover:bg-pink-600", 
+  "Baixa": "bg-gray-500/90 text-white hover:bg-gray-600",
 } as const;
 
 export function ProjectCard({ 
@@ -80,23 +80,26 @@ export function ProjectCard({
   };
 
   const commentCount = projeto.comentarios?.length || 0;
+  const formattedDate = projeto.dataInterna 
+    ? format(new Date(projeto.dataInterna), "dd MMM", { locale: ptBR })
+    : null;
 
   return (
     <Card 
       className={`
-        project-card cursor-pointer transition-all duration-200 hover:shadow-lg
-        border-l-4 border-l-yellow-500
+        project-card cursor-pointer transition-all duration-200 hover:shadow-xl
+        border-l-4 border-l-yellow-500 dark:border-l-yellow-400
         ${isDragging ? "opacity-50 rotate-2 scale-105" : ""}
-        bg-card hover:bg-accent/5
+        bg-card dark:bg-card/50 hover:bg-accent/10 dark:hover:bg-accent/5
       `}
       onClick={handleCardClick}
       data-testid={`project-card-${projeto.id}`}
     >
-      <CardContent className="p-4 space-y-3">
+      <CardContent className="p-4 space-y-4">
         {/* Categoria - Badge grande no topo */}
         {projeto.tipoVideo && (
           <Badge 
-            className="text-sm font-semibold px-3 py-1"
+            className="text-sm font-bold px-4 py-1.5 rounded-full"
             style={{
               backgroundColor: projeto.tipoVideo.backgroundColor,
               color: projeto.tipoVideo.textColor
@@ -111,12 +114,10 @@ export function ProjectCard({
         <div className="flex items-center gap-2 flex-wrap">
           {projeto.cliente && (
             <Badge 
-              variant="outline"
-              className="text-xs font-medium"
+              className="text-sm font-semibold px-3 py-1 rounded-md border-0"
               style={{
                 backgroundColor: projeto.cliente.backgroundColor,
                 color: projeto.cliente.textColor,
-                borderColor: projeto.cliente.backgroundColor
               }}
               data-testid="project-client"
             >
@@ -125,12 +126,10 @@ export function ProjectCard({
           )}
           {projeto.empreendimento && (
             <Badge 
-              variant="outline"
-              className="text-xs font-medium"
+              className="text-sm font-semibold px-3 py-1 rounded-md border-0"
               style={{
                 backgroundColor: projeto.empreendimento.backgroundColor,
                 color: projeto.empreendimento.textColor,
-                borderColor: projeto.empreendimento.backgroundColor
               }}
               data-testid="project-empreendimento"
             >
@@ -139,19 +138,19 @@ export function ProjectCard({
           )}
         </div>
 
-        {/* Data V1 Interna - Destaque grande */}
-        {projeto.dataInterna && (
-          <div className="flex items-center gap-2 py-2">
-            <Calendar className="w-5 h-5 text-muted-foreground" />
-            <span className="text-2xl font-bold text-foreground" data-testid="project-internal-date">
-              {format(new Date(projeto.dataInterna), "dd MMM", { locale: ptBR })}
+        {/* Data V1 Interna - Destaque grande com ícone */}
+        {formattedDate && (
+          <div className="flex items-center gap-3">
+            <Calendar className="w-6 h-6 text-muted-foreground" />
+            <span className="text-3xl font-bold text-cyan-400 dark:text-cyan-300" data-testid="project-internal-date">
+              {formattedDate}
             </span>
           </div>
         )}
 
-        {/* Rodapé: Esquerda (ações + complexidade) e Direita (avatar + botões) */}
-        <div className="flex items-center justify-between pt-2 border-t border-border">
-          {/* Esquerda: Lixeira + Duplicar + Complexidade */}
+        {/* Rodapé: Esquerda (ações + complexidade + data) e Direita (ícones + avatar) */}
+        <div className="flex items-center justify-between pt-3 border-t border-border/50">
+          {/* Esquerda: Lixeira + Duplicar + Badge Prioridade + Data pequena */}
           <div className="flex items-center gap-2">
             <TooltipProvider>
               <Tooltip>
@@ -159,7 +158,7 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                    className="h-8 w-8 p-0 opacity-50 hover:opacity-100 transition-opacity"
                     onClick={handleDelete}
                     data-testid={`delete-project-${projeto.id}`}
                   >
@@ -178,7 +177,7 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                    className="h-8 w-8 p-0 opacity-50 hover:opacity-100 transition-opacity"
                     onClick={handleDuplicate}
                     data-testid={`duplicate-project-${projeto.id}`}
                   >
@@ -192,33 +191,22 @@ export function ProjectCard({
             </TooltipProvider>
 
             <Badge 
-              className={`${priorityColors[projeto.prioridade]} text-xs font-medium px-3 py-1`}
+              className={`${priorityColors[projeto.prioridade]} text-xs font-bold px-3 py-1 rounded-full shadow-sm`}
               data-testid="project-priority"
             >
               {projeto.prioridade}
             </Badge>
+
+            {/* Data pequena repetida */}
+            {formattedDate && (
+              <span className="text-sm text-muted-foreground ml-2">
+                {formattedDate}
+              </span>
+            )}
           </div>
 
-          {/* Direita: Avatar + Badge Comentários + 3 Botões */}
+          {/* Direita: Badge Comentários + Botões + Avatar */}
           <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Avatar className="h-8 w-8 cursor-pointer" data-testid="project-avatar">
-                    {projeto.responsavel?.fotoUrl && (
-                      <AvatarImage src={projeto.responsavel.fotoUrl} alt={projeto.responsavel.nome} />
-                    )}
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                      {projeto.responsavel?.nome?.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{projeto.responsavel?.nome}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
             {/* Badge de Comentários */}
             <TooltipProvider>
               <Tooltip>
@@ -226,12 +214,12 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 gap-1"
+                    className="h-8 px-2 gap-1 opacity-70 hover:opacity-100"
                     onClick={handleViewComments}
                     data-testid={`comments-${projeto.id}`}
                   >
                     <MessageSquare className="h-4 w-4" />
-                    <span className="text-xs font-medium">{commentCount}</span>
+                    <span className="text-xs font-semibold">{commentCount}</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -247,7 +235,7 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 opacity-50 hover:opacity-100 disabled:opacity-30"
                     onClick={(e) => handleOpenLink(e, projeto.linkFrameIo)}
                     disabled={!projeto.linkFrameIo}
                     data-testid={`frameio-${projeto.id}`}
@@ -268,7 +256,7 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 opacity-50 hover:opacity-100 disabled:opacity-30"
                     onClick={(e) => handleOpenLink(e, projeto.linkYoutube)}
                     disabled={!projeto.linkYoutube}
                     data-testid={`youtube-${projeto.id}`}
@@ -289,7 +277,7 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 opacity-50 hover:opacity-100"
                     onClick={handleMarkComplete}
                     data-testid={`complete-${projeto.id}`}
                   >
@@ -298,6 +286,25 @@ export function ProjectCard({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Marcar como aprovado</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Avatar do responsável - maior e mais destacado */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Avatar className="h-10 w-10 cursor-pointer ring-2 ring-primary/20" data-testid="project-avatar">
+                    {projeto.responsavel?.fotoUrl && (
+                      <AvatarImage src={projeto.responsavel.fotoUrl} alt={projeto.responsavel.nome} />
+                    )}
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
+                      {projeto.responsavel?.nome?.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{projeto.responsavel?.nome}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
