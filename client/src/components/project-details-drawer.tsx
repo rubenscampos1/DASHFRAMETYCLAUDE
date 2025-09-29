@@ -887,8 +887,8 @@ export function ProjectDetailsDrawer({
                       <Card key={comentario.id} className="p-4">
                         <div className="flex items-start gap-3">
                           <Avatar className="h-8 w-8">
-                            {comentario.autor.foto && (
-                              <AvatarImage src={comentario.autor.foto} alt={comentario.autor.nome} />
+                            {comentario.autor.fotoUrl && (
+                              <AvatarImage src={comentario.autor.fotoUrl} alt={comentario.autor.nome} />
                             )}
                             <AvatarFallback>
                               {comentario.autor.nome.split(' ').map(n => n[0]).join('').toUpperCase()}
@@ -928,8 +928,8 @@ export function ProjectDetailsDrawer({
                 {/* Adicionar comentário */}
                 <div className="flex items-start gap-3">
                   <Avatar className="h-8 w-8">
-                    {user?.foto && (
-                      <AvatarImage src={user.foto} alt={user.nome} />
+                    {user?.fotoUrl && (
+                      <AvatarImage src={user.fotoUrl} alt={user.nome} />
                     )}
                     <AvatarFallback>
                       {user?.nome.split(' ').map(n => n[0]).join('').toUpperCase()}
