@@ -5,7 +5,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, CheckCircle } from "lucide-react";
 import { ProjectCard } from "./project-card";
-import { EditProjectModal } from "./edit-project-modal";
+import { ProjectDetailsDrawer } from "./project-details-drawer";
 import { ProjetoWithRelations } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -34,7 +34,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const [editingProject, setEditingProject] = useState<ProjetoWithRelations | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
 
   const { data: projetos = [], isLoading } = useQuery<ProjetoWithRelations[]>({
     queryKey: ["/api/projetos", filters],
@@ -221,7 +221,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
                                 <ProjectCard
                                   projeto={projeto}
                                   isDragging={snapshot.isDragging || draggedItem === projeto.id}
-                                  onEdit={setEditingProject}
+                                  onEdit={setSelectedProject}
                                   onDelete={(projetoId) => deleteProjectMutation.mutate(projetoId)}
                                 />
                               </div>
@@ -239,15 +239,10 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
         })}
       </div>
       
-      <EditProjectModal
-        project={editingProject}
-        isOpen={!!editingProject}
-        onClose={() => setEditingProject(null)}
-        onSave={() => {
-          queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
-          setEditingProject(null);
-        }}
+      <ProjectDetailsDrawer
+        projeto={selectedProject}
+        isOpen={!!selectedProject}
+        onClose={() => setSelectedProject(null)}
       />
     </DragDropContext>
   );
