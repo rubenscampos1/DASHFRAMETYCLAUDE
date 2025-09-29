@@ -12,9 +12,11 @@ import { ProjetoWithRelations } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { format, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
 
 export default function MinhaFila() {
   const { user } = useAuth();
+  const { mainContentClass } = useSidebarLayout();
   const [filters, setFilters] = useState({
     status: "all",
     prioridade: "all",
@@ -92,7 +94,7 @@ export default function MinhaFila() {
     return (
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <div className="lg:pl-64 flex flex-col flex-1">
+        <div className={`${mainContentClass} flex flex-col flex-1 transition-all duration-300`}>
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -113,7 +115,7 @@ export default function MinhaFila() {
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       
-      <div className="lg:pl-64 flex flex-col flex-1 overflow-hidden">
+      <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         {/* Header */}
         <div className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm">
           <div className="flex-1 px-6 flex justify-between items-center">

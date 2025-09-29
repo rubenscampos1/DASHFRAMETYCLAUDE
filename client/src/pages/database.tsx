@@ -15,9 +15,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertClienteSchema, type Cliente, type InsertCliente } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
 
 export default function DatabasePage() {
   const { toast } = useToast();
+  const { mainContentClass } = useSidebarLayout();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
 
@@ -139,7 +141,7 @@ export default function DatabasePage() {
     return (
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <div className="lg:pl-64 flex flex-col flex-1">
+        <div className={`${mainContentClass} flex flex-col flex-1 transition-all duration-300`}>
           <div className="p-6">
             <div className="animate-pulse space-y-4">
               <div className="h-8 bg-muted rounded w-1/4" />
@@ -155,7 +157,7 @@ export default function DatabasePage() {
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       
-      <div className="lg:pl-64 flex flex-col flex-1 overflow-hidden">
+      <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         {/* Header */}
         <div className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm">
           <div className="flex-1 px-6 flex items-center justify-between">

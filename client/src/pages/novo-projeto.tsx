@@ -3,9 +3,11 @@ import { Sidebar } from "@/components/sidebar";
 import { ProjectForm } from "@/components/project-form";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
 
 export default function NovoProjeto() {
   const [, setLocation] = useLocation();
+  const { mainContentClass } = useSidebarLayout();
 
   const handleSuccess = () => {
     setLocation("/dashboard");
@@ -19,7 +21,7 @@ export default function NovoProjeto() {
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       
-      <div className="lg:pl-64 flex flex-col flex-1 overflow-hidden">
+      <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         {/* Header */}
         <div className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm">
           <div className="flex-1 px-6 flex items-center space-x-4">
