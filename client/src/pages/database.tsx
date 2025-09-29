@@ -72,6 +72,15 @@ export default function DatabasePage() {
     },
   });
 
+  const editCategoryForm = useForm<InsertTipoVideo>({
+    resolver: zodResolver(insertTipoVideoSchema),
+    defaultValues: {
+      nome: "",
+      backgroundColor: "#3b82f6",
+      textColor: "#ffffff",
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: InsertCliente) => {
       const response = await apiRequest("POST", "/api/clientes", data);
@@ -183,6 +192,29 @@ export default function DatabasePage() {
     },
   });
 
+  const updateCategoryMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: InsertTipoVideo }) => {
+      const response = await apiRequest("PUT", `/api/tipos-video/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tipos-video"] });
+      setEditingCategory(null);
+      editCategoryForm.reset();
+      toast({
+        title: "Categoria atualizada",
+        description: "Informações da categoria atualizadas com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao atualizar categoria",
+        description: error.message || "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onCreateSubmit = (data: InsertCliente) => {
     createMutation.mutate(data);
   };
@@ -207,17 +239,27 @@ export default function DatabasePage() {
 
   const handleEditCategory = (categoria: TipoVideo) => {
     setEditingCategory(categoria);
-    // Note: We'll need to create an edit form for categories
+    editCategoryForm.reset({
+      nome: categoria.nome,
+      backgroundColor: categoria.backgroundColor,
+      textColor: categoria.textColor,
+    });
+  };
+
+  const onCreateCategorySubmit = (data: InsertTipoVideo) => {
+    createCategoryMutation.mutate(data);
+  };
+
+  const onEditCategorySubmit = (data: InsertTipoVideo) => {
+    if (editingCategory) {
+      updateCategoryMutation.mutate({ id: editingCategory.id, data });
+    }
   };
 
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id);
   };
 
-  // Category handlers
-  const onCreateCategorySubmit = (data: InsertTipoVideo) => {
-    createCategoryMutation.mutate(data);
-  };
 
   const handleDeleteCategory = (id: string) => {
     deleteCategoryMutation.mutate(id);
@@ -995,6 +1037,123 @@ export default function DatabasePage() {
                   data-testid="button-category-submit"
                 >
                   {createCategoryMutation.isPending ? "Criando..." : "Criar Categoria"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog open={!!editingCategory} onOpenChange={() => setEditingCategory(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <Form {...editCategoryForm}>
+            <form onSubmit={editCategoryForm.handleSubmit(onEditCategorySubmit)}>
+              <DialogHeader>
+                <DialogTitle>Editar Categoria de Vídeo</DialogTitle>
+                <DialogDescription>
+                  Atualize as informações da categoria com cores personalizadas.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="grid gap-4 py-4">
+                <FormField
+                  control={editCategoryForm.control}
+                  name="nome"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Nome da categoria" 
+                          {...field} 
+                          data-testid="input-edit-category-nome"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editCategoryForm.control}
+                  name="backgroundColor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cor de Fundo</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Input 
+                            type="color"
+                            {...field}
+                            className="w-16 h-10 p-1 border rounded"
+                            data-testid="input-edit-category-bg-color"
+                          />
+                          <Input 
+                            type="text"
+                            {...field}
+                            placeholder="#3b82f6"
+                            className="flex-1"
+                            data-testid="input-edit-category-bg-text"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editCategoryForm.control}
+                  name="textColor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cor do Texto</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Input 
+                            type="color"
+                            {...field}
+                            className="w-16 h-10 p-1 border rounded"
+                            data-testid="input-edit-category-text-color"
+                          />
+                          <Input 
+                            type="text"
+                            {...field}
+                            placeholder="#ffffff"
+                            className="flex-1"
+                            data-testid="input-edit-category-text-text"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Preview */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium">Preview:</span>
+                  <div 
+                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    style={{ 
+                      backgroundColor: editCategoryForm.watch("backgroundColor") || "#3b82f6", 
+                      color: editCategoryForm.watch("textColor") || "#ffffff" 
+                    }}
+                    data-testid="category-edit-preview"
+                  >
+                    {editCategoryForm.watch("nome") || "Nome da Categoria"}
+                  </div>
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button 
+                  type="submit" 
+                  disabled={updateCategoryMutation.isPending}
+                  data-testid="button-edit-category-submit"
+                >
+                  {updateCategoryMutation.isPending ? "Atualizando..." : "Atualizar Categoria"}
                 </Button>
               </DialogFooter>
             </form>
