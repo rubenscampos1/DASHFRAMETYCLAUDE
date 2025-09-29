@@ -76,9 +76,9 @@ export function Sidebar() {
   return (
     <div className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 transition-all duration-300 ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}`}>
       <div className="flex flex-col flex-grow bg-card border-r border-border pt-5 pb-4 overflow-y-auto">
-        <div className={`flex-shrink-0 ${isCollapsed ? 'px-2' : 'px-6'}`}>
+        <div className={`flex-shrink-0 ${isCollapsed ? 'px-1' : 'px-6'}`}>
           {isCollapsed ? (
-            <div className="flex flex-col items-center space-y-3">
+            <div className="flex items-center justify-between w-full">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Video className="w-4 h-4 text-primary-foreground" />
               </div>
