@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -41,7 +42,10 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
-const formSchema = insertProjetoSchema;
+// Schema específico para o formulário que aceita string no campo duracao
+const formSchema = insertProjetoSchema.extend({
+  duracao: z.string().optional().transform((val) => val && val !== "" ? Number(val) : undefined),
+});
 
 interface ProjectDetailsDrawerProps {
   projeto: ProjetoWithRelations | null;
@@ -96,7 +100,7 @@ export function ProjectDetailsDrawer({
       status: projeto?.status || "Briefing",
       clienteId: projeto?.clienteId || "",
       empreendimentoId: projeto?.empreendimentoId || "",
-      duracao: projeto?.duracao || "",
+      duracao: projeto?.duracao?.toString() || "",
       formato: projeto?.formato || "",
       captacao: projeto?.captacao || false,
       roteiro: projeto?.roteiro || false,
@@ -160,13 +164,29 @@ export function ProjectDetailsDrawer({
 
   const handleSave = () => {
     form.handleSubmit((data) => {
-      const submitData = {
-        ...data,
-        duracao: data.duracao ? Number(data.duracao) : undefined,
-        dataInterna: data.dataInterna ? new Date(data.dataInterna) : undefined,
-        dataMeeting: data.dataMeeting ? new Date(data.dataMeeting) : undefined,
-        dataPrevistaEntrega: data.dataPrevistaEntrega ? new Date(data.dataPrevistaEntrega) : undefined,
-      };
+      // Filter out empty strings and convert types appropriately
+      const submitData: any = {};
+      
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== "" && value !== null && value !== undefined) {
+          submitData[key] = value;
+        }
+      });
+      
+      // Handle special field conversions
+      if (submitData.duracao) {
+        submitData.duracao = Number(submitData.duracao);
+      }
+      if (submitData.dataInterna) {
+        submitData.dataInterna = new Date(submitData.dataInterna);
+      }
+      if (submitData.dataMeeting) {
+        submitData.dataMeeting = new Date(submitData.dataMeeting);
+      }
+      if (submitData.dataPrevistaEntrega) {
+        submitData.dataPrevistaEntrega = new Date(submitData.dataPrevistaEntrega);
+      }
+      
       updateProjectMutation.mutate(submitData);
     })();
   };
@@ -422,6 +442,7 @@ export function ProjectDetailsDrawer({
                               type="number"
                               placeholder="Ex: 30"
                               {...field}
+                              onChange={(e) => field.onChange(e.target.value)}
                               data-testid="input-duracao"
                             />
                           </FormControl>
