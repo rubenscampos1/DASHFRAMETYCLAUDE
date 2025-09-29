@@ -31,6 +31,7 @@ export function MobileTopbar() {
             size="icon"
             onClick={() => setIsMobileNavOpen(true)}
             className="touch-target"
+            aria-label="Abrir menu de navegação"
             data-testid="mobile-menu-button"
           >
             <Menu className="h-6 w-6" />

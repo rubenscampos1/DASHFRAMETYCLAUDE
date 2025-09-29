@@ -8,8 +8,10 @@
  * - Links de navegação principais
  * - Perfil do usuário e botões de ação (tema, logout)
  * - Visível apenas em telas mobile (md:hidden)
+ * - Acessibilidade: suporte a Escape key, role="dialog", aria-labels
  */
 
+import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
@@ -38,6 +40,18 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const [location] = useLocation();
   const { user, logoutMutation } = useAuth();
   const { theme, setTheme } = useTheme();
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
 
   const navigation = [
     {
@@ -104,6 +118,9 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu de navegação mobile"
         data-testid="mobile-nav-drawer"
       >
         <div className="flex flex-col h-full overflow-y-auto">
@@ -118,6 +135,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
               variant="ghost"
               size="icon"
               onClick={onClose}
+              aria-label="Fechar menu"
               data-testid="mobile-nav-close"
             >
               <X className="h-5 w-5" />
@@ -137,13 +155,13 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p className="text-sm font-medium text-foreground truncate" data-testid="text-username">
                     {user.nome}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground truncate" data-testid="text-email">
                     {user.email}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5" data-testid="text-role">
                     {user.papel}
                   </p>
                 </div>
@@ -169,7 +187,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     }
                   `}
-                  data-testid={`mobile-nav-${item.name.toLowerCase().replace(' ', '-')}`}
+                  data-testid={`mobile-nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
                   <span>{item.name}</span>
