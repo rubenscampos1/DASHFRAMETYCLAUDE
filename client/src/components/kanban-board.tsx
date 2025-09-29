@@ -109,6 +109,57 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     },
   });
 
+  const duplicateProjectMutation = useMutation({
+    mutationFn: async (projeto: ProjetoWithRelations) => {
+      const newProject = {
+        titulo: `${projeto.titulo} (cópia)`,
+        descricao: projeto.descricao,
+        tipoVideoId: projeto.tipoVideoId,
+        tags: projeto.tags || [],
+        status: projeto.status,
+        responsavelId: projeto.responsavelId,
+        dataPrevistaEntrega: projeto.dataPrevistaEntrega,
+        prioridade: projeto.prioridade,
+        clienteId: projeto.clienteId,
+        empreendimentoId: projeto.empreendimentoId,
+        anexos: projeto.anexos || [],
+        linkYoutube: projeto.linkYoutube,
+        duracao: projeto.duracao,
+        formato: projeto.formato,
+        captacao: projeto.captacao,
+        roteiro: projeto.roteiro,
+        locucao: projeto.locucao,
+        dataInterna: projeto.dataInterna,
+        dataMeeting: projeto.dataMeeting,
+        linkFrameIo: projeto.linkFrameIo,
+        caminho: projeto.caminho,
+        referencias: projeto.referencias,
+        informacoesAdicionais: projeto.informacoesAdicionais,
+      };
+      const response = await apiRequest("POST", "/api/projetos", newProject);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+      toast({
+        title: "Projeto duplicado",
+        description: "O projeto foi duplicado com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao duplicar projeto",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleMarkComplete = (projetoId: string) => {
+    updateProjectMutation.mutate({ id: projetoId, status: "Aprovado" });
+  };
+
   const onDragStart = (start: any) => {
     setDraggedItem(start.draggableId);
   };
@@ -223,6 +274,9 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
                                   isDragging={snapshot.isDragging || draggedItem === projeto.id}
                                   onEdit={setSelectedProject}
                                   onDelete={(projetoId) => deleteProjectMutation.mutate(projetoId)}
+                                  onDuplicate={(projeto) => duplicateProjectMutation.mutate(projeto)}
+                                  onMarkComplete={handleMarkComplete}
+                                  onViewComments={setSelectedProject}
                                 />
                               </div>
                             )}

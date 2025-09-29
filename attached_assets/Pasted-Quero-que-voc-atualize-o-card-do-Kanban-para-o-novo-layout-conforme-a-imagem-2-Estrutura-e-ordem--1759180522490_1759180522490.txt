@@ -1,0 +1,85 @@
+Quero que você atualize o card do Kanban para o novo layout conforme a imagem 2.
+
+Estrutura e ordem visual (da esquerda p/ direita, de cima p/ baixo):
+
+Tag da Categoria (badge grande) no topo do card.
+
+Cliente (badge/label) e Empreendimento logo abaixo, lado a lado.
+
+Data V1 interna (ícone de calendário + data em destaque grande).
+
+Rodapé à esquerda:
+
+Botão lixeira (opaco/sem destaque).
+
+Botão duplicar card (opaco).
+
+Tag de complexidade (Ex.: “Média”).
+
+Lado direito do card:
+
+Avatar/foto do responsável.
+
+Badge de comentários com contagem (bolinha com número).
+
+Três botões icônicos, nesta ordem:
+
+Frame.io → abre linkFrameIO do card em nova aba.
+
+YouTube → abre linkYoutube em nova aba.
+
+Check → marca como concluído e move o card para a fase “Aprovado”.
+
+Regras de dados (campos já existentes no card):
+
+categoria → mostra no topo.
+
+cliente e empreendimento → linha abaixo da categoria.
+
+dataInterna (V1) → exibir com ícone e formatação “DD MMM” (ex.: 09 out).
+
+complexidade → badge no rodapé.
+
+responsavel (nome + avatarUrl) → canto direito.
+
+comentarios (array) → usar length na badge.
+
+linkFrameIO e linkYoutube → usados nos botões; se vazio, botão fica desabilitado (tooltip “Link não definido”).
+
+Interações:
+
+Lixeira: pede confirmação rápida; ao confirmar, remove card.
+
+Duplicar: cria novo card com mesmo conteúdo + novo id, na mesma fase.
+
+Check: seta fase = "Aprovado" e atualiza o board.
+
+Avatar: hover mostra nome do responsável.
+
+Badge de comentários: clique abre a aba/comentários do card.
+
+Links: sempre abrir em nova aba.
+
+Estilo/UX:
+
+Visual conforme imagem 2: badges maiores, tipografia forte para data, borda/“faixa” amarela na esquerda mantida.
+
+Estados: hover, foco, desabilitado para botões de link sem URL.
+
+Responsivo: no mobile, ícones do lado direito alinham abaixo da data.
+
+Critérios de aceite:
+
+A ordem dos elementos bate com a lista acima.
+
+Clicar em Frame.io/YouTube abre o respectivo link quando presente.
+
+Check move o card para Aprovado.
+
+Duplicar cria cópia fiel. Lixeira apaga após confirmar.
+
+Badge de comentários mostra o número correto.
+
+Sem erros no console.
+
+Entregável: arquivos alterados para que todos os cards do Kanban usem este novo layout e comportamento.

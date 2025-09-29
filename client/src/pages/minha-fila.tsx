@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Sidebar } from "@/components/sidebar";
 import { ProjectCard } from "@/components/project-card";
+import { ProjectDetailsDrawer } from "@/components/project-details-drawer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,16 +14,20 @@ import { useAuth } from "@/hooks/use-auth";
 import { format, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function MinhaFila() {
   const { user } = useAuth();
   const { mainContentClass } = useSidebarLayout();
+  const { toast } = useToast();
   const [filters, setFilters] = useState({
     status: "all",
     prioridade: "all",
     search: "",
   });
   const [selectedResponsavel, setSelectedResponsavel] = useState(user?.id || "");
+  const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
 
   const { data: users = [] } = useQuery<any[]>({
     queryKey: ["/api/users"],
@@ -53,6 +58,101 @@ export default function MinhaFila() {
     },
     enabled: !!selectedResponsavel,
   });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const response = await apiRequest("PATCH", `/api/projetos/${id}`, { status });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+      toast({
+        title: "Status atualizado",
+        description: "O projeto foi aprovado com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar projeto",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (projetoId: string) => {
+      await apiRequest("DELETE", `/api/projetos/${projetoId}`);
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+      toast({
+        title: "Projeto removido",
+        description: "O projeto foi removido com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao remover projeto",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const duplicateProjectMutation = useMutation({
+    mutationFn: async (projeto: ProjetoWithRelations) => {
+      const newProject = {
+        titulo: `${projeto.titulo} (cópia)`,
+        descricao: projeto.descricao,
+        tipoVideoId: projeto.tipoVideoId,
+        tags: projeto.tags || [],
+        status: projeto.status,
+        responsavelId: projeto.responsavelId,
+        dataPrevistaEntrega: projeto.dataPrevistaEntrega,
+        prioridade: projeto.prioridade,
+        clienteId: projeto.clienteId,
+        empreendimentoId: projeto.empreendimentoId,
+        anexos: projeto.anexos || [],
+        linkYoutube: projeto.linkYoutube,
+        duracao: projeto.duracao,
+        formato: projeto.formato,
+        captacao: projeto.captacao,
+        roteiro: projeto.roteiro,
+        locucao: projeto.locucao,
+        dataInterna: projeto.dataInterna,
+        dataMeeting: projeto.dataMeeting,
+        linkFrameIo: projeto.linkFrameIo,
+        caminho: projeto.caminho,
+        referencias: projeto.referencias,
+        informacoesAdicionais: projeto.informacoesAdicionais,
+      };
+      const response = await apiRequest("POST", "/api/projetos", newProject);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+      toast({
+        title: "Projeto duplicado",
+        description: "O projeto foi duplicado com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao duplicar projeto",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleMarkComplete = (projetoId: string) => {
+    updateProjectMutation.mutate({ id: projetoId, status: "Aprovado" });
+  };
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({
@@ -299,6 +399,11 @@ export default function MinhaFila() {
                           <ProjectCard
                             key={projeto.id}
                             projeto={projeto}
+                            onEdit={setSelectedProject}
+                            onDelete={(projetoId) => deleteProjectMutation.mutate(projetoId)}
+                            onDuplicate={(projeto) => duplicateProjectMutation.mutate(projeto)}
+                            onMarkComplete={handleMarkComplete}
+                            onViewComments={setSelectedProject}
                           />
                         ))}
                       </div>
@@ -310,6 +415,12 @@ export default function MinhaFila() {
           </div>
         </main>
       </div>
+
+      <ProjectDetailsDrawer
+        projeto={selectedProject}
+        isOpen={!!selectedProject}
+        onClose={() => setSelectedProject(null)}
+      />
     </div>
   );
 }

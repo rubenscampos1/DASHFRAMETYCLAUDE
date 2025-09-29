@@ -273,6 +273,7 @@ export type ProjetoWithRelations = Projeto & {
   responsavel: User;
   cliente?: Cliente;
   empreendimento?: Empreendimento;
+  comentarios?: Comentario[];
 };
 
 export type EmpreendimentoWithRelations = Empreendimento & {
