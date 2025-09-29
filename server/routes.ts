@@ -43,6 +43,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/user/profile", requireAuth, async (req, res, next) => {
+    try {
+      const { nome, email, senha, fotoUrl } = req.body;
+      const updates: any = { nome, email, fotoUrl };
+      
+      if (senha && senha.trim() !== "") {
+        updates.password = senha;
+      }
+
+      const user = await storage.updateUser(req.user!.id, updates);
+      res.json(user);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/users", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const { nome, email, senha, papel, fotoUrl } = req.body;
+      const user = await storage.createUser({
+        nome,
+        email,
+        password: senha,
+        papel,
+        fotoUrl,
+        ativo: true,
+      });
+      res.status(201).json(user);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/users/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const { nome, email, senha, papel, fotoUrl } = req.body;
+      const updates: any = { nome, email, papel, fotoUrl };
+      
+      if (senha && senha.trim() !== "") {
+        updates.password = senha;
+      }
+
+      const user = await storage.updateUser(req.params.id, updates);
+      res.json(user);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/users/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      // Prevent deleting yourself
+      if (req.params.id === req.user!.id) {
+        return res.status(400).json({ message: "Você não pode excluir sua própria conta" });
+      }
+      
+      await storage.deleteUser(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Projetos routes
   app.get("/api/projetos", requireAuth, async (req, res, next) => {
     try {

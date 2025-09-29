@@ -27,6 +27,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   papel: userRoleEnum("papel").notNull().default("Membro"),
   ativo: boolean("ativo").notNull().default(true),
+  fotoUrl: text("foto_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

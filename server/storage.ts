@@ -43,6 +43,8 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getUsers(): Promise<User[]>;
+  updateUser(id: string, user: Partial<InsertUser>): Promise<User>;
+  deleteUser(id: string): Promise<void>;
   
   // Projetos
   getProjetos(filters?: {
@@ -140,6 +142,32 @@ export class DatabaseStorage implements IStorage {
 
   async getUsers(): Promise<User[]> {
     return await db.select().from(users).where(eq(users.ativo, true));
+  }
+
+  async updateUser(id: string, updates: Partial<InsertUser>): Promise<User> {
+    // Hash password if it's being updated
+    if (updates.password) {
+      const crypto = await import("crypto");
+      const salt = crypto.randomBytes(16).toString("hex");
+      const hash = crypto.scryptSync(updates.password, salt, 64).toString("hex");
+      updates.password = `${salt}:${hash}`;
+    }
+
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    
+    if (!user) {
+      throw new Error("Usuário não encontrado");
+    }
+    
+    return user;
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
   }
 
   async getProjetos(filters?: {

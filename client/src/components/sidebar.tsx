@@ -18,8 +18,8 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/components/ui/theme-provider";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useSidebar } from "@/contexts/sidebar-context";
+import { UserProfileDrawer } from "@/components/user-profile-drawer";
 import frametyLogo from "@assets/Framety - PNG -  01_1759177448673.png";
 
 export function Sidebar() {
@@ -166,23 +166,7 @@ export function Sidebar() {
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
-          <div className={`flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
-            <Avatar className="h-9 w-9">
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {user?.nome?.substring(0, 2).toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-            {!isCollapsed && (
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-medium text-foreground" data-testid="user-name">
-                  {user?.nome}
-                </p>
-                <p className="text-xs text-muted-foreground" data-testid="user-role">
-                  {user?.papel}
-                </p>
-              </div>
-            )}
-          </div>
+          <UserProfileDrawer isCollapsed={isCollapsed} />
         </div>
       </div>
     </div>
