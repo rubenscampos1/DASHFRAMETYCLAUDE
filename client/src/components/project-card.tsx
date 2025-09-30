@@ -53,8 +53,8 @@ export function ProjectCard({ projeto, isDragging, onEdit, onDelete }: ProjectCa
       onClick={() => onEdit?.(projeto)}
       data-testid={`project-card-${projeto.id}`}
     >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between mb-3">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between mb-2">
           <Badge 
             className={statusColors[projeto.status] || "default text-xs"}
             data-testid="project-type"
@@ -74,7 +74,7 @@ export function ProjectCard({ projeto, isDragging, onEdit, onDelete }: ProjectCa
         </h4>
       </CardHeader>
       
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2">
         {projeto.descricao && (
           <p className="text-xs text-muted-foreground line-clamp-2" data-testid="project-description">
             {projeto.descricao}
@@ -107,7 +107,7 @@ export function ProjectCard({ projeto, isDragging, onEdit, onDelete }: ProjectCa
           </span>
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t">
+        <div className="flex items-center justify-between pt-1.5 border-t">
           <div className="flex items-center space-x-2">
             {onDelete && (
               <Button
