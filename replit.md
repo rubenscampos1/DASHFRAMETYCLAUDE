@@ -60,6 +60,11 @@ Preferred communication style: Simple, everyday language.
 - **Transactional Operations**: Database transactions for atomic multi-table operations (e.g., project deletion)
 
 ## Recent Changes (September 2025)
+- **Simplified Authentication Page**: Removed promotional content and centered login/register forms
+  - Removed all marketing icons and feature descriptions
+  - Changed from two-column layout to single centered column
+  - Cleaner, more focused user experience
+  - Fully responsive with proper padding
 - **Mobile Navigation System**: Implemented custom mobile navigation with:
   - Sticky topbar with blur effect and hamburger menu button
   - Slide-out drawer menu with smooth transitions and overlay
