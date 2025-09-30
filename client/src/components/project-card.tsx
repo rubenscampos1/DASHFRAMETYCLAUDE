@@ -53,35 +53,25 @@ export function ProjectCard({ projeto, isDragging, onEdit, onDelete }: ProjectCa
       onClick={() => onEdit?.(projeto)}
       data-testid={`project-card-${projeto.id}`}
     >
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <h4 className="text-sm font-semibold text-foreground line-clamp-2" data-testid="project-title">
-            {projeto.titulo}
-          </h4>
-          <div className="flex items-center space-x-2">
-            <Badge 
-              variant={priorityColors[projeto.prioridade]}
-              className="text-xs"
-              data-testid="project-priority"
-            >
-              {projeto.prioridade}
-            </Badge>
-            {onDelete && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(projeto.id);
-                }}
-                data-testid={`delete-project-${projeto.id}`}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between mb-3">
+          <Badge 
+            className={statusColors[projeto.status] || "default text-xs"}
+            data-testid="project-type"
+          >
+            {projeto.tipoVideo?.nome}
+          </Badge>
+          
+          <Avatar className="h-10 w-10">
+            <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+              {projeto.responsavel?.nome?.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
         </div>
+
+        <h4 className="text-base font-bold text-foreground line-clamp-2" data-testid="project-title">
+          {projeto.cliente?.nome || 'Cliente'} + {projeto.empreendimento?.nome || 'Empreendimento'}
+        </h4>
       </CardHeader>
       
       <CardContent className="space-y-3">
@@ -91,55 +81,62 @@ export function ProjectCard({ projeto, isDragging, onEdit, onDelete }: ProjectCa
           </p>
         )}
         
-        <div className="flex items-center justify-between">
-          <Badge className={statusColors[projeto.status] || "default"} data-testid="project-type">
-            {projeto.tipoVideo?.nome}
-          </Badge>
-          {projeto.tags && projeto.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1" data-testid="project-tags">
-              {projeto.tags.slice(0, 2).map((tag, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-              {projeto.tags.length > 2 && (
-                <Badge variant="outline" className="text-xs">
-                  +{projeto.tags.length - 2}
-                </Badge>
-              )}
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Avatar className="h-6 w-6">
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                {projeto.responsavel?.nome?.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-xs text-muted-foreground" data-testid="project-responsible">
-              {projeto.responsavel?.nome}
-            </span>
-          </div>
-          
-          <div className={`flex items-center text-xs ${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
-            {isOverdue && <AlertTriangle className="w-3 h-3 mr-1" />}
-            <Calendar className="w-3 h-3 mr-1" />
-            <span data-testid="project-due-date">
-              {projeto.dataPrevistaEntrega 
-                ? format(new Date(projeto.dataPrevistaEntrega), "dd MMM", { locale: ptBR })
-                : "Sem prazo"
-              }
-            </span>
-          </div>
-        </div>
-        
-        {projeto.cliente && (
-          <div className="text-xs text-muted-foreground" data-testid="project-client">
-            Cliente: {projeto.cliente.nome}
+        {projeto.tags && projeto.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1" data-testid="project-tags">
+            {projeto.tags.slice(0, 2).map((tag, index) => (
+              <Badge key={index} variant="outline" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
+            {projeto.tags.length > 2 && (
+              <Badge variant="outline" className="text-xs">
+                +{projeto.tags.length - 2}
+              </Badge>
+            )}
           </div>
         )}
+        
+        <div className={`flex items-center text-xs ${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
+          {isOverdue && <AlertTriangle className="w-3 h-3 mr-1" />}
+          <Calendar className="w-3 h-3 mr-1" />
+          <span data-testid="project-due-date">
+            {projeto.dataPrevistaEntrega 
+              ? format(new Date(projeto.dataPrevistaEntrega), "dd MMM", { locale: ptBR })
+              : "Sem prazo"
+            }
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex items-center space-x-2">
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(projeto.id);
+                }}
+                data-testid={`delete-project-${projeto.id}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            
+            <Badge 
+              variant={priorityColors[projeto.prioridade]}
+              className="text-xs"
+              data-testid="project-priority"
+            >
+              {projeto.prioridade}
+            </Badge>
+          </div>
+          
+          <span className="text-xs text-muted-foreground" data-testid="project-responsible">
+            {projeto.responsavel?.nome}
+          </span>
+        </div>
       </CardContent>
     </Card>
   );
