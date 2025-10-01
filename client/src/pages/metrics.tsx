@@ -1,21 +1,173 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
 import { Sidebar } from "@/components/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, Users, Video, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { TrendingUp, Users, Video, AlertTriangle, Maximize2, X } from "lucide-react";
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+const CHART_COLOR = "hsl(var(--chart-1))";
+
+interface ChartData {
+  name: string;
+  value: number;
+  fullName?: string;
+}
+
+interface ExpandedChartProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  description: string;
+  data: ChartData[];
+  dataKey: string;
+}
+
+function ExpandedChartDialog({ isOpen, onClose, title, description, data, dataKey }: ExpandedChartProps) {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-5xl h-[80vh] flex flex-col" data-testid="expanded-chart-dialog">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto">
+          <ResponsiveContainer width="100%" height={Math.max(400, data.length * 50)}>
+            <BarChart data={data} layout="horizontal" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis type="number" className="text-xs" />
+              <YAxis 
+                type="category" 
+                dataKey="name" 
+                width={150}
+                className="text-xs"
+                tick={{ fill: 'hsl(var(--foreground))' }}
+              />
+              <Tooltip 
+                cursor={{ fill: 'hsl(var(--muted))' }}
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))', 
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '6px'
+                }}
+                labelFormatter={(label, payload) => {
+                  const item = payload?.[0]?.payload;
+                  return item?.fullName || label;
+                }}
+              />
+              <Bar dataKey={dataKey} radius={[0, 4, 4, 0]}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={CHART_COLOR} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface HorizontalBarChartProps {
+  title: string;
+  description: string;
+  data: ChartData[];
+  dataKey: string;
+  testId?: string;
+}
+
+function HorizontalBarChartCard({ title, description, data, dataKey, testId }: HorizontalBarChartProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Ordenar do maior para o menor
+  const sortedData = [...data].sort((a, b) => b.value - a.value);
+
+  // Truncar nomes longos e guardar nome completo
+  const processedData = sortedData.map(item => ({
+    ...item,
+    fullName: item.name,
+    name: item.name.length > 20 ? item.name.substring(0, 20) + '...' : item.name,
+  }));
+
+  return (
+    <>
+      <Card data-testid={testId}>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle>{title}</CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsExpanded(true)}
+              className="ml-2"
+              data-testid={`expand-${testId}`}
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-y-auto" style={{ maxHeight: '300px' }}>
+            <ResponsiveContainer width="100%" height={Math.max(300, processedData.length * 40)}>
+              <BarChart data={processedData} layout="horizontal" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis type="number" className="text-xs" />
+                <YAxis 
+                  type="category" 
+                  dataKey="name" 
+                  width={120}
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--foreground))' }}
+                />
+                <Tooltip 
+                  cursor={{ fill: 'hsl(var(--muted))' }}
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px'
+                  }}
+                  labelFormatter={(label, payload) => {
+                    const item = payload?.[0]?.payload;
+                    return item?.fullName || label;
+                  }}
+                />
+                <Bar dataKey={dataKey} radius={[0, 4, 4, 0]}>
+                  {processedData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={CHART_COLOR} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      <ExpandedChartDialog
+        isOpen={isExpanded}
+        onClose={() => setIsExpanded(false)}
+        title={title}
+        description={description}
+        data={processedData}
+        dataKey={dataKey}
+      />
+    </>
+  );
+}
 
 export default function Metrics() {
   const { mainContentClass } = useSidebarLayout();
   const { data: metricas, isLoading } = useQuery<any>({
     queryKey: ["/api/metricas"],
-    refetchInterval: 30000, // Atualiza a cada 30 segundos
-    refetchOnWindowFocus: true, // Atualiza quando volta ao foco da janela
-    refetchOnReconnect: true, // Atualiza quando reconecta à internet
-    staleTime: 0, // Dados sempre considerados desatualizados para forçar refetch
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    staleTime: 0,
   });
 
   if (isLoading) {
@@ -39,24 +191,24 @@ export default function Metrics() {
     );
   }
 
-  const statusData = Object.entries(metricas?.projetosPorStatus || {}).map(([status, count]) => ({
+  const statusData: ChartData[] = Object.entries(metricas?.projetosPorStatus || {}).map(([status, count]) => ({
     name: status,
-    value: count,
+    value: count as number,
   }));
 
-  const responsavelData = Object.entries(metricas?.projetosPorResponsavel || {}).map(([responsavel, count]) => ({
+  const responsavelData: ChartData[] = Object.entries(metricas?.projetosPorResponsavel || {}).map(([responsavel, count]) => ({
     name: responsavel,
-    projetos: count,
+    value: count as number,
   }));
 
-  const tipoData = Object.entries(metricas?.projetosPorTipo || {}).map(([tipo, count]) => ({
+  const tipoData: ChartData[] = Object.entries(metricas?.projetosPorTipo || {}).map(([tipo, count]) => ({
     name: tipo,
-    projetos: count,
+    value: count as number,
   }));
 
-  const clienteData = Object.entries(metricas?.videosPorCliente || {}).map(([cliente, count]) => ({
+  const clienteData: ChartData[] = Object.entries(metricas?.videosPorCliente || {}).map(([cliente, count]) => ({
     name: cliente,
-    videos: count,
+    value: count as number,
   }));
 
   return (
@@ -178,98 +330,40 @@ export default function Metrics() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
                 {/* Status Distribution */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Distribuição por Status</CardTitle>
-                    <CardDescription>
-                      Quantidade de projetos em cada etapa
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={statusData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {statusData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                <HorizontalBarChartCard
+                  title="Distribuição por Status"
+                  description="Quantidade de projetos em cada etapa"
+                  data={statusData}
+                  dataKey="value"
+                  testId="chart-status"
+                />
 
                 {/* Projects by Responsible */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Projetos por Responsável</CardTitle>
-                    <CardDescription>
-                      Distribuição de trabalho na equipe
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={responsavelData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="projetos" fill="#8884d8" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                <HorizontalBarChartCard
+                  title="Projetos por Responsável"
+                  description="Distribuição de trabalho na equipe"
+                  data={responsavelData}
+                  dataKey="value"
+                  testId="chart-responsavel"
+                />
 
                 {/* Projects by Type */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Projetos por Tipo de Vídeo</CardTitle>
-                    <CardDescription>
-                      Tipos de conteúdo mais produzidos
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={tipoData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="projetos" fill="#82ca9d" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                <HorizontalBarChartCard
+                  title="Projetos por Tipo de Vídeo"
+                  description="Tipos de conteúdo mais produzidos"
+                  data={tipoData}
+                  dataKey="value"
+                  testId="chart-tipo"
+                />
 
                 {/* Videos by Client */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Vídeos por Cliente</CardTitle>
-                    <CardDescription>
-                      Distribuição de projetos por cliente
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={clienteData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="videos" fill="#8884d8" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                <HorizontalBarChartCard
+                  title="Vídeos por Cliente"
+                  description="Distribuição de projetos por cliente"
+                  data={clienteData}
+                  dataKey="value"
+                  testId="chart-cliente"
+                />
 
                 {/* Status Summary */}
                 <Card>
@@ -280,14 +374,16 @@ export default function Metrics() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {Object.entries(metricas?.projetosPorStatus || {}).map(([status, count]) => (
-                      <div key={status} className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{status}</span>
-                        <Badge variant="secondary" data-testid={`status-count-${status}`}>
-                          {count}
-                        </Badge>
-                      </div>
-                    ))}
+                    {Object.entries(metricas?.projetosPorStatus || {})
+                      .sort(([, a], [, b]) => (b as number) - (a as number))
+                      .map(([status, count]) => (
+                        <div key={status} className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{status}</span>
+                          <Badge variant="secondary" data-testid={`status-count-${status}`}>
+                            {count}
+                          </Badge>
+                        </div>
+                      ))}
                   </CardContent>
                 </Card>
               </div>
