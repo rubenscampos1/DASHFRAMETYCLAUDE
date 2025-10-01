@@ -92,6 +92,24 @@ Preferred communication style: Simple, everyday language.
   - **Dynamic Counter**: Project count badge updates based on active filters
   - **Smart Empty States**: Different messages for "no projects" vs "no results with filters"
   - **Accessibility**: Added DialogDescription to eliminate aria warnings
+- **Metrics Page Transformation (October 2025)**: Complete redesign with executive-style horizontal bar charts and expansion feature
+  - **Horizontal Bar Charts**: All charts converted from vertical/pie to horizontal bars for better readability
+    - Distribuição por Status (formerly pie chart)
+    - Projetos por Responsável
+    - Projetos por Tipo de Vídeo
+    - Vídeos por Cliente
+  - **Visual Enhancements**:
+    - Automatic descending sort (highest to lowest values)
+    - Labels on left (Y-axis), values visible on bars
+    - Name truncation for long labels with full name in tooltips
+    - Single institutional color scheme compatible with light/dark themes
+    - Internal scroll for charts with many items
+  - **Chart Expansion Feature**:
+    - "Expand" button on each chart for full-screen view
+    - Modal dialog with larger chart rendering
+    - Dynamic height based on data volume
+    - Accessible dialog with proper ARIA attributes
+  - **Reusable Components**: Created HorizontalBarChartCard and ExpandedChartDialog for consistency
 
 # External Dependencies
 
