@@ -1,0 +1,93 @@
+Quero ajustar todos os gráficos de barras horizontais na aba Métricas com três objetivos:
+
+Remover o “quadrado preto” no hover
+
+Mostrar apenas dados “ativos no momento”
+
+Evitar scroll dentro do gráfico (visualizar sem rolagem na visão padrão)
+
+1) Corrigir hover (overlay preto/mascara)
+
+O cursor/overlay que aparece ao passar o mouse está exibindo um retângulo preto sobre o plot.
+
+Ajuste para que não haja máscara/retângulo escuro no hover.
+
+O Tooltip deve aparecer normalmente (fundo claro/escuro conforme tema), sem cobrir o gráfico.
+
+Padronize: tooltip pequeno, texto legível, sem flicker.
+
+Garanta que linhas de grade continuem visíveis e o hover destaque apenas a barra focada (leve mudança de opacidade/borda).
+
+2) Mostrar somente dados ativos
+
+Em todos os gráficos, filtrar a fonte de dados para considerar apenas projetos ativos.
+
+Definição de ativo (use esta regra): excluir status “Aprovado” e “Briefing”. (Se existir “Em Pausa” e “Cancelado”, também excluir.)
+
+Aplicar o filtro antes de montar os datasets de:
+
+Distribuição por Status
+
+Projetos por Responsável
+
+Projetos por Tipo de Vídeo
+
+Vídeos por Cliente
+
+Deixar claro na legenda/subtítulo do card: “Considera somente projetos ativos”.
+
+3) Sem scroll no gráfico (visão padrão)
+
+Não usar rolagem interna na área do gráfico na visão padrão.
+
+Implementar um destes comportamentos (escolha e documente):
+
+Auto-altura: calcular a altura do gráfico com base na quantidade de categorias (barras) para que todas caibam sem scroll, até um limite seguro do card; OU
+
+Top-N: exibir Top 10 itens na visão padrão (sem scroll) e disponibilizar “Expandir gráfico” (já existente) para ver a lista completa.
+
+Em modo expandido (tela cheia), pode haver scroll vertical se houver muitos itens.
+
+4) Padrões visuais (manter)
+
+Barras horizontais, ordenadas do maior para o menor.
+
+Nomes à esquerda, valores dentro ou à direita da barra.
+
+Cores e tipografia do tema atual; contraste adequado (dark/light).
+
+Tooltip mostra nome completo + valor.
+
+5) Escopo e segurança
+
+Editar apenas o front (componentes dos gráficos na aba Métricas).
+
+Não mudar queries/cálculos do backend; aplicar o filtro “ativos” no ponto onde os dados são preparados para o gráfico.
+
+Não renomear componentes nem alterar rotas.
+
+6) Entrega
+
+Comentar no topo de cada arquivo alterado o que foi feito (ex.: “Removido overlay do hover; aplicado filtro de projetos ativos; ajustada altura para evitar scroll”).
+
+No final, listar arquivos modificados e um resumo das mudanças.
+
+Indicar qual abordagem foi usada para “sem scroll” (auto-altura ou Top-N + Expandir).
+
+7) Testes de aceite
+
+Passar o mouse não exibe retângulo preto; apenas tooltip e destaque sutil da barra.
+
+Todos os gráficos mostram apenas projetos ativos (exclui Aprovado/Briefing e, se existirem, Em Pausa/Cancelado).
+
+Sem scroll interno na visão padrão do card.
+
+Ordenação do maior para o menor preservada.
+
+Tooltip com nome completo + valor.
+
+Em Expandir gráfico, é possível ver todos os itens; se houver muitos, o scroll é no modal, não no card.
+
+8) Observação para teste
+
+Crie uma conta nova para testar, pois a conta de teste anterior não existe mais. Faça login com um e-mail novo, acesse Métricas e valide os critérios acima.

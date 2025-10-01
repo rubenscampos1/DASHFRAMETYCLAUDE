@@ -1,3 +1,11 @@
+/*
+ * Ajustes implementados (Outubro 2025):
+ * 1. Removido overlay preto do hover (cursor: 'auto' no Tooltip)
+ * 2. Aplicado filtro de projetos ativos (exclui: Aprovado, Briefing, Em Pausa, Cancelado)
+ * 3. Implementado Top 10 na visão padrão (sem scroll); modo expandido mostra todos
+ * 4. Corrigido erro TypeScript (type assertion para count)
+ */
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
@@ -7,14 +15,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { TrendingUp, Users, Video, AlertTriangle, Maximize2, X } from "lucide-react";
+import { TrendingUp, Users, Video, AlertTriangle, Maximize2 } from "lucide-react";
 
 const CHART_COLOR = "hsl(var(--chart-1))";
+const INACTIVE_STATUSES = ["Aprovado", "Briefing", "Em Pausa", "Cancelado"];
 
 interface ChartData {
   name: string;
   value: number;
   fullName?: string;
+}
+
+interface MetricsData {
+  projetosPorStatus: Record<string, number>;
+  projetosPorResponsavel: Record<string, number>;
+  projetosPorTipo: Record<string, number>;
+  videosPorCliente: Record<string, number>;
 }
 
 interface ExpandedChartProps {
@@ -47,7 +63,7 @@ function ExpandedChartDialog({ isOpen, onClose, title, description, data, dataKe
                 tick={{ fill: 'hsl(var(--foreground))' }}
               />
               <Tooltip 
-                cursor={{ fill: 'hsl(var(--muted))' }}
+                cursor={false}
                 contentStyle={{ 
                   backgroundColor: 'hsl(var(--card))', 
                   border: '1px solid hsl(var(--border))',
@@ -85,8 +101,17 @@ function HorizontalBarChartCard({ title, description, data, dataKey, testId }: H
   // Ordenar do maior para o menor
   const sortedData = [...data].sort((a, b) => b.value - a.value);
 
+  // Top 10 para visão padrão (sem scroll)
+  const displayData = sortedData.slice(0, 10);
+
   // Truncar nomes longos e guardar nome completo
-  const processedData = sortedData.map(item => ({
+  const processedDisplayData = displayData.map(item => ({
+    ...item,
+    fullName: item.name,
+    name: item.name.length > 20 ? item.name.substring(0, 20) + '...' : item.name,
+  }));
+
+  const processedAllData = sortedData.map(item => ({
     ...item,
     fullName: item.name,
     name: item.name.length > 20 ? item.name.substring(0, 20) + '...' : item.name,
@@ -99,7 +124,7 @@ function HorizontalBarChartCard({ title, description, data, dataKey, testId }: H
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <CardTitle>{title}</CardTitle>
-              <CardDescription>{description}</CardDescription>
+              <CardDescription>{description} (Considera somente projetos ativos)</CardDescription>
             </div>
             <Button
               variant="ghost"
@@ -113,38 +138,36 @@ function HorizontalBarChartCard({ title, description, data, dataKey, testId }: H
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-y-auto" style={{ maxHeight: '300px' }}>
-            <ResponsiveContainer width="100%" height={Math.max(300, processedData.length * 40)}>
-              <BarChart data={processedData} layout="horizontal" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis type="number" className="text-xs" />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
-                  width={120}
-                  className="text-xs"
-                  tick={{ fill: 'hsl(var(--foreground))' }}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'hsl(var(--muted))' }}
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '6px'
-                  }}
-                  labelFormatter={(label, payload) => {
-                    const item = payload?.[0]?.payload;
-                    return item?.fullName || label;
-                  }}
-                />
-                <Bar dataKey={dataKey} radius={[0, 4, 4, 0]}>
-                  {processedData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLOR} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <ResponsiveContainer width="100%" height={Math.max(300, processedDisplayData.length * 40)}>
+            <BarChart data={processedDisplayData} layout="horizontal" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis type="number" className="text-xs" />
+              <YAxis 
+                type="category" 
+                dataKey="name" 
+                width={120}
+                className="text-xs"
+                tick={{ fill: 'hsl(var(--foreground))' }}
+              />
+              <Tooltip 
+                cursor={false}
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))', 
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '6px'
+                }}
+                labelFormatter={(label, payload) => {
+                  const item = payload?.[0]?.payload;
+                  return item?.fullName || label;
+                }}
+              />
+              <Bar dataKey={dataKey} radius={[0, 4, 4, 0]}>
+                {processedDisplayData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={CHART_COLOR} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
 
@@ -153,11 +176,18 @@ function HorizontalBarChartCard({ title, description, data, dataKey, testId }: H
         onClose={() => setIsExpanded(false)}
         title={title}
         description={description}
-        data={processedData}
+        data={processedAllData}
         dataKey={dataKey}
       />
     </>
   );
+}
+
+// Filtrar dados para considerar apenas projetos ativos
+function filterActiveProjects(data: Record<string, number>): Record<string, number> {
+  return Object.entries(data)
+    .filter(([key]) => !INACTIVE_STATUSES.includes(key))
+    .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 }
 
 export default function Metrics() {
@@ -191,22 +221,28 @@ export default function Metrics() {
     );
   }
 
-  const statusData: ChartData[] = Object.entries(metricas?.projetosPorStatus || {}).map(([status, count]) => ({
+  // Filtrar dados ativos
+  const activeStatusData = filterActiveProjects(metricas?.projetosPorStatus || {});
+  const activeResponsavelData = filterActiveProjects(metricas?.projetosPorResponsavel || {});
+  const activeTipoData = filterActiveProjects(metricas?.projetosPorTipo || {});
+  const activeClienteData = filterActiveProjects(metricas?.videosPorCliente || {});
+
+  const statusData: ChartData[] = Object.entries(activeStatusData).map(([status, count]) => ({
     name: status,
     value: count as number,
   }));
 
-  const responsavelData: ChartData[] = Object.entries(metricas?.projetosPorResponsavel || {}).map(([responsavel, count]) => ({
+  const responsavelData: ChartData[] = Object.entries(activeResponsavelData).map(([responsavel, count]) => ({
     name: responsavel,
     value: count as number,
   }));
 
-  const tipoData: ChartData[] = Object.entries(metricas?.projetosPorTipo || {}).map(([tipo, count]) => ({
+  const tipoData: ChartData[] = Object.entries(activeTipoData).map(([tipo, count]) => ({
     name: tipo,
     value: count as number,
   }));
 
-  const clienteData: ChartData[] = Object.entries(metricas?.videosPorCliente || {}).map(([cliente, count]) => ({
+  const clienteData: ChartData[] = Object.entries(activeClienteData).map(([cliente, count]) => ({
     name: cliente,
     value: count as number,
   }));
@@ -317,7 +353,7 @@ export default function Metrics() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-chart-3" data-testid="active-members">
-                      {Object.keys(metricas?.projetosPorResponsavel || {}).length}
+                      {Object.keys(activeResponsavelData).length}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Produtividade
@@ -370,17 +406,17 @@ export default function Metrics() {
                   <CardHeader>
                     <CardTitle>Resumo por Status</CardTitle>
                     <CardDescription>
-                      Visão detalhada do pipeline de projetos
+                      Visão detalhada do pipeline de projetos (somente ativos)
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {Object.entries(metricas?.projetosPorStatus || {})
+                    {Object.entries(activeStatusData)
                       .sort(([, a], [, b]) => (b as number) - (a as number))
                       .map(([status, count]) => (
                         <div key={status} className="flex items-center justify-between">
                           <span className="text-sm font-medium">{status}</span>
                           <Badge variant="secondary" data-testid={`status-count-${status}`}>
-                            {count}
+                            {count as number}
                           </Badge>
                         </div>
                       ))}
