@@ -535,7 +535,10 @@ export class DatabaseStorage implements IStorage {
       .from(projetos)
       .where(sql`${projetos.status} NOT IN ('Aprovado', 'Briefing')`);
 
-    // Vídeos por Cliente: contagem agrupada por cliente
+    // Filtro de projetos ativos para os gráficos (exclui: Aprovado, Briefing, Em Pausa, Cancelado)
+    const activeFilter = sql`${projetos.status} NOT IN ('Aprovado', 'Briefing', 'Em Pausa', 'Cancelado')`;
+
+    // Vídeos por Cliente: contagem agrupada por cliente (APENAS ATIVOS)
     const videosPorCliente = await db
       .select({
         cliente: clientes.nome,
@@ -543,18 +546,20 @@ export class DatabaseStorage implements IStorage {
       })
       .from(projetos)
       .leftJoin(clientes, eq(projetos.clienteId, clientes.id))
+      .where(activeFilter)
       .groupBy(clientes.nome);
 
-    // Resumo por Status: todos os status
+    // Resumo por Status: APENAS status ativos
     const projetosPorStatus = await db
       .select({
         status: projetos.status,
         count: sql<number>`count(*)`
       })
       .from(projetos)
+      .where(activeFilter)
       .groupBy(projetos.status);
 
-    // Por Responsável: manter como está
+    // Por Responsável: APENAS projetos ativos
     const projetosPorResponsavel = await db
       .select({
         responsavel: users.nome,
@@ -562,9 +567,10 @@ export class DatabaseStorage implements IStorage {
       })
       .from(projetos)
       .leftJoin(users, eq(projetos.responsavelId, users.id))
+      .where(activeFilter)
       .groupBy(users.nome);
 
-    // Por Tipo de Vídeo: manter como está
+    // Por Tipo de Vídeo: APENAS projetos ativos
     const projetosPorTipo = await db
       .select({
         tipo: tiposDeVideo.nome,
@@ -572,6 +578,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(projetos)
       .leftJoin(tiposDeVideo, eq(projetos.tipoVideoId, tiposDeVideo.id))
+      .where(activeFilter)
       .groupBy(tiposDeVideo.nome);
 
     const projetosAtrasados = await db

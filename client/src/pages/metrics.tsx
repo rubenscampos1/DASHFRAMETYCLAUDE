@@ -18,19 +18,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, Users, Video, AlertTriangle, Maximize2 } from "lucide-react";
 
 const CHART_COLOR = "hsl(var(--chart-1))";
-const INACTIVE_STATUSES = ["Aprovado", "Briefing", "Em Pausa", "Cancelado"];
 
 interface ChartData {
   name: string;
   value: number;
   fullName?: string;
-}
-
-interface MetricsData {
-  projetosPorStatus: Record<string, number>;
-  projetosPorResponsavel: Record<string, number>;
-  projetosPorTipo: Record<string, number>;
-  videosPorCliente: Record<string, number>;
 }
 
 interface ExpandedChartProps {
@@ -183,13 +175,6 @@ function HorizontalBarChartCard({ title, description, data, dataKey, testId }: H
   );
 }
 
-// Filtrar dados para considerar apenas projetos ativos
-function filterActiveProjects(data: Record<string, number>): Record<string, number> {
-  return Object.entries(data)
-    .filter(([key]) => !INACTIVE_STATUSES.includes(key))
-    .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
-}
-
 export default function Metrics() {
   const { mainContentClass } = useSidebarLayout();
   const { data: metricas, isLoading } = useQuery<any>({
@@ -221,28 +206,23 @@ export default function Metrics() {
     );
   }
 
-  // Filtrar dados ativos
-  const activeStatusData = filterActiveProjects(metricas?.projetosPorStatus || {});
-  const activeResponsavelData = filterActiveProjects(metricas?.projetosPorResponsavel || {});
-  const activeTipoData = filterActiveProjects(metricas?.projetosPorTipo || {});
-  const activeClienteData = filterActiveProjects(metricas?.videosPorCliente || {});
-
-  const statusData: ChartData[] = Object.entries(activeStatusData).map(([status, count]) => ({
+  // Dados já vêm filtrados do backend (apenas projetos ativos)
+  const statusData: ChartData[] = Object.entries(metricas?.projetosPorStatus || {}).map(([status, count]) => ({
     name: status,
     value: count as number,
   }));
 
-  const responsavelData: ChartData[] = Object.entries(activeResponsavelData).map(([responsavel, count]) => ({
+  const responsavelData: ChartData[] = Object.entries(metricas?.projetosPorResponsavel || {}).map(([responsavel, count]) => ({
     name: responsavel,
     value: count as number,
   }));
 
-  const tipoData: ChartData[] = Object.entries(activeTipoData).map(([tipo, count]) => ({
+  const tipoData: ChartData[] = Object.entries(metricas?.projetosPorTipo || {}).map(([tipo, count]) => ({
     name: tipo,
     value: count as number,
   }));
 
-  const clienteData: ChartData[] = Object.entries(activeClienteData).map(([cliente, count]) => ({
+  const clienteData: ChartData[] = Object.entries(metricas?.videosPorCliente || {}).map(([cliente, count]) => ({
     name: cliente,
     value: count as number,
   }));
@@ -353,7 +333,7 @@ export default function Metrics() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-chart-3" data-testid="active-members">
-                      {Object.keys(activeResponsavelData).length}
+                      {Object.keys(metricas?.projetosPorResponsavel || {}).length}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Produtividade
@@ -410,7 +390,7 @@ export default function Metrics() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {Object.entries(activeStatusData)
+                    {Object.entries(metricas?.projetosPorStatus || {})
                       .sort(([, a], [, b]) => (b as number) - (a as number))
                       .map(([status, count]) => (
                         <div key={status} className="flex items-center justify-between">
