@@ -136,18 +136,18 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   };
 
   return isLoading ? (
-    <div className="flex space-x-4 overflow-x-auto pb-4">
+    <div className="h-full flex space-x-4 overflow-x-auto pb-4">
       {statusColumns.map((column) => (
-        <div key={column.id} className="flex-shrink-0 w-80">
-          <Card className="h-full">
-            <CardHeader className="p-4 border-b border-border">
+        <div key={column.id} className="flex-shrink-0 w-80 h-full">
+          <Card className="h-full flex flex-col">
+            <CardHeader className="p-4 border-b border-border flex-shrink-0">
               <div className="flex items-center space-x-2">
                 <div className={`w-3 h-3 rounded-full ${column.color}`} />
                 <h3 className="text-sm font-medium">{column.title}</h3>
                 <Badge variant="secondary" className="animate-pulse">...</Badge>
               </div>
             </CardHeader>
-            <CardContent className="p-4">
+            <CardContent className="p-4 flex-1 overflow-y-auto">
               <div className="space-y-3">
                 {[1, 2].map((i) => (
                   <div key={i} className="h-32 bg-muted animate-pulse rounded-md" />
@@ -160,14 +160,17 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     </div>
   ) : (
     <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-      <div className="flex space-x-4 overflow-x-auto pb-4" data-testid="kanban-board">
+      {/* Container principal com scroll horizontal e altura fixa baseada na viewport */}
+      <div className="h-full flex space-x-4 overflow-x-auto pb-4" data-testid="kanban-board">
         {statusColumns.map((column) => {
           const columnProjects = getProjectsByStatus(column.id);
           
           return (
-            <div key={column.id} className="flex-shrink-0 w-80 kanban-column">
-              <Card className="h-full">
-                <CardHeader className="p-4 border-b border-border">
+            <div key={column.id} className="flex-shrink-0 w-80 h-full kanban-column">
+              {/* Cada coluna com header fixo e área droppable com scroll */}
+              <Card className="h-full flex flex-col">
+                {/* Cabeçalho fixo da coluna */}
+                <CardHeader className="p-4 border-b border-border flex-shrink-0 bg-card">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <div className={`w-3 h-3 rounded-full ${column.color}`} />
@@ -186,51 +189,54 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
                   </div>
                 </CardHeader>
                 
+                {/* Droppable com scroll vertical independente */}
                 <Droppable droppableId={column.id}>
                   {(provided, snapshot) => (
-                    <CardContent
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`p-4 space-y-3 min-h-[500px] transition-colors ${
-                        snapshot.isDraggingOver ? "bg-accent/50" : ""
-                      }`}
-                      data-testid={`column-${column.id}`}
-                    >
-                      {column.isDropZone && columnProjects.length === 0 ? (
-                        <div className="h-full flex items-center justify-center">
-                          <div className="text-center text-muted-foreground">
-                            <CheckCircle className="h-12 w-12 mx-auto mb-2" />
-                            <p className="text-sm">Arraste projetos aqui para aprovar</p>
-                            <p className="text-xs mt-1">Serão movidos para "Finalizados"</p>
+                    <div className="flex-1 overflow-hidden">
+                      <CardContent
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`p-4 space-y-3 h-full overflow-y-auto transition-colors ${
+                          snapshot.isDraggingOver ? "bg-accent/50" : ""
+                        }`}
+                        data-testid={`column-${column.id}`}
+                      >
+                        {column.isDropZone && columnProjects.length === 0 ? (
+                          <div className="h-full flex items-center justify-center min-h-[200px]">
+                            <div className="text-center text-muted-foreground">
+                              <CheckCircle className="h-12 w-12 mx-auto mb-2" />
+                              <p className="text-sm">Arraste projetos aqui para aprovar</p>
+                              <p className="text-xs mt-1">Serão movidos para "Finalizados"</p>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        columnProjects.map((projeto, index) => (
-                          <Draggable
-                            key={projeto.id}
-                            draggableId={projeto.id}
-                            index={index}
-                          >
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                style={provided.draggableProps.style}
-                              >
-                                <ProjectCard
-                                  projeto={projeto}
-                                  isDragging={snapshot.isDragging || draggedItem === projeto.id}
-                                  onEdit={setSelectedProject}
-                                  onDelete={(projetoId) => deleteProjectMutation.mutate(projetoId)}
-                                />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))
-                      )}
-                      {provided.placeholder}
-                    </CardContent>
+                        ) : (
+                          columnProjects.map((projeto, index) => (
+                            <Draggable
+                              key={projeto.id}
+                              draggableId={projeto.id}
+                              index={index}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  style={provided.draggableProps.style}
+                                >
+                                  <ProjectCard
+                                    projeto={projeto}
+                                    isDragging={snapshot.isDragging || draggedItem === projeto.id}
+                                    onEdit={setSelectedProject}
+                                    onDelete={(projetoId) => deleteProjectMutation.mutate(projetoId)}
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))
+                        )}
+                        {provided.placeholder}
+                      </CardContent>
+                    </div>
                   )}
                 </Droppable>
               </Card>

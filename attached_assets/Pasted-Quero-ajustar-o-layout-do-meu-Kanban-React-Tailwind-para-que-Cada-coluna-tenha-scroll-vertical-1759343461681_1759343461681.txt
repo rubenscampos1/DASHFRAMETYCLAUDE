@@ -1,0 +1,82 @@
+Quero ajustar o layout do meu Kanban (React + Tailwind) para que:
+
+Cada coluna tenha scroll vertical independente — ou seja, eu consigo rolar os cards de cada coluna separadamente.
+
+A página principal fique estática — não deve haver rolagem no body, apenas dentro das colunas.
+
+O container geral mantenha uma barra de rolagem horizontal na parte inferior, permitindo navegar lateralmente entre as colunas quando houver mais colunas do que a largura visível.
+
+🧱 Estrutura esperada
+
+O container principal do Kanban (onde ficam todas as colunas) deve ter:
+
+overflow-x-auto
+
+Largura total definida (w-full)
+
+Scroll horizontal ativado, com barra visível na parte inferior
+
+As colunas devem estar em display flex, lado a lado (flex-row)
+
+Altura total definida baseada na viewport (por exemplo: h-[calc(100vh-80px)]), levando em conta topbar/menu superior
+
+Cada coluna deve:
+
+Ter overflow-y-auto para scroll vertical individual
+
+Ter altura fixa proporcional à viewport
+
+Ter cabeçalho (título + contador + botão + filtros) fixo (sticky) no topo da coluna
+
+Permitir rolagem apenas do conteúdo interno (cards)
+
+O body deve:
+
+Ter overflow-hidden (sem scroll geral)
+
+Ficar completamente estático enquanto o usuário rola colunas
+
+Continuar permitindo abrir modais e menus dropdown sem quebrar o layout
+
+🧠 Regras e comportamentos desejados
+
+Ao rolar uma coluna, as demais permanecem fixas, sem deslocar o layout.
+
+O scroll horizontal deve continuar funcionando normalmente na parte inferior para navegar entre colunas.
+
+O drag & drop deve continuar funcionando entre colunas mesmo com rolagem independente.
+
+Scrollbars podem ser personalizadas (finas e discretas), mas devem permanecer visíveis para indicar rolagem.
+
+O layout deve ser somente desktop, sem necessidade de ajustar ou otimizar comportamento para mobile (sem gestos, sem scroll lateral por swipe, sem colunas colapsáveis).
+
+🔒 Escopo e boas práticas
+
+Edite apenas arquivos do diretório client/.
+
+Não altere nomes ou estrutura de componentes — apenas adicione estilos e containers de layout necessários.
+
+Não altere a lógica de drag & drop, filtros ou contadores.
+
+Comente no topo de cada arquivo alterado explicando brevemente a mudança (ex: “Adicionado overflow-y-auto para scroll vertical independente nas colunas”).
+
+Liste no final quais arquivos foram modificados e um resumo das mudanças.
+
+⚠️ Importante
+
+Para testar o projeto, crie uma conta nova, pois a conta de teste anterior não existe mais.
+O sistema de login está ativo, então use um novo e-mail e senha válidos para acessar o dashboard e verificar as mudanças.
+
+✅ Testes de aceite
+
+O body não rola.
+
+Cada coluna tem seu próprio scroll vertical.
+
+Há uma barra horizontal visível na parte de baixo do container para navegar entre colunas.
+
+O drag & drop continua funcionando entre colunas mesmo com scrolls separados.
+
+Nenhum elemento de UI fica cortado ou sobreposto durante a rolagem.
+
+O layout mantém espaçamentos e proporções visuais originais.

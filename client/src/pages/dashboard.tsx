@@ -193,10 +193,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Main Content */}
-        <main className="flex-1 relative overflow-y-auto focus:outline-none">
-          <div className="py-6">
-            <div className="max-w-full mx-auto px-6">
+        {/* Main Content - Removido overflow-y-auto para layout estático */}
+        <main className="flex-1 relative overflow-hidden focus:outline-none">
+          <div className="h-full py-6">
+            <div className="h-full max-w-full mx-auto px-6">
               <KanbanBoard filters={filters} />
             </div>
           </div>

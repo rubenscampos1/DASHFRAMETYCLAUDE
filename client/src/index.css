@@ -120,6 +120,7 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
     font-size: var(--fluid-base);
+    overflow: hidden; /* Body estático - sem scroll geral da página */
   }
   
   /* Fluid Typography Elements */
