@@ -59,7 +59,7 @@ Preferred communication style: Simple, everyday language.
 - **Error Handling**: Centralized error management with toast notifications
 - **Transactional Operations**: Database transactions for atomic multi-table operations (e.g., project deletion)
 
-## Recent Changes (September 2025)
+## Recent Changes (September-October 2025)
 - **Simplified Authentication Page**: Removed promotional content and centered login/register forms
   - Removed all marketing icons and feature descriptions
   - Changed from two-column layout to single centered column
@@ -80,6 +80,18 @@ Preferred communication style: Simple, everyday language.
   - Uses soft delete (marks user as inactive) to preserve historical data
   - Prevents deletion if user is responsible for projects (clear error message)
   - Maintains data integrity for comments and status logs
+- **Enhanced Finalizados Page (October 2025)**: Complete redesign with dual view modes and advanced filtering
+  - **Toggle Card/Lista**: Switch between card grid and table views with localStorage persistence
+  - **Table View**: Comprehensive list display with columns for Título, Cliente, Responsável, Tipo, Prioridade, Data de Aprovação, and YouTube link
+  - **Advanced Filtering System**:
+    - Date filters with presets (This Month, Last Month) and custom date range
+    - Responsible person filter with unique project owners
+    - Combinable filters (date + responsible)
+    - Active filter chips with individual removal
+    - "Clear all filters" button
+  - **Dynamic Counter**: Project count badge updates based on active filters
+  - **Smart Empty States**: Different messages for "no projects" vs "no results with filters"
+  - **Accessibility**: Added DialogDescription to eliminate aria warnings
 
 # External Dependencies
 
