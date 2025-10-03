@@ -271,3 +271,44 @@
     scroll-snap-type: none;
   }
 }
+
+/* Mobile Touch Optimization - Cards and Buttons */
+@media (max-width: 767px) {
+  /* Ensure minimum touch target size */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better touch feedback for cards */
+  .project-card {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  .project-card:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease-out;
+  }
+  
+  /* Optimize touch targets for interactive elements */
+  button:active, a:active, [role="button"]:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease-out;
+  }
+  
+  /* Increase tap targets for icons */
+  button svg, a svg {
+    pointer-events: none;
+  }
+  
+  /* Remove default tap highlight */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Better spacing for mobile interactions */
+  .project-card {
+    margin-bottom: 0.75rem;
+  }
+}
