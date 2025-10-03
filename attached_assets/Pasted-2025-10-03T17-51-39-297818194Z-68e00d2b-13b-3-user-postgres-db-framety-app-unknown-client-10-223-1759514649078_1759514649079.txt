@@ -1,0 +1,158 @@
+2025-10-03T17:51:39.297818194Z [68e00d2b.13b-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:51:42.304647262Z [68e00d2b.13b-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.018 user=postgres database=framety host=10.223.61.120 port=35808
+2025-10-03T17:52:31.968046212Z [68e00d5f.16a-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42780
+2025-10-03T17:52:31.969027298Z [68e00d5f.16b-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42794
+2025-10-03T17:52:32.498866191Z [68e00d60.172-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42802
+2025-10-03T17:52:32.585509916Z [68e00d60.172-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:52:32.585537016Z [68e00d60.172-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:52:35.686901933Z [68e00d60.172-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.187 user=postgres database=framety host=10.223.61.120 port=42802
+2025-10-03T17:52:38.838806532Z [68e00d66.177-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42820
+2025-10-03T17:52:38.839428502Z [68e00d66.176-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42808
+2025-10-03T17:52:39.286424302Z [68e00d67.178-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42826
+2025-10-03T17:52:39.290885076Z [68e00d67.178-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:52:39.290918526Z [68e00d67.178-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:52:42.298609854Z [68e00d67.178-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.007 user=postgres database=framety host=10.223.61.120 port=42826
+2025-10-03T17:53:31.968478255Z [68e00d9b.1aa-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=53292
+2025-10-03T17:53:31.968800531Z [68e00d9b.1a9-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=53290
+2025-10-03T17:53:31.983022475Z [68e00d9b.1ab-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=53300
+2025-10-03T17:53:32.085009502Z [68e00d9b.1ab-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:53:32.085167244Z [68e00d9b.1ab-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:53:35.090473347Z [68e00d9b.1ab-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.106 user=postgres database=framety host=10.223.61.120 port=53300
+2025-10-03T17:53:38.839544472Z [68e00da2.1b6-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=53310
+2025-10-03T17:53:38.8400471Z [68e00da2.1b7-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=53314
+2025-10-03T17:53:38.882541759Z [68e00da2.1b8-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=53318
+2025-10-03T17:53:38.99144085Z [68e00da2.1b8-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:53:38.991671423Z [68e00da2.1b8-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:53:42.003400122Z [68e00da2.1b8-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.121 user=postgres database=framety host=10.223.61.120 port=53318
+2025-10-03T17:53:52.097456114Z [68e00c83.85-1] user=,db=,app=,client=,LOG:  checkpoint starting: time
+2025-10-03T17:53:55.639943263Z [68e00c83.85-2] user=,db=,app=,client=,LOG:  checkpoint complete: wrote 38 buffers (0.5%); 0 WAL file(s) added, 0 removed, 0 recycled; write=3.528 s, sync=0.006 s, total=3.543 s; sync files=13, longest=0.004 s, average=0.001 s; distance=231 kB, estimate=231 kB; lsn=0/1BB2670, redo lsn=0/1BB2600
+2025-10-03T17:54:31.968174348Z [68e00dd7.1e7-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40780
+2025-10-03T17:54:31.970070019Z [68e00dd7.1e8-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40792
+2025-10-03T17:54:32.382149317Z [68e00dd8.1ef-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40798
+2025-10-03T17:54:32.392590018Z [68e00dd8.1ef-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:54:32.393450552Z [68e00dd8.1ef-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:54:35.483079607Z [68e00dd8.1ef-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.101 user=postgres database=framety host=10.223.61.120 port=40798
+2025-10-03T17:54:38.841889109Z [68e00dde.1f4-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40806
+2025-10-03T17:54:38.847462331Z [68e00dde.1f5-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40820
+2025-10-03T17:54:38.993462202Z [68e00dde.1f6-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40824
+2025-10-03T17:54:39.092751785Z [68e00dde.1f6-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:54:39.092777186Z [68e00dde.1f6-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:54:42.098312368Z [68e00dde.1f6-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.109 user=postgres database=framety host=10.223.61.120 port=40824
+2025-10-03T17:55:31.969163832Z [68e00e13.227-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40330
+2025-10-03T17:55:31.971090023Z [68e00e13.226-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40326
+2025-10-03T17:55:32.198516274Z [68e00e14.228-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40334
+2025-10-03T17:55:32.21649685Z [68e00e14.228-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:55:32.21651369Z [68e00e14.228-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:55:35.292429905Z [68e00e14.228-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.103 user=postgres database=framety host=10.223.61.120 port=40334
+2025-10-03T17:55:38.838142056Z [68e00e1a.233-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40336
+2025-10-03T17:55:38.83954817Z [68e00e1a.234-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40348
+2025-10-03T17:55:39.200269593Z [68e00e1b.235-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40364
+2025-10-03T17:55:39.286601393Z [68e00e1b.235-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:55:39.286659214Z [68e00e1b.235-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:55:42.296453521Z [68e00e1b.235-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.094 user=postgres database=framety host=10.223.61.120 port=40364
+2025-10-03T17:56:31.968339134Z [68e00e4f.265-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=35146
+2025-10-03T17:56:31.969218669Z [68e00e4f.266-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=35154
+2025-10-03T17:56:32.581047983Z [68e00e50.26e-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=35168
+2025-10-03T17:56:32.586646776Z [68e00e50.26e-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:56:32.586733057Z [68e00e50.26e-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:56:35.692436326Z [68e00e50.26e-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.182 user=postgres database=framety host=10.223.61.120 port=35168
+2025-10-03T17:56:38.838032262Z [68e00e56.272-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=35180
+2025-10-03T17:56:38.838895326Z [68e00e56.273-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=35196
+2025-10-03T17:56:39.289671651Z [68e00e57.274-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=35210
+2025-10-03T17:56:39.295560668Z [68e00e57.274-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:56:39.295572708Z [68e00e57.274-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:56:42.383438715Z [68e00e57.274-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.093 user=postgres database=framety host=10.223.61.120 port=35210
+2025-10-03T17:57:31.967766418Z [68e00e8b.2a5-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42952
+2025-10-03T17:57:31.967799309Z [68e00e8b.2a4-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42936
+2025-10-03T17:57:32.581237961Z [68e00e8c.2ac-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42958
+2025-10-03T17:57:32.588522421Z [68e00e8c.2ac-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:57:32.588556141Z [68e00e8c.2ac-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:57:35.682496522Z [68e00e8c.2ac-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.184 user=postgres database=framety host=10.223.61.120 port=42958
+2025-10-03T17:57:38.83764837Z [68e00e92.2b0-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42970
+2025-10-03T17:57:38.845318596Z [68e00e92.2b1-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42984
+2025-10-03T17:57:39.286433843Z [68e00e93.2b2-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=42998
+2025-10-03T17:57:39.294478156Z [68e00e93.2b2-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:57:39.294496336Z [68e00e93.2b2-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:57:42.302516304Z [68e00e93.2b2-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.017 user=postgres database=framety host=10.223.61.120 port=42998
+2025-10-03T17:58:31.9728188Z [68e00ec7.2e2-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=39500
+2025-10-03T17:58:31.973802116Z [68e00ec7.2e3-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=39516
+2025-10-03T17:58:32.505995993Z [68e00ec8.2ec-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=39532
+2025-10-03T17:58:32.692895738Z [68e00ec8.2ec-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:58:32.692935678Z [68e00ec8.2ec-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:58:35.696875793Z [68e00ec8.2ec-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.190 user=postgres database=framety host=10.223.61.120 port=39532
+2025-10-03T17:58:38.837796152Z [68e00ece.2ef-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=39542
+2025-10-03T17:58:38.838675007Z [68e00ece.2f0-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=39544
+2025-10-03T17:58:39.28132165Z [68e00ecf.2f1-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=39546
+2025-10-03T17:58:39.293904207Z [68e00ecf.2f1-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:58:39.293920407Z [68e00ecf.2f1-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:58:42.304454741Z [68e00ecf.2f1-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.016 user=postgres database=framety host=10.223.61.120 port=39546
+2025-10-03T17:58:52.73977476Z [68e00c83.85-3] user=,db=,app=,client=,LOG:  checkpoint starting: time
+2025-10-03T17:58:52.752425148Z [68e00c83.85-4] user=,db=,app=,client=,LOG:  checkpoint complete: wrote 1 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.003 s, sync=0.001 s, total=0.013 s; sync files=1, longest=0.001 s, average=0.001 s; distance=1 kB, estimate=208 kB; lsn=0/1BB2AE0, redo lsn=0/1BB2AA8
+2025-10-03T17:59:31.969236704Z [68e00f03.320-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43400
+2025-10-03T17:59:31.970388613Z [68e00f03.321-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43408
+2025-10-03T17:59:32.302904165Z [68e00f04.322-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43422
+2025-10-03T17:59:32.43573533Z [68e00f04.322-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:59:32.437218475Z [68e00f04.322-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:59:35.399503549Z [68e00f04.322-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.100 user=postgres database=framety host=10.223.61.120 port=43422
+2025-10-03T17:59:38.838827263Z [68e00f0a.32d-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43436
+2025-10-03T17:59:38.839587865Z [68e00f0a.32e-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43440
+2025-10-03T17:59:39.281870133Z [68e00f0b.32f-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43442
+2025-10-03T17:59:39.38439679Z [68e00f0b.32f-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T17:59:39.384419161Z [68e00f0b.32f-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T17:59:42.392446158Z [68e00f0b.32f-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.110 user=postgres database=framety host=10.223.61.120 port=43442
+2025-10-03T18:00:31.981390571Z [68e00f3f.360-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=44722
+2025-10-03T18:00:31.987653054Z [68e00f3f.361-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=44730
+2025-10-03T18:00:32.208447707Z [68e00f40.362-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=44742
+2025-10-03T18:00:32.310909184Z [68e00f40.362-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T18:00:32.310928494Z [68e00f40.362-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T18:00:35.1381672Z [68e00f43.36d-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.2.163,LOG:  connection received: host=10.223.2.163 port=55614
+2025-10-03T18:00:35.332387096Z [68e00f40.362-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.129 user=postgres database=framety host=10.223.61.120 port=44742
+2025-10-03T18:00:35.35025358Z [68e00f43.36d-2] user=framety_user,db=framety,app=[unknown],client=10.223.2.163,LOG:  connection authenticated: identity="framety_user" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T18:00:35.35026837Z [68e00f43.36d-3] user=framety_user,db=framety,app=[unknown],client=10.223.2.163,LOG:  connection authorized: user=framety_user database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T18:00:35.365908928Z [68e00f43.36d-4] user=framety_user,db=framety,app=[unknown],client=10.223.2.163,ERROR:  relation "users" does not exist at character 91
+2025-10-03T18:00:35.365923568Z [68e00f43.36d-5] user=framety_user,db=framety,app=[unknown],client=10.223.2.163,STATEMENT:  select "id", "nome", "email", "password", "papel", "ativo", "foto_url", "created_at" from "users" where "users"."email" = $1
+2025-10-03T18:00:35.398610536Z [68e00f43.36d-6] user=framety_user,db=framety,app=[unknown],client=10.223.2.163,LOG:  disconnection: session time: 0:00:00.260 user=framety_user database=framety host=10.223.2.163 port=55614
+2025-10-03T18:00:38.837866124Z [68e00f46.36e-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=44746
+2025-10-03T18:00:38.840451277Z [68e00f46.36f-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=44762
+2025-10-03T18:00:38.983203026Z [68e00f46.370-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=44772
+2025-10-03T18:00:38.997142875Z [68e00f46.370-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T18:00:38.997289308Z [68e00f46.370-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T18:00:42.002542384Z [68e00f46.370-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.020 user=postgres database=framety host=10.223.61.120 port=44772
+2025-10-03T18:01:31.967873904Z [68e00f7b.3a0-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43562
+2025-10-03T18:01:31.968212099Z [68e00f7b.39f-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43550
+2025-10-03T18:01:32.385413766Z [68e00f7c.3a7-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43574
+2025-10-03T18:01:32.584147827Z [68e00f7c.3a7-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T18:01:32.584227348Z [68e00f7c.3a7-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T18:01:35.589426127Z [68e00f7c.3a7-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.203 user=postgres database=framety host=10.223.61.120 port=43574
+2025-10-03T18:01:38.839526127Z [68e00f82.3ac-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43588
+2025-10-03T18:01:38.847442008Z [68e00f82.3ad-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43604
+2025-10-03T18:01:39.289963471Z [68e00f83.3ae-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=43608
+2025-10-03T18:01:39.297525075Z [68e00f83.3ae-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T18:01:39.303491193Z [68e00f83.3ae-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T18:01:42.381475981Z [68e00f83.3ae-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.091 user=postgres database=framety host=10.223.61.120 port=43608
+2025-10-03T18:02:31.968165997Z [68e00fb7.3de-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=58106
+2025-10-03T18:02:31.969703002Z [68e00fb7.3df-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=58122
+2025-10-03T18:02:32.369556263Z [68e00fb8.3e0-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=58130
+2025-10-03T18:02:32.481852952Z [68e00fb8.3e0-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T18:02:32.481882682Z [68e00fb8.3e0-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T18:02:35.487431862Z [68e00fb8.3e0-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.188 user=postgres database=framety host=10.223.61.120 port=58130
+2025-10-03T18:02:38.837853078Z [68e00fbe.3eb-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=58146
+2025-10-03T18:02:38.839085178Z [68e00fbe.3ec-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=58162
+2025-10-03T18:02:38.886332246Z [68e00fbe.3ed-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=58172
+2025-10-03T18:02:38.892145902Z [68e00fbe.3ed-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T18:02:38.892301644Z [68e00fbe.3ed-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T18:02:41.907448462Z [68e00fbe.3ed-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.016 user=postgres database=framety host=10.223.61.120 port=58172
+2025-10-03T18:03:31.970625204Z [68e00ff3.41c-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40606
+2025-10-03T18:03:31.971324116Z [68e00ff3.41d-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40616
+2025-10-03T18:03:32.298109455Z [68e00ff4.41e-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40626
+2025-10-03T18:03:32.38591678Z [68e00ff4.41e-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T18:03:32.386052052Z [68e00ff4.41e-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T18:03:35.484425804Z [68e00ff4.41e-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.186 user=postgres database=framety host=10.223.61.120 port=40626
+2025-10-03T18:03:38.861120718Z [68e00ffa.429-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40636
+2025-10-03T18:03:38.861143919Z [68e00ffa.42a-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40650
+2025-10-03T18:03:38.894427476Z [68e00ffa.42b-1] user=[unknown],db=[unknown],app=[unknown],client=10.223.61.120,LOG:  connection received: host=10.223.61.120 port=40660
+2025-10-03T18:03:38.92683085Z [68e00ffa.42b-2] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+2025-10-03T18:03:38.928409686Z [68e00ffa.42b-3] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+2025-10-03T18:03:41.991510428Z [68e00ffa.42b-4] user=postgres,db=framety,app=[unknown],client=10.223.61.120,LOG:  disconnection: session time: 0:00:03.097 user=postgres database=framety host=10.223.61.120 port=40660
+2025-10-03T18:03:52.851803882Z [68e00c83.85-5] user=,db=,app=,client=,LOG:  checkpoint starting: time
+2025-10-03T18:03:52.865234423Z [68e00c83.85-6] user=,db=,app=,client=,LOG:  checkpoint complete: wrote 1 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.014 s; sync files=1, longest=0.001 s, average=0.001 s; distance=1 kB, estimate=188 kB; lsn=0/1BB2F18, redo lsn=0/1BB2EE0
