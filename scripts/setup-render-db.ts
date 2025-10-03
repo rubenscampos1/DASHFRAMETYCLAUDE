@@ -212,7 +212,7 @@ async function setupDatabase() {
       await db.insert(users).values({
         nome: 'Admin',
         email: 'admin@framety.com',
-        password: hashPassword('admin123'),
+        password: await hashPassword('admin123'),
         papel: 'Admin',
         ativo: true
       });
