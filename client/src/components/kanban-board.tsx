@@ -136,9 +136,9 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   };
 
   return isLoading ? (
-    <div className="h-full flex space-x-4 overflow-x-auto pb-4">
+    <div className="h-full flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent px-2 md:px-0">
       {statusColumns.map((column) => (
-        <div key={column.id} className="flex-shrink-0 w-80 h-full">
+        <div key={column.id} className="flex-shrink-0 w-[280px] min-w-[280px] md:w-80 md:min-w-0 h-full snap-center md:snap-align-none">
           <Card className="h-full flex flex-col">
             <CardHeader className="p-4 border-b border-border flex-shrink-0">
               <div className="flex items-center space-x-2">
@@ -160,13 +160,13 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     </div>
   ) : (
     <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-      {/* Container principal com scroll horizontal e altura fixa baseada na viewport */}
-      <div className="h-full flex space-x-4 overflow-x-auto pb-4" data-testid="kanban-board">
+      {/* Container principal com scroll horizontal suave no mobile, normal no desktop */}
+      <div className="h-full flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent px-2 md:px-0" data-testid="kanban-board">
         {statusColumns.map((column) => {
           const columnProjects = getProjectsByStatus(column.id);
           
           return (
-            <div key={column.id} className="flex-shrink-0 w-80 h-full kanban-column">
+            <div key={column.id} className="flex-shrink-0 w-[300px] min-w-[300px] md:w-80 md:min-w-0 h-full snap-center md:snap-align-none kanban-column">
               {/* Cada coluna com header fixo e área droppable com scroll */}
               <Card className="h-full flex flex-col">
                 {/* Cabeçalho fixo da coluna */}

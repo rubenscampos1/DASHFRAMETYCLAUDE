@@ -236,3 +236,38 @@
 .priority-low {
   border-left: 4px solid hsl(var(--chart-4));
 }
+
+/* Mobile Kanban Horizontal Scroll Optimization */
+@media (max-width: 767px) {
+  /* Smooth scroll behavior for mobile kanban */
+  [data-testid="kanban-board"] {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scroll-padding: 0.5rem;
+  }
+  
+  /* Hide scrollbar on mobile for cleaner look */
+  [data-testid="kanban-board"]::-webkit-scrollbar {
+    height: 6px;
+  }
+  
+  [data-testid="kanban-board"]::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  [data-testid="kanban-board"]::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 3px;
+  }
+  
+  [data-testid="kanban-board"]::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+}
+
+/* Desktop: Remove snap scroll and adjust spacing */
+@media (min-width: 768px) {
+  [data-testid="kanban-board"] {
+    scroll-snap-type: none;
+  }
+}
