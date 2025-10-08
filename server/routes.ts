@@ -181,9 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Allow all authenticated users to edit any project
 
-      console.log("[PATCH /api/projetos/:id] req.body:", JSON.stringify(req.body, null, 2));
       const validatedData = updateProjetoSchema.parse(req.body);
-      console.log("[PATCH /api/projetos/:id] validatedData:", JSON.stringify(validatedData, null, 2));
       
       // If status is changing, log it
       if (validatedData.status && validatedData.status !== projetoExistente.status) {
