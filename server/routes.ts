@@ -155,7 +155,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/projetos", requireAuth, async (req, res, next) => {
     try {
+      console.log("[POST /api/projetos] req.body:", JSON.stringify(req.body, null, 2));
       const validatedData = insertProjetoSchema.parse(req.body);
+      console.log("[POST /api/projetos] validatedData:", JSON.stringify(validatedData, null, 2));
       const projeto = await storage.createProjeto(validatedData);
       
       // Create initial status log
