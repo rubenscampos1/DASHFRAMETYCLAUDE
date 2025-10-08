@@ -151,39 +151,15 @@ export function ProjectDetailsDrawer({
       const response = await apiRequest("PATCH", `/api/projetos/${projeto?.id}`, data);
       return response.json();
     },
-    onSuccess: async (updatedProject) => {
-      // Invalida queries para refetch
-      await queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+    onSuccess: (updatedProject) => {
+      // Invalida queries para refetch - isso fará com que o projeto seja atualizado
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
       
-      // Atualiza o callback do parent
+      // Atualiza o callback do parent com os dados novos
       onProjectUpdate?.(updatedProject);
       
-      // Atualiza o formulário com os dados atualizados
-      form.reset({
-        titulo: updatedProject.titulo || "",
-        descricao: updatedProject.descricao || "",
-        tipoVideoId: updatedProject.tipoVideoId || "",
-        responsavelId: updatedProject.responsavelId || "",
-        prioridade: updatedProject.prioridade || "Média",
-        status: updatedProject.status || "Briefing",
-        clienteId: updatedProject.clienteId || "",
-        empreendimentoId: updatedProject.empreendimentoId || "",
-        duracao: updatedProject.duracao?.toString() || "",
-        formato: updatedProject.formato || "",
-        captacao: updatedProject.captacao || false,
-        roteiro: updatedProject.roteiro || false,
-        locucao: updatedProject.locucao || false,
-        dataInterna: updatedProject.dataInterna ? format(new Date(updatedProject.dataInterna), "yyyy-MM-dd") : "",
-        dataMeeting: updatedProject.dataMeeting ? format(new Date(updatedProject.dataMeeting), "yyyy-MM-dd") : "",
-        dataPrevistaEntrega: updatedProject.dataPrevistaEntrega ? format(new Date(updatedProject.dataPrevistaEntrega), "yyyy-MM-dd") : "",
-        linkFrameIo: updatedProject.linkFrameIo || "",
-        linkYoutube: updatedProject.linkYoutube || "",
-        caminho: updatedProject.caminho || "",
-        referencias: updatedProject.referencias || "",
-        informacoesAdicionais: updatedProject.informacoesAdicionais || "",
-      });
-      
+      // O useEffect vai atualizar o formulário quando o projeto for atualizado
       setIsEditing(false);
       toast({
         title: "Projeto atualizado com sucesso!",
