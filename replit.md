@@ -61,7 +61,7 @@ Preferred communication style: Simple, everyday language.
 - **Error Handling**: Centralized error management with toast notifications
 - **Transactional Operations**: Database transactions for atomic multi-table operations (e.g., project deletion)
 
-## Recent Changes (September-October 2025)
+## Recent Changes (October 2025)
 - **Simplified Authentication Page**: Removed promotional content and centered login/register forms
   - Removed all marketing icons and feature descriptions
   - Changed from two-column layout to single centered column
@@ -97,6 +97,16 @@ Preferred communication style: Simple, everyday language.
 - **Metrics Dashboard Simplification (October 2025)**: Removed PieChart status distribution card
   - Kept 4 essential metric cards in 2x2 grid layout
   - Cards: Projetos por Responsável, Projetos por Tipo de Vídeo, Vídeos por Cliente, Resumo por Status
+- **Favicon Customization (October 2025)**: Added custom FRAMETY logo as favicon
+  - PNG favicon for all modern browsers
+  - Apple touch icon for iOS home screen
+  - Proper meta tags for mobile web apps
+- **Date Handling Fix (October 2025)**: Corrected delivery date comparison logic
+  - Changed from timestamp comparison to date-only comparison
+  - Projects with delivery date "today" are no longer incorrectly marked as overdue
+  - Backend uses `DATE(data_prevista_entrega) < CURRENT_DATE` for accurate overdue calculation
+  - Frontend uses `isBefore(startOfDay(deliveryDate), startOfDay(today))` for visual indicators
+  - Metrics now correctly count overdue projects based on date only (ignoring time)
 - **Render.com Deploy Configuration (October 2025)**: Prepared application for production deployment
   - Created `render.yaml` for automatic deployment with database provisioning
   - Added `.node-version` file specifying Node.js 20

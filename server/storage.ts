@@ -579,7 +579,7 @@ export class DatabaseStorage implements IStorage {
       .from(projetos)
       .where(
         and(
-          sql`${projetos.dataPrevistaEntrega} < NOW()`,
+          sql`DATE(${projetos.dataPrevistaEntrega}) < CURRENT_DATE`,
           sql`${projetos.status} NOT IN ('Aprovado', 'Cancelado')`
         )
       );

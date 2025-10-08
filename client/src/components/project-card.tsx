@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, AlertTriangle, Trash2 } from "lucide-react";
 import { ProjetoWithRelations } from "@shared/schema";
-import { format, isPast } from "date-fns";
+import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface ProjectCardProps {
@@ -35,7 +35,7 @@ const statusColors = {
 
 export function ProjectCard({ projeto, isDragging, onEdit, onDelete }: ProjectCardProps) {
   const isOverdue = projeto.dataPrevistaEntrega && 
-    isPast(new Date(projeto.dataPrevistaEntrega)) && 
+    isBefore(startOfDay(new Date(projeto.dataPrevistaEntrega)), startOfDay(new Date())) && 
     !["Aprovado", "Cancelado"].includes(projeto.status);
 
   const priorityBorderClass = {
