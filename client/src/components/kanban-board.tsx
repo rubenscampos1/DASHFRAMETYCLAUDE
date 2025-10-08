@@ -249,6 +249,10 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
         projeto={selectedProject}
         isOpen={!!selectedProject}
         onClose={() => setSelectedProject(null)}
+        onProjectUpdate={(updatedProject) => {
+          // Atualiza o projeto selecionado com os dados novos
+          setSelectedProject(updatedProject);
+        }}
       />
     </DragDropContext>
   );

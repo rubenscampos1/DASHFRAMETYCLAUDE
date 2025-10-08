@@ -265,6 +265,57 @@ export const insertProjetoSchema = createInsertSchema(projetos).omit({
   linkYoutube: z.string().url().optional().or(z.literal("")),
 });
 
+// Schema específico para updates (PATCH) que mantém as transformações funcionando
+// Precisamos redefinir as transformações de data antes de chamar .partial()
+export const updateProjetoSchema = z.object({
+  // Campos de texto
+  titulo: z.string().optional(),
+  descricao: z.string().optional(),
+  tipoVideoId: z.string().optional(),
+  responsavelId: z.string().optional(),
+  prioridade: z.enum(["Baixa", "Média", "Alta"]).optional(),
+  status: z.enum(["Briefing", "Roteiro", "Captação", "Edição", "Revisão", "Aguardando Aprovação", "Aprovado"]).optional(),
+  clienteId: z.string().optional().or(z.literal("")).transform((val) => val === "" ? null : val),
+  empreendimentoId: z.string().optional().or(z.literal("")).transform((val) => val === "" ? null : val),
+  duracao: z.number().optional(),
+  formato: z.string().optional(),
+  captacao: z.boolean().optional(),
+  roteiro: z.boolean().optional(),
+  locucao: z.boolean().optional(),
+  
+  // Campos de data com transformação
+  dataPrevistaEntrega: z.string().optional().or(z.literal("")).transform((val) => {
+    if (!val || val === "" || typeof val !== 'string') return undefined;
+    const parts = val.split('-');
+    if (parts.length !== 3) return undefined;
+    const [year, month, day] = parts.map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  }),
+  dataInterna: z.string().optional().or(z.literal("")).transform((val) => {
+    if (!val || val === "" || typeof val !== 'string') return undefined;
+    const parts = val.split('-');
+    if (parts.length !== 3) return undefined;
+    const [year, month, day] = parts.map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  }),
+  dataMeeting: z.string().optional().or(z.literal("")).transform((val) => {
+    if (!val || val === "" || typeof val !== 'string') return undefined;
+    const parts = val.split('-');
+    if (parts.length !== 3) return undefined;
+    const [year, month, day] = parts.map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  }),
+  
+  linkFrameIo: z.string().url().optional().or(z.literal("")),
+  linkYoutube: z.string().url().optional().or(z.literal("")),
+  caminho: z.string().optional(),
+  referencias: z.string().optional(),
+  informacoesAdicionais: z.string().optional(),
+}).partial();
+
 export const insertLogStatusSchema = createInsertSchema(logsDeStatus).omit({
   id: true,
   dataHora: true,

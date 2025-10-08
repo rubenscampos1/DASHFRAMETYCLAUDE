@@ -114,6 +114,12 @@ Preferred communication style: Simple, everyday language.
   - Added public health check endpoint at `/health` for Render monitoring
   - Production-ready session configuration with secure cookies and trust proxy
   - Complete deployment documentation in `DEPLOY_RENDER.md`
+- **Project Edit Drawer Fixes (October 2025)**: Resolved multiple bugs in project editing workflow
+  - **Closure Stale Bug**: Fixed mutation capturing old project ID by passing `projectId` at execution time instead of closure definition time
+  - **Missing State Update**: Added `onProjectUpdate` callback to KanbanBoard to update `selectedProject` state after mutations
+  - **Schema Transform Bug**: Created dedicated `updateProjetoSchema` that reapplies date transformations before `.partial()` to fix date persistence
+  - Date fields now correctly save when editing through drawer (dataPrevistaEntrega, dataInterna, dataMeeting)
+  - Cards and drawer now display updated dates immediately after save
 
 ## Deployment
 - **Platform**: Render.com (recommended)

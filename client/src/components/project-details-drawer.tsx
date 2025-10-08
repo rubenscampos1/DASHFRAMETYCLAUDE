@@ -147,8 +147,9 @@ export function ProjectDetailsDrawer({
 
   // Mutation para atualizar projeto
   const updateProjectMutation = useMutation({
-    mutationFn: async (data: InsertProjeto) => {
-      const response = await apiRequest("PATCH", `/api/projetos/${projeto?.id}`, data);
+    mutationFn: async (data: InsertProjeto & { projectId: string }) => {
+      const { projectId, ...updateData } = data;
+      const response = await apiRequest("PATCH", `/api/projetos/${projectId}`, updateData);
       return response.json();
     },
     onSuccess: (updatedProject) => {
@@ -216,6 +217,15 @@ export function ProjectDetailsDrawer({
   });
 
   const handleSave = () => {
+    if (!projeto?.id) {
+      toast({
+        title: "Erro",
+        description: "ID do projeto não encontrado.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     form.handleSubmit((data) => {
       // Filter out empty strings and convert types appropriately
       const submitData: any = {};
@@ -232,7 +242,11 @@ export function ProjectDetailsDrawer({
       }
       // O schema já converte as strings de data para Date corretamente
       
-      updateProjectMutation.mutate(submitData);
+      // Adiciona o ID do projeto para garantir que o projeto correto seja atualizado
+      updateProjectMutation.mutate({
+        ...submitData,
+        projectId: projeto.id,
+      });
     })();
   };
 
