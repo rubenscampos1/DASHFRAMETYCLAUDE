@@ -7,14 +7,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { insertProjetoSchema, type InsertProjeto, type User, type TipoVideo, type Cliente, type EmpreendimentoWithRelations } from "@shared/schema";
+import { type InsertProjeto, type User, type TipoVideo, type Cliente, type EmpreendimentoWithRelations } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { parseLocalDate } from "@/utils/date-utils";
 import { z } from "zod";
 
-const formSchema = insertProjetoSchema;
+// Schema para o formulário (usa strings, não Date)
+const formSchema = z.object({
+  titulo: z.string().min(1, "Título é obrigatório"),
+  descricao: z.string().optional(),
+  tipoVideoId: z.string().min(1, "Tipo de vídeo é obrigatório"),
+  responsavelId: z.string().min(1, "Responsável é obrigatório"),
+  prioridade: z.enum(["Baixa", "Média", "Alta"]).default("Média"),
+  clienteId: z.string().optional(),
+  empreendimentoId: z.string().optional(),
+  dataPrevistaEntrega: z.string().optional(),
+});
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -108,15 +117,11 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
   });
 
   const onSubmit = (data: FormData) => {
-    const projectData: InsertProjeto = {
-      ...data,
-      dataPrevistaEntrega: data.dataPrevistaEntrega ? parseLocalDate(data.dataPrevistaEntrega) : undefined,
-    };
-
+    // O backend schema converte as strings de data para Date corretamente
     if (isEdit) {
-      updateMutation.mutate(projectData);
+      updateMutation.mutate(data as any);
     } else {
-      createMutation.mutate(projectData);
+      createMutation.mutate(data as any);
     }
   };
 

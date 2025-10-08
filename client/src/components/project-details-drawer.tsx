@@ -5,7 +5,6 @@ import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { parseLocalDate } from "@/utils/date-utils";
 import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2 } from "lucide-react";
 
 import {
@@ -152,10 +151,39 @@ export function ProjectDetailsDrawer({
       const response = await apiRequest("PATCH", `/api/projetos/${projeto?.id}`, data);
       return response.json();
     },
-    onSuccess: (updatedProject) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+    onSuccess: async (updatedProject) => {
+      // Invalida queries para refetch
+      await queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+      
+      // Atualiza o callback do parent
       onProjectUpdate?.(updatedProject);
+      
+      // Atualiza o formulário com os dados atualizados
+      form.reset({
+        titulo: updatedProject.titulo || "",
+        descricao: updatedProject.descricao || "",
+        tipoVideoId: updatedProject.tipoVideoId || "",
+        responsavelId: updatedProject.responsavelId || "",
+        prioridade: updatedProject.prioridade || "Média",
+        status: updatedProject.status || "Briefing",
+        clienteId: updatedProject.clienteId || "",
+        empreendimentoId: updatedProject.empreendimentoId || "",
+        duracao: updatedProject.duracao?.toString() || "",
+        formato: updatedProject.formato || "",
+        captacao: updatedProject.captacao || false,
+        roteiro: updatedProject.roteiro || false,
+        locucao: updatedProject.locucao || false,
+        dataInterna: updatedProject.dataInterna ? format(new Date(updatedProject.dataInterna), "yyyy-MM-dd") : "",
+        dataMeeting: updatedProject.dataMeeting ? format(new Date(updatedProject.dataMeeting), "yyyy-MM-dd") : "",
+        dataPrevistaEntrega: updatedProject.dataPrevistaEntrega ? format(new Date(updatedProject.dataPrevistaEntrega), "yyyy-MM-dd") : "",
+        linkFrameIo: updatedProject.linkFrameIo || "",
+        linkYoutube: updatedProject.linkYoutube || "",
+        caminho: updatedProject.caminho || "",
+        referencias: updatedProject.referencias || "",
+        informacoesAdicionais: updatedProject.informacoesAdicionais || "",
+      });
+      
       setIsEditing(false);
       toast({
         title: "Projeto atualizado com sucesso!",
@@ -226,15 +254,7 @@ export function ProjectDetailsDrawer({
       if (submitData.duracao) {
         submitData.duracao = Number(submitData.duracao);
       }
-      if (submitData.dataInterna) {
-        submitData.dataInterna = parseLocalDate(submitData.dataInterna);
-      }
-      if (submitData.dataMeeting) {
-        submitData.dataMeeting = parseLocalDate(submitData.dataMeeting);
-      }
-      if (submitData.dataPrevistaEntrega) {
-        submitData.dataPrevistaEntrega = parseLocalDate(submitData.dataPrevistaEntrega);
-      }
+      // O schema já converte as strings de data para Date corretamente
       
       updateProjectMutation.mutate(submitData);
     })();

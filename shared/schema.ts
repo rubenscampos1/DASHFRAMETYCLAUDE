@@ -231,9 +231,35 @@ export const insertProjetoSchema = createInsertSchema(projetos).omit({
   dataCriacao: true,
   dataAprovacao: true,
 }).extend({
-  dataPrevistaEntrega: z.string().optional().transform((val) => val ? new Date(val) : undefined),
-  dataInterna: z.string().optional().transform((val) => val ? new Date(val) : undefined),
-  dataMeeting: z.string().optional().transform((val) => val ? new Date(val) : undefined),
+  // Converte strings vazias em null para campos opcionais de foreign key
+  clienteId: z.string().optional().or(z.literal("")).transform((val) => val === "" ? null : val),
+  empreendimentoId: z.string().optional().or(z.literal("")).transform((val) => val === "" ? null : val),
+  
+  // Converte strings de data para Date usando horário local (UTC-3 Brasília)
+  dataPrevistaEntrega: z.string().optional().or(z.literal("")).transform((val) => {
+    if (!val || val === "" || typeof val !== 'string') return undefined;
+    const parts = val.split('-');
+    if (parts.length !== 3) return undefined;
+    const [year, month, day] = parts.map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+    return new Date(year, month - 1, day);
+  }),
+  dataInterna: z.string().optional().or(z.literal("")).transform((val) => {
+    if (!val || val === "" || typeof val !== 'string') return undefined;
+    const parts = val.split('-');
+    if (parts.length !== 3) return undefined;
+    const [year, month, day] = parts.map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+    return new Date(year, month - 1, day);
+  }),
+  dataMeeting: z.string().optional().or(z.literal("")).transform((val) => {
+    if (!val || val === "" || typeof val !== 'string') return undefined;
+    const parts = val.split('-');
+    if (parts.length !== 3) return undefined;
+    const [year, month, day] = parts.map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+    return new Date(year, month - 1, day);
+  }),
   linkFrameIo: z.string().url().optional().or(z.literal("")),
   linkYoutube: z.string().url().optional().or(z.literal("")),
 });
