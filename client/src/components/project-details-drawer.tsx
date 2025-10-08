@@ -342,6 +342,52 @@ export function ProjectDetailsDrawer({
           <ScrollArea className="h-full">
             <Form {...form}>
               <div className="space-y-4">
+                {/* Título */}
+                {isEditing && (
+                  <div>
+                    <FormField
+                      control={form.control}
+                      name="titulo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Título do Projeto</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Digite o título do projeto"
+                              {...field}
+                              data-testid="input-titulo"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* Descrição */}
+                {isEditing && (
+                  <div>
+                    <FormField
+                      control={form.control}
+                      name="descricao"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Descrição</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Digite a descrição do projeto"
+                              {...field}
+                              data-testid="textarea-descricao"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
                 {/* Cliente - Empreendimento - Categoria */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
