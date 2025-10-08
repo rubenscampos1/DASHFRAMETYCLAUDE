@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseLocalDate } from "@/utils/date-utils";
 import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2 } from "lucide-react";
 
 import {
@@ -116,6 +117,35 @@ export function ProjectDetailsDrawer({
     },
   });
 
+  // Atualiza o formulário quando o projeto muda
+  useEffect(() => {
+    if (projeto) {
+      form.reset({
+        titulo: projeto.titulo || "",
+        descricao: projeto.descricao || "",
+        tipoVideoId: projeto.tipoVideoId || "",
+        responsavelId: projeto.responsavelId || "",
+        prioridade: projeto.prioridade || "Média",
+        status: projeto.status || "Briefing",
+        clienteId: projeto.clienteId || "",
+        empreendimentoId: projeto.empreendimentoId || "",
+        duracao: projeto.duracao?.toString() || "",
+        formato: projeto.formato || "",
+        captacao: projeto.captacao || false,
+        roteiro: projeto.roteiro || false,
+        locucao: projeto.locucao || false,
+        dataInterna: projeto.dataInterna ? format(new Date(projeto.dataInterna), "yyyy-MM-dd") : "",
+        dataMeeting: projeto.dataMeeting ? format(new Date(projeto.dataMeeting), "yyyy-MM-dd") : "",
+        dataPrevistaEntrega: projeto.dataPrevistaEntrega ? format(new Date(projeto.dataPrevistaEntrega), "yyyy-MM-dd") : "",
+        linkFrameIo: projeto.linkFrameIo || "",
+        linkYoutube: projeto.linkYoutube || "",
+        caminho: projeto.caminho || "",
+        referencias: projeto.referencias || "",
+        informacoesAdicionais: projeto.informacoesAdicionais || "",
+      });
+    }
+  }, [projeto, form]);
+
   // Mutation para atualizar projeto
   const updateProjectMutation = useMutation({
     mutationFn: async (data: InsertProjeto) => {
@@ -197,13 +227,13 @@ export function ProjectDetailsDrawer({
         submitData.duracao = Number(submitData.duracao);
       }
       if (submitData.dataInterna) {
-        submitData.dataInterna = new Date(submitData.dataInterna);
+        submitData.dataInterna = parseLocalDate(submitData.dataInterna);
       }
       if (submitData.dataMeeting) {
-        submitData.dataMeeting = new Date(submitData.dataMeeting);
+        submitData.dataMeeting = parseLocalDate(submitData.dataMeeting);
       }
       if (submitData.dataPrevistaEntrega) {
-        submitData.dataPrevistaEntrega = new Date(submitData.dataPrevistaEntrega);
+        submitData.dataPrevistaEntrega = parseLocalDate(submitData.dataPrevistaEntrega);
       }
       
       updateProjectMutation.mutate(submitData);

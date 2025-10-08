@@ -11,6 +11,7 @@ import { insertProjetoSchema, type InsertProjeto, type User, type TipoVideo, typ
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { parseLocalDate } from "@/utils/date-utils";
 import { z } from "zod";
 
 const formSchema = insertProjetoSchema;
@@ -109,7 +110,7 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
   const onSubmit = (data: FormData) => {
     const projectData: InsertProjeto = {
       ...data,
-      dataPrevistaEntrega: data.dataPrevistaEntrega ? new Date(data.dataPrevistaEntrega) : undefined,
+      dataPrevistaEntrega: data.dataPrevistaEntrega ? parseLocalDate(data.dataPrevistaEntrega) : undefined,
     };
 
     if (isEdit) {
