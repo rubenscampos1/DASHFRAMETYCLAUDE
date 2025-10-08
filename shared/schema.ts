@@ -283,30 +283,69 @@ export const updateProjetoSchema = z.object({
   roteiro: z.boolean().optional(),
   locucao: z.boolean().optional(),
   
-  // Campos de data com transformação
-  dataPrevistaEntrega: z.string().optional().or(z.literal("")).transform((val) => {
-    if (!val || val === "" || typeof val !== 'string') return undefined;
-    const parts = val.split('-');
-    if (parts.length !== 3) return undefined;
-    const [year, month, day] = parts.map(Number);
-    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
-    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  // Campos de data com transformação - aceita tanto "YYYY-MM-DD" quanto ISO "YYYY-MM-DDTHH:MM:SS.SSSZ"
+  dataPrevistaEntrega: z.union([z.string(), z.date()]).optional().transform((val) => {
+    if (!val || val === "") return undefined;
+    if (val instanceof Date) return val;
+    
+    // Se já é uma string ISO completa, usa diretamente
+    if (typeof val === 'string' && val.includes('T')) {
+      const date = new Date(val);
+      return isNaN(date.getTime()) ? undefined : date;
+    }
+    
+    // Se é formato simples YYYY-MM-DD
+    if (typeof val === 'string') {
+      const parts = val.split('-');
+      if (parts.length !== 3) return undefined;
+      const [year, month, day] = parts.map(Number);
+      if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+      return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    }
+    
+    return undefined;
   }),
-  dataInterna: z.string().optional().or(z.literal("")).transform((val) => {
-    if (!val || val === "" || typeof val !== 'string') return undefined;
-    const parts = val.split('-');
-    if (parts.length !== 3) return undefined;
-    const [year, month, day] = parts.map(Number);
-    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
-    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  dataInterna: z.union([z.string(), z.date()]).optional().transform((val) => {
+    if (!val || val === "") return undefined;
+    if (val instanceof Date) return val;
+    
+    // Se já é uma string ISO completa, usa diretamente
+    if (typeof val === 'string' && val.includes('T')) {
+      const date = new Date(val);
+      return isNaN(date.getTime()) ? undefined : date;
+    }
+    
+    // Se é formato simples YYYY-MM-DD
+    if (typeof val === 'string') {
+      const parts = val.split('-');
+      if (parts.length !== 3) return undefined;
+      const [year, month, day] = parts.map(Number);
+      if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+      return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    }
+    
+    return undefined;
   }),
-  dataMeeting: z.string().optional().or(z.literal("")).transform((val) => {
-    if (!val || val === "" || typeof val !== 'string') return undefined;
-    const parts = val.split('-');
-    if (parts.length !== 3) return undefined;
-    const [year, month, day] = parts.map(Number);
-    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
-    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  dataMeeting: z.union([z.string(), z.date()]).optional().transform((val) => {
+    if (!val || val === "") return undefined;
+    if (val instanceof Date) return val;
+    
+    // Se já é uma string ISO completa, usa diretamente
+    if (typeof val === 'string' && val.includes('T')) {
+      const date = new Date(val);
+      return isNaN(date.getTime()) ? undefined : date;
+    }
+    
+    // Se é formato simples YYYY-MM-DD
+    if (typeof val === 'string') {
+      const parts = val.split('-');
+      if (parts.length !== 3) return undefined;
+      const [year, month, day] = parts.map(Number);
+      if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+      return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    }
+    
+    return undefined;
   }),
   
   linkFrameIo: z.string().url().optional().or(z.literal("")),
