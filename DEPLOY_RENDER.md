@@ -95,10 +95,129 @@ Se preferir fazer manualmente:
 | `DATABASE_URL` | URL de conexão do PostgreSQL | `postgresql://user:pass@host/db` |
 | `SESSION_SECRET` | Chave secreta para sessões | String aleatória segura |
 | `NODE_ENV` | Ambiente de execução | `production` |
+| `AWS_ACCESS_KEY_ID` | AWS Access Key (para upload de arquivos) | `AKIAIOSFODNN7EXAMPLE` |
+| `AWS_SECRET_ACCESS_KEY` | AWS Secret Key (para upload de arquivos) | `wJalrXUtnFEMI/K7MDENG/bPxRfiCY` |
+| `AWS_BUCKET_NAME` | Nome do bucket S3 | `framety-files-prod` |
+| `AWS_REGION` | Região da AWS | `us-east-1` |
 
 ### Health Check
 
-A aplicação tem um endpoint de health check em `/api/user` que o Render usa para verificar se está rodando corretamente.
+A aplicação tem um endpoint de health check em `/health` que o Render usa para verificar se está rodando corretamente.
+
+---
+
+## 📁 Configurar AWS S3 para Upload de Arquivos (OBRIGATÓRIO)
+
+A aplicação permite upload de arquivos na seção "Notas". Em produção no Render.com, é necessário configurar AWS S3 para armazenamento.
+
+### Passo 1: Criar Bucket S3 na AWS
+
+1. **Acesse [AWS Console](https://console.aws.amazon.com/s3/)**
+   - Faça login ou crie uma conta gratuita AWS
+
+2. **Crie um novo Bucket**
+   - Clique em **"Create bucket"**
+   - **Bucket name:** `framety-files-prod` (ou nome único de sua escolha)
+   - **AWS Region:** `us-east-1` (ou região de sua preferência)
+   - **Block all public access:** ✅ Marque (manter privado)
+   - Clique em **"Create bucket"**
+
+### Passo 2: Criar IAM User com Permissões S3
+
+1. **Acesse [IAM Console](https://console.aws.amazon.com/iam/)**
+
+2. **Criar novo usuário**
+   - Vá em **Users** → **Add users**
+   - **User name:** `framety-app`
+   - **Access type:** ✅ Access key - Programmatic access
+   - Clique em **Next: Permissions**
+
+3. **Adicionar Permissões**
+   - Selecione **"Attach existing policies directly"**
+   - Busque e selecione: **`AmazonS3FullAccess`** (para simplicidade)
+   - Ou crie uma política customizada com apenas as permissões necessárias:
+     ```json
+     {
+       "Version": "2012-10-17",
+       "Statement": [
+         {
+           "Effect": "Allow",
+           "Action": [
+             "s3:PutObject",
+             "s3:GetObject",
+             "s3:DeleteObject",
+             "s3:ListBucket"
+           ],
+           "Resource": [
+             "arn:aws:s3:::framety-files-prod",
+             "arn:aws:s3:::framety-files-prod/*"
+           ]
+         }
+       ]
+     }
+     ```
+   - Clique em **Next** até finalizar
+
+4. **Copiar Credenciais**
+   - ⚠️ **IMPORTANTE:** Copie e salve em local seguro:
+     - **Access key ID** (ex: `AKIAIOSFODNN7EXAMPLE`)
+     - **Secret access key** (ex: `wJalrXUtnFEMI/K7MDENG/bPxRfi`)
+   - Você não conseguirá ver o Secret novamente!
+
+### Passo 3: Configurar no Render
+
+1. **Acesse seu Web Service no Render**
+2. **Vá em Environment → Add Environment Variable**
+3. **Adicione as 4 variáveis:**
+
+   ```
+   AWS_ACCESS_KEY_ID = [Cole o Access Key ID do Passo 2.4]
+   AWS_SECRET_ACCESS_KEY = [Cole o Secret Access Key do Passo 2.4]
+   AWS_BUCKET_NAME = framety-files-prod
+   AWS_REGION = us-east-1
+   ```
+
+4. **Salve** - Render vai reiniciar automaticamente a aplicação
+
+### Passo 4: Testar Upload
+
+1. Acesse sua aplicação no Render
+2. Vá para **Notas** → **Nova Nota**
+3. Selecione tipo **"Arquivo"**
+4. Faça upload de um arquivo de teste
+5. Verifique se o download funciona
+
+### 💡 Custos AWS S3
+
+- **AWS Free Tier (primeiro ano):**
+  - 5 GB de armazenamento S3
+  - 20.000 requisições GET
+  - 2.000 requisições PUT
+  - Suficiente para maioria dos casos
+
+- **Após Free Tier:**
+  - ~$0.023 por GB/mês (região us-east-1)
+  - ~$0.005 por 1.000 requisições PUT
+  - ~$0.0004 por 1.000 requisições GET
+
+**Estimativa:** Menos de $1/mês para uso moderado (< 10 GB)
+
+### 🔒 Segurança
+
+- ✅ Bucket configurado como **privado** (Block all public access)
+- ✅ Acesso apenas via credenciais IAM
+- ✅ URLs de download temporárias (presigned URLs com expiração)
+- ✅ Verificação de autenticação no backend antes de servir arquivos
+- ✅ Content-Type incluído na assinatura da URL para evitar signature mismatch
+- ✅ Headers consistentes entre presigned URL e requisição do cliente
+
+### ⚠️ Alternativa SEM AWS S3
+
+Se não quiser configurar AWS S3, você pode:
+- Desabilitar funcionalidade de upload de arquivos
+- Usar apenas "Notas" e "Senhas" (que não precisam de object storage)
+
+**Nota:** Arquivos já enviados em desenvolvimento (Replit) não estarão disponíveis em produção (Render).
 
 ---
 

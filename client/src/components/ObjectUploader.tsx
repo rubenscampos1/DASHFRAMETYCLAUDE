@@ -30,28 +30,35 @@ export function ObjectUploader({
       .use(AwsS3, {
         shouldUseMultipart: false,
         getUploadParameters: async (file) => {
-          // Get presigned upload URL from our backend
+          // Get presigned upload URL from our backend with Content-Type
+          const contentType = file.type || "application/octet-stream";
           const response = await fetch("/api/objects/upload", {
             method: "POST",
             credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ contentType }),
           });
-          const { uploadURL } = await response.json();
+          const { uploadURL, objectKey, headers } = await response.json();
+          
+          // Store objectKey in file meta for later use
+          file.meta.objectKey = objectKey;
           
           return {
             method: "PUT" as const,
             url: uploadURL,
-            headers: {
-              "Content-Type": file.type || "application/octet-stream",
+            headers: headers || {
+              "Content-Type": contentType,
             },
           };
         },
       })
       .on("complete", (result) => {
         if (result.successful.length > 0) {
-          // Extract object key from upload URL
+          // Use objectKey from file meta (set during getUploadParameters)
           const uploadedFile = result.successful[0];
-          const uploadUrl = uploadedFile.uploadURL;
-          const objectKey = uploadUrl ? new URL(uploadUrl).pathname : "";
+          const objectKey = uploadedFile.meta?.objectKey || "";
           
           // Add objectKey to response
           uploadedFile.response = {

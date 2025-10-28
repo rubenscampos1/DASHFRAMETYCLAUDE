@@ -536,6 +536,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         usuarioId: req.user!.id
       });
       const nota = await storage.createNota(notaData);
+      
+      // If this is a file nota, set ACL policy for the uploaded object
+      if (nota.fileKey && nota.tipo === "Arquivo") {
+        try {
+          const objectStorageService = new ObjectStorageService();
+          const objectPath = `/objects${nota.fileKey}`;
+          await objectStorageService.trySetObjectEntityAclPolicy(objectPath, {
+            owner: req.user!.id,
+            visibility: "private",
+          });
+          console.log(`ACL policy set for object: ${objectPath}, owner: ${req.user!.id}`);
+        } catch (aclError) {
+          console.error("Failed to set ACL policy for uploaded file:", aclError);
+          // Don't fail the nota creation if ACL setting fails
+        }
+      }
+      
       res.status(201).json(nota);
     } catch (error) {
       next(error);
@@ -581,9 +598,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reference: blueprint:javascript_object_storage
   app.post("/api/objects/upload", requireAuth, async (req, res, next) => {
     try {
+      const { contentType } = req.body;
       const objectStorageService = new ObjectStorageService();
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      res.json({ uploadURL });
+      const result = await objectStorageService.getObjectEntityUploadURL(contentType);
+      res.json(result);
     } catch (error) {
       console.error("Error getting upload URL:", error);
       next(error);
