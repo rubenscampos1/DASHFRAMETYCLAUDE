@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 - **Design System**: shadcn/ui built on Radix UI primitives for accessible and customizable components.
 - **Styling**: Tailwind CSS with CSS variables for flexible theming (dark/light mode).
 - **Responsiveness**: Mobile-first design with custom sticky topbar and slide-out drawer for navigation on smaller screens.
-- **Kanban Board**: Advanced drag-and-drop interface with horizontal auto-scroll, precise positioning, and local state management to maintain visual card order during drag operations.
+- **Kanban Board**: Drag-and-drop interface for intuitive project status management.
 - **Metrics Dashboard**: Visual analytics with charts and project statistics.
 - **Project Views**: Dual view modes (Card/List) for "Finalized Projects" with advanced filtering.
 
@@ -33,7 +33,6 @@ Preferred communication style: Simple, everyday language.
 - **Performance**: Memoization, cached computations, debounced search, optimized API payloads, and optimistic updates for a fluid user experience.
 - **Metrics Logic**: Approved projects are excluded from general metrics to focus on active/in-progress work, counted separately in "Projetos Aprovados."
 - **Cascading Filters**: Dynamic filtering of related entities (e.g., `empreendimentos` based on `cliente`) in forms.
-- **Kanban Drag & Drop**: Custom auto-scroll hook triggers smooth horizontal scrolling when dragging near container edges (within 150px), with intensity-based speed adjustment. Local state (`orderedProjects`) maintains precise visual card positioning independently from server state, ensuring cards appear exactly where dropped. Status persistence is handled through mutation detection without object mutation bugs.
 
 # External Dependencies
 
