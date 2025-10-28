@@ -135,7 +135,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const projetos = await storage.getProjetos(filters);
-      res.json(projetos);
+      
+      // Otimização: Remover campos pesados desnecessários para o dashboard
+      // Campos como descricao, informacoesAdicionais, referencias, anotacoes são carregados apenas no drawer
+      const projetosOtimizados = projetos.map(projeto => ({
+        ...projeto,
+        descricao: undefined,  // Não enviar descrição completa para o dashboard
+        informacoesAdicionais: undefined,  // Não enviar informações adicionais para o dashboard
+        referencias: undefined,  // Não enviar referências para o dashboard
+        caminho: undefined,  // Não enviar caminho para o dashboard
+      }));
+      
+      res.json(projetosOtimizados);
     } catch (error) {
       next(error);
     }

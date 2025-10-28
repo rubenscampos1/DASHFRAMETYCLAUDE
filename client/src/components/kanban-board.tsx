@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -62,7 +62,26 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       const response = await apiRequest("PATCH", `/api/projetos/${id}`, { status });
       return response.json();
     },
+    // Optimistic update: atualiza a UI imediatamente antes da resposta do servidor
+    onMutate: async ({ id, status: newStatus }) => {
+      // Cancelar queries em andamento para evitar conflito
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos"] });
+      
+      // Salvar estado anterior para rollback se necessário
+      const previousProjetos = queryClient.getQueryData(["/api/projetos", filters]);
+      
+      // Atualizar cache otimisticamente
+      queryClient.setQueryData(["/api/projetos", filters], (old: ProjetoWithRelations[] | undefined) => {
+        if (!old) return old;
+        return old.map(projeto => 
+          projeto.id === id ? { ...projeto, status: newStatus } : projeto
+        );
+      });
+      
+      return { previousProjetos };
+    },
     onSuccess: (updatedProject, { status }) => {
+      // Invalidar queries para garantir sincronização com servidor
       queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
       queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
       
@@ -78,7 +97,12 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
         });
       }
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      // Rollback: reverter para estado anterior em caso de erro
+      if (context?.previousProjetos) {
+        queryClient.setQueryData(["/api/projetos", filters], context.previousProjetos);
+      }
+      
       toast({
         title: "Erro ao atualizar projeto",
         description: error.message,
@@ -109,11 +133,21 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     },
   });
 
-  const onDragStart = (start: any) => {
-    setDraggedItem(start.draggableId);
-  };
+  // Memoizar agrupamento de projetos por status para evitar recalcular em cada render
+  const projectsByStatus = useMemo(() => {
+    const grouped: Record<string, ProjetoWithRelations[]> = {};
+    statusColumns.forEach(column => {
+      grouped[column.id] = projetos.filter(projeto => projeto.status === column.id);
+    });
+    return grouped;
+  }, [projetos]);
 
-  const onDragEnd = (result: DropResult) => {
+  // UseCallback para handlers de drag & drop
+  const onDragStart = useCallback((start: any) => {
+    setDraggedItem(start.draggableId);
+  }, []);
+
+  const onDragEnd = useCallback((result: DropResult) => {
     setDraggedItem(null);
     
     if (!result.destination) return;
@@ -124,16 +158,10 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     const projeto = projetos.find(p => p.id === draggableId);
     if (!projeto) return;
 
-    // Allow all authenticated users to change project status
-
     if (projeto.status !== newStatus) {
       updateProjectMutation.mutate({ id: draggableId, status: newStatus });
     }
-  };
-
-  const getProjectsByStatus = (status: string) => {
-    return projetos.filter(projeto => projeto.status === status);
-  };
+  }, [projetos, updateProjectMutation]);
 
   return isLoading ? (
     <div className="h-full flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent px-2 md:px-0">
@@ -163,7 +191,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       {/* Container principal com scroll horizontal suave no mobile, normal no desktop */}
       <div className="h-full flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent px-2 md:px-0" data-testid="kanban-board">
         {statusColumns.map((column) => {
-          const columnProjects = getProjectsByStatus(column.id);
+          const columnProjects = projectsByStatus[column.id] || [];
           
           return (
             <div key={column.id} className="flex-shrink-0 w-[300px] min-w-[300px] md:w-80 md:min-w-0 h-full snap-center md:snap-align-none kanban-column">

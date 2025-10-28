@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
+import { useDebounce } from "@/hooks/use-debounce";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +24,9 @@ export default function Dashboard() {
     prioridade: "all",
     search: "",
   });
+
+  // Debounce search para evitar requisições excessivas enquanto usuário digita
+  const debouncedSearch = useDebounce(filters.search, 300);
 
   const { data: users = [] } = useQuery<any[]>({
     queryKey: ["/api/users"],
@@ -197,7 +201,10 @@ export default function Dashboard() {
         <main className="flex-1 relative overflow-hidden focus:outline-none min-h-0">
           <div className="h-full py-6 min-h-0">
             <div className="h-full max-w-full mx-auto px-6 min-h-0">
-              <KanbanBoard filters={filters} />
+              <KanbanBoard filters={{
+                ...filters,
+                search: debouncedSearch // Usar busca com debounce
+              }} />
             </div>
           </div>
         </main>

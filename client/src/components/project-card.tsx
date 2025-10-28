@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,7 @@ const statusColors = {
   "Cancelado": "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200",
 };
 
-export function ProjectCard({ projeto, isDragging, onEdit, onDelete }: ProjectCardProps) {
+const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete }: ProjectCardProps) => {
   const isOverdue = projeto.dataPrevistaEntrega && 
     isBefore(startOfDay(new Date(projeto.dataPrevistaEntrega)), startOfDay(new Date())) && 
     !["Aprovado", "Cancelado"].includes(projeto.status);
@@ -136,4 +137,8 @@ export function ProjectCard({ projeto, isDragging, onEdit, onDelete }: ProjectCa
       </CardContent>
     </Card>
   );
-}
+};
+
+// Memoizar o componente para evitar re-renders desnecessários
+// Usando shallow comparison padrão do React.memo para segurança
+export const ProjectCard = memo(ProjectCardComponent);
