@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -144,6 +144,32 @@ export function ProjectDetailsDrawer({
       });
     }
   }, [projeto, form]);
+
+  // Filtrar empreendimentos baseado no cliente selecionado
+  const clienteSelecionado = form.watch("clienteId");
+  
+  const empreendimentosFiltrados = useMemo(() => {
+    if (!clienteSelecionado) {
+      return empreendimentos; // Se nenhum cliente selecionado, mostra todos
+    }
+    return empreendimentos.filter(emp => emp.clienteId === clienteSelecionado);
+  }, [empreendimentos, clienteSelecionado]);
+
+  // Limpar empreendimento quando cliente mudar
+  useEffect(() => {
+    const empreendimentoAtual = form.getValues("empreendimentoId");
+    if (empreendimentoAtual && clienteSelecionado) {
+      // Verifica se o empreendimento selecionado pertence ao novo cliente
+      const empreendimentoValido = empreendimentos.find(
+        emp => emp.id === empreendimentoAtual && emp.clienteId === clienteSelecionado
+      );
+      
+      // Se não pertence, limpar o campo
+      if (!empreendimentoValido) {
+        form.setValue("empreendimentoId", "");
+      }
+    }
+  }, [clienteSelecionado, empreendimentos, form]);
 
   // Mutation para atualizar projeto
   const updateProjectMutation = useMutation({
@@ -443,7 +469,7 @@ export function ProjectDetailsDrawer({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {empreendimentos.map((emp) => (
+                              {empreendimentosFiltrados.map((emp) => (
                                 <SelectItem key={emp.id} value={emp.id}>
                                   {emp.nome} - {emp.cliente.nome}
                                 </SelectItem>
