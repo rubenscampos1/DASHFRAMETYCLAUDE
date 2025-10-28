@@ -16,7 +16,6 @@ const statusColumns = [
   { id: "Roteiro", title: "Roteiro", color: "bg-chart-1" },
   { id: "Captação", title: "Captação", color: "bg-chart-4" },
   { id: "Edição", title: "Edição", color: "bg-chart-5" },
-  { id: "Revisão", title: "Revisão", color: "bg-destructive" },
   { id: "Aguardando Aprovação", title: "Aguardando Aprovação", color: "bg-chart-3" },
   { id: "Aprovado", title: "Aprovado", color: "bg-chart-4", isDropZone: true },
 ];

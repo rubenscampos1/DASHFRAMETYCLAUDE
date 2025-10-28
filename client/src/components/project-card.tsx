@@ -27,7 +27,6 @@ const statusColors = {
   "Edição": "bg-pink-100 dark:bg-pink-900/20 text-pink-800 dark:text-pink-200",
   "Entrega": "bg-teal-100 dark:bg-teal-900/20 text-teal-800 dark:text-teal-200",
   "Outros": "bg-slate-100 dark:bg-slate-900/20 text-slate-800 dark:text-slate-200",
-  "Revisão": "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200",
   "Aguardando Aprovação": "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200",
   "Aprovado": "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200",
   "Em Pausa": "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-200",

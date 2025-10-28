@@ -195,7 +195,6 @@ export default function MinhaFila() {
                 <SelectItem value="Roteiro">Roteiro</SelectItem>
                 <SelectItem value="Captação">Captação</SelectItem>
                 <SelectItem value="Edição">Edição</SelectItem>
-                <SelectItem value="Revisão">Revisão</SelectItem>
                 <SelectItem value="Aguardando Aprovação">Aguardando Aprovação</SelectItem>
               </SelectContent>
             </Select>

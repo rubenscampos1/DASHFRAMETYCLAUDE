@@ -259,7 +259,6 @@ export default function Relatorios() {
                   <SelectItem value="Roteiro">Roteiro</SelectItem>
                   <SelectItem value="Captação">Captação</SelectItem>
                   <SelectItem value="Edição">Edição</SelectItem>
-                  <SelectItem value="Revisão">Revisão</SelectItem>
                   <SelectItem value="Aguardando Aprovação">Aguardando Aprovação</SelectItem>
                   <SelectItem value="Aprovado">Aprovado</SelectItem>
                   <SelectItem value="Em Pausa">Em Pausa</SelectItem>

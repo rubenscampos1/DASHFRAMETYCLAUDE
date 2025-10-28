@@ -53,7 +53,6 @@ const statusOptions = [
   "Roteiro", 
   "Captação",
   "Edição",
-  "Revisão",
   "Aguardando Aprovação",
   "Aprovado",
   "Em Pausa",

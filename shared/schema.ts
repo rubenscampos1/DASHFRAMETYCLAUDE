@@ -316,7 +316,7 @@ export const updateProjetoSchema = z.object({
     return val;
   }).nullable().optional(),
   prioridade: z.enum(["Baixa", "Média", "Alta"]).optional(),
-  status: z.enum(["Briefing", "Roteiro", "Captação", "Edição", "Revisão", "Aguardando Aprovação", "Aprovado"]).optional(),
+  status: z.enum(["Briefing", "Roteiro", "Captação", "Edição", "Aguardando Aprovação", "Aprovado"]).optional(),
   clienteId: z.union([z.string(), z.literal(""), z.null(), z.undefined()]).transform((val) => {
     if (!val || val === "") return null;
     return val;

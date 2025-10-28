@@ -307,7 +307,6 @@ export function ProjectDetailsDrawer({
       "Edição": "bg-green-100 text-green-800",
       "Entrega": "bg-teal-100 text-teal-800",
       "Outros": "bg-gray-100 text-gray-800",
-      "Revisão": "bg-yellow-100 text-yellow-800",
       "Aguardando Aprovação": "bg-amber-100 text-amber-800",
       "Aprovado": "bg-emerald-100 text-emerald-800",
       "Em Pausa": "bg-slate-100 text-slate-800",
