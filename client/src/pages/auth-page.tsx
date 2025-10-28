@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 import { insertUserSchema } from "@shared/schema";
 import frametyLogo from "@assets/Framety - PNG -  01_1759177448673.png";
+import { Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -32,6 +33,9 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { user, loginMutation, registerMutation } = useAuth();
   const [activeTab, setActiveTab] = useState("login");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -126,12 +130,27 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Senha</FormLabel>
                           <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Digite sua senha"
-                              {...field}
-                              data-testid="input-login-password"
-                            />
+                            <div className="relative">
+                              <Input
+                                type={showLoginPassword ? "text" : "password"}
+                                placeholder="Digite sua senha"
+                                {...field}
+                                data-testid="input-login-password"
+                                className="pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowLoginPassword(!showLoginPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                data-testid="button-toggle-login-password"
+                              >
+                                {showLoginPassword ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -226,12 +245,27 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Senha</FormLabel>
                           <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Digite sua senha"
-                              {...field}
-                              data-testid="input-register-password"
-                            />
+                            <div className="relative">
+                              <Input
+                                type={showRegisterPassword ? "text" : "password"}
+                                placeholder="Digite sua senha"
+                                {...field}
+                                data-testid="input-register-password"
+                                className="pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                data-testid="button-toggle-register-password"
+                              >
+                                {showRegisterPassword ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -244,12 +278,27 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Confirmar Senha</FormLabel>
                           <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Confirme sua senha"
-                              {...field}
-                              data-testid="input-register-confirm-password"
-                            />
+                            <div className="relative">
+                              <Input
+                                type={showConfirmPassword ? "text" : "password"}
+                                placeholder="Confirme sua senha"
+                                {...field}
+                                data-testid="input-register-confirm-password"
+                                className="pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                data-testid="button-toggle-confirm-password"
+                              >
+                                {showConfirmPassword ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
