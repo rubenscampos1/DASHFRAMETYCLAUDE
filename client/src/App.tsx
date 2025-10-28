@@ -16,6 +16,7 @@ import NovoProjeto from "@/pages/novo-projeto";
 import MinhaFila from "@/pages/minha-fila";
 import Relatorios from "@/pages/relatorios";
 import DatabasePage from "@/pages/database";
+import NotasPage from "@/pages/notas";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
       <ProtectedRoute path="/minha-fila" component={MinhaFila} />
       <ProtectedRoute path="/relatorios" component={Relatorios} />
       <ProtectedRoute path="/banco-de-dados" component={DatabasePage} />
+      <ProtectedRoute path="/notas" component={NotasPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

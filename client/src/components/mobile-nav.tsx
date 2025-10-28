@@ -20,6 +20,7 @@ import {
   User, 
   FileText, 
   Database,
+  StickyNote,
   LogOut,
   Moon,
   Sun,
@@ -83,6 +84,11 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
       name: "Banco de Dados",
       href: "/banco-de-dados",
       icon: Database,
+    },
+    {
+      name: "Notas",
+      href: "/notas",
+      icon: StickyNote,
     },
   ];
 

@@ -8,6 +8,7 @@ import {
   User, 
   FileText, 
   Database,
+  StickyNote,
   Settings,
   LogOut,
   Moon,
@@ -58,6 +59,11 @@ export function Sidebar() {
       name: "Banco de Dados",
       href: "/banco-de-dados",
       icon: Database,
+    },
+    {
+      name: "Notas",
+      href: "/notas",
+      icon: StickyNote,
     },
   ];
 
