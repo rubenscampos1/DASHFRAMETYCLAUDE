@@ -37,6 +37,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [orderedProjects, setOrderedProjects] = useState<ProjetoWithRelations[]>([]);
   
   // Hook de auto-scroll para arrastar cards até as bordas
   const scrollContainerRef = useAutoScroll({
@@ -65,6 +66,13 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       return data;
     },
   });
+
+  // Atualizar orderedProjects quando projetos mudar
+  useEffect(() => {
+    if (projetos.length > 0) {
+      setOrderedProjects(projetos);
+    }
+  }, [projetos]);
 
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -146,10 +154,10 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   const projectsByStatus = useMemo(() => {
     const grouped: Record<string, ProjetoWithRelations[]> = {};
     statusColumns.forEach(column => {
-      grouped[column.id] = projetos.filter(projeto => projeto.status === column.id);
+      grouped[column.id] = orderedProjects.filter(projeto => projeto.status === column.id);
     });
     return grouped;
-  }, [projetos]);
+  }, [orderedProjects]);
 
   // UseCallback para handlers de drag & drop
   const onDragStart = useCallback((start: any) => {
@@ -170,16 +178,43 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       return;
     }
 
-    const projeto = projetos.find(p => p.id === draggableId);
+    const projeto = orderedProjects.find(p => p.id === draggableId);
     if (!projeto) return;
 
     const newStatus = destination.droppableId;
+    
+    // Reordena localmente para manter a posição visual
+    setOrderedProjects(prev => {
+      const newProjects = [...prev];
+      
+      // Encontra o projeto que está sendo movido
+      const movedIndex = newProjects.findIndex(p => p.id === draggableId);
+      const [movedProject] = newProjects.splice(movedIndex, 1);
+      
+      // Atualiza o status se mudou de coluna
+      if (movedProject.status !== newStatus) {
+        movedProject.status = newStatus as typeof movedProject.status;
+      }
+      
+      // Filtra projetos por status
+      const sourceColumn = newProjects.filter(p => p.status === source.droppableId);
+      const destColumn = newProjects.filter(p => p.status === destination.droppableId);
+      const otherProjects = newProjects.filter(p => 
+        p.status !== source.droppableId && p.status !== destination.droppableId
+      );
+      
+      // Insere na posição de destino
+      destColumn.splice(destination.index, 0, movedProject);
+      
+      // Reconstrói a lista
+      return [...otherProjects, ...sourceColumn, ...destColumn];
+    });
     
     // Faz a requisição para o servidor apenas se mudou de status
     if (projeto.status !== newStatus) {
       updateProjectMutation.mutate({ id: draggableId, status: newStatus });
     }
-  }, [projetos, updateProjectMutation]);
+  }, [orderedProjects, updateProjectMutation]);
 
   return isLoading ? (
     <div className="h-full flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent px-2 md:px-0">
