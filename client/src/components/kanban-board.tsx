@@ -10,6 +10,7 @@ import { ProjetoWithRelations } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useAutoScroll } from "@/hooks/use-auto-scroll";
 
 const statusColumns = [
   { id: "Briefing", title: "Briefing", color: "bg-chart-3" },
@@ -35,6 +36,14 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   const { user } = useAuth();
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  // Hook de auto-scroll para arrastar cards até as bordas
+  const scrollContainerRef = useAutoScroll({
+    enabled: isDragging,
+    scrollSpeed: 15,
+    edgeSize: 150,
+  });
 
   const { data: projetos = [], isLoading } = useQuery<ProjetoWithRelations[]>({
     queryKey: ["/api/projetos", filters],
@@ -145,10 +154,12 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   // UseCallback para handlers de drag & drop
   const onDragStart = useCallback((start: any) => {
     setDraggedItem(start.draggableId);
+    setIsDragging(true);
   }, []);
 
   const onDragEnd = useCallback((result: DropResult) => {
     setDraggedItem(null);
+    setIsDragging(false);
     
     if (!result.destination) return;
 
@@ -189,7 +200,11 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   ) : (
     <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
       {/* Container principal com scroll horizontal suave no mobile, normal no desktop */}
-      <div className="h-full flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent px-2 md:px-0" data-testid="kanban-board">
+      <div 
+        ref={scrollContainerRef}
+        className="h-full flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent px-2 md:px-0" 
+        data-testid="kanban-board"
+      >
         {statusColumns.map((column) => {
           const columnProjects = projectsByStatus[column.id] || [];
           
