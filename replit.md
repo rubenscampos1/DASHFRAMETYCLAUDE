@@ -127,6 +127,11 @@ Preferred communication style: Simple, everyday language.
   - **Optimized Backend**: API endpoint /api/projetos strips heavy fields (descricao, informacoesAdicionais, referencias, caminho) reducing payload size by ~40-50%
   - **Optimistic Updates**: Drag & drop mutations update UI instantly with automatic rollback on errors
   - **Result**: 60-70% faster initial load, instant drag interactions, smooth search experience with 100+ projects
+- **Metrics Exclusion Logic (October 2025)**: Approved projects now excluded from general metrics
+  - **Excluded Metrics**: Vídeos por Cliente, Projetos por Responsável, Projetos por Tipo de Vídeo
+  - **Counting Rule**: Projects with status "Aprovado" now count ONLY in "Projetos Aprovados" metric
+  - **Implementation**: Added WHERE filters to exclude status "Aprovado" from three aggregation queries in getMetricas()
+  - **Result**: Cleaner metrics that show only active/in-progress work, approved projects tracked separately
 
 ## Deployment
 - **Platform**: Render.com (recommended)
