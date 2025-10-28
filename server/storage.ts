@@ -535,7 +535,7 @@ export class DatabaseStorage implements IStorage {
       .from(projetos)
       .where(sql`${projetos.status} NOT IN ('Aprovado', 'Briefing')`);
 
-    // Vídeos por Cliente: contagem agrupada por cliente
+    // Vídeos por Cliente: contagem agrupada por cliente (excluindo Aprovados)
     const videosPorCliente = await db
       .select({
         cliente: clientes.nome,
@@ -543,6 +543,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(projetos)
       .leftJoin(clientes, eq(projetos.clienteId, clientes.id))
+      .where(sql`${projetos.status} != 'Aprovado'`)
       .groupBy(clientes.nome);
 
     // Resumo por Status: todos os status
@@ -554,7 +555,7 @@ export class DatabaseStorage implements IStorage {
       .from(projetos)
       .groupBy(projetos.status);
 
-    // Por Responsável: manter como está
+    // Por Responsável: excluindo projetos Aprovados
     const projetosPorResponsavel = await db
       .select({
         responsavel: users.nome,
@@ -562,9 +563,10 @@ export class DatabaseStorage implements IStorage {
       })
       .from(projetos)
       .leftJoin(users, eq(projetos.responsavelId, users.id))
+      .where(sql`${projetos.status} != 'Aprovado'`)
       .groupBy(users.nome);
 
-    // Por Tipo de Vídeo: manter como está
+    // Por Tipo de Vídeo: excluindo projetos Aprovados
     const projetosPorTipo = await db
       .select({
         tipo: tiposDeVideo.nome,
@@ -572,6 +574,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(projetos)
       .leftJoin(tiposDeVideo, eq(projetos.tipoVideoId, tiposDeVideo.id))
+      .where(sql`${projetos.status} != 'Aprovado'`)
       .groupBy(tiposDeVideo.nome);
 
     const projetosAtrasados = await db
