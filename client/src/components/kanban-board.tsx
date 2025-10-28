@@ -65,36 +65,33 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     },
   });
 
-  // Usar projetos diretamente - local state management apenas durante drag
-  const [localOrder, setLocalOrder] = useState<string[]>([]);
-  const [isDraggingLocal, setIsDraggingLocal] = useState(false);
-  
-  // Durante drag, usar ordem local; caso contrário usar projetos do servidor
-  const orderedProjects = useMemo(() => {
-    if (!isDraggingLocal || localOrder.length === 0) {
-      return projetos;
-    }
-    
-    // Reordenar projetos baseado em localOrder
-    const projectMap = new Map(projetos.map(p => [p.id, p]));
-    const ordered = localOrder
-      .map(id => projectMap.get(id))
-      .filter((p): p is ProjetoWithRelations => p !== undefined);
-    
-    // Adicionar projetos que não estão em localOrder (novos)
-    const orderedIds = new Set(localOrder);
-    const newProjects = projetos.filter(p => !orderedIds.has(p.id));
-    
-    return [...ordered, ...newProjects];
-  }, [projetos, localOrder, isDraggingLocal]);
+  // Usar projetos do cache do React Query diretamente
+  const orderedProjects = projetos;
 
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const response = await apiRequest("PATCH", `/api/projetos/${id}`, { status });
       return response.json();
     },
+    onMutate: async ({ id, status: newStatus }) => {
+      // Cancelar queries para evitar conflito
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos", filters] });
+      
+      // Snapshot do estado anterior para rollback
+      const previousData = queryClient.getQueryData(["/api/projetos", filters]);
+      
+      // Atualizar cache otimisticamente
+      queryClient.setQueryData(["/api/projetos", filters], (old: ProjetoWithRelations[] | undefined) => {
+        if (!old) return old;
+        return old.map(projeto => 
+          projeto.id === id ? { ...projeto, status: newStatus as typeof projeto.status } : projeto
+        );
+      });
+      
+      return { previousData };
+    },
     onSuccess: (updatedProject, { status }) => {
-      // Invalidar queries para garantir sincronização com servidor
+      // Invalidar para sincronizar com servidor
       queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
       queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
       
@@ -110,7 +107,12 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
         });
       }
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      // Rollback em caso de erro
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/projetos", filters], context.previousData);
+      }
+      
       toast({
         title: "Erro ao atualizar projeto",
         description: error.message,
@@ -154,40 +156,26 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   const onDragStart = useCallback((start: any) => {
     setDraggedItem(start.draggableId);
     setIsDragging(true);
-    setIsDraggingLocal(true);
-    // Inicializa localOrder com ordem atual se ainda não foi iniciado
-    setLocalOrder(orderedProjects.map(p => p.id));
-  }, [orderedProjects]);
+  }, []);
 
   const onDragEnd = useCallback((result: DropResult) => {
     setDraggedItem(null);
     setIsDragging(false);
-    setIsDraggingLocal(false);
     
-    if (!result.destination) {
-      setLocalOrder([]);
-      return;
-    }
+    if (!result.destination) return;
 
     const { draggableId, source, destination } = result;
     
     // Se soltou na mesma posição, não faz nada
     if (source.droppableId === destination.droppableId && source.index === destination.index) {
-      setLocalOrder([]);
       return;
     }
 
     const projeto = orderedProjects.find(p => p.id === draggableId);
-    if (!projeto) {
-      setLocalOrder([]);
-      return;
-    }
+    if (!projeto) return;
 
     const newStatus = destination.droppableId;
     const oldStatus = projeto.status;
-    
-    // Limpar localOrder - agora usamos projetos do servidor
-    setLocalOrder([]);
     
     // Faz a requisição para o servidor apenas se mudou de status
     if (oldStatus !== newStatus) {
