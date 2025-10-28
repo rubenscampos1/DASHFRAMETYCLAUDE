@@ -12,7 +12,6 @@ export const projectStatusEnum = pgEnum("project_status", [
   "Edição",
   "Entrega",
   "Outros",
-  "Revisão",
   "Aguardando Aprovação",
   "Aprovado",
   "Em Pausa",

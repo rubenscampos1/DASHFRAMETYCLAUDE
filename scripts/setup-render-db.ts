@@ -50,7 +50,7 @@ async function setupDatabase() {
       DO $$ BEGIN
         CREATE TYPE project_status AS ENUM (
           'Briefing', 'Roteiro', 'Captação', 'Edição', 'Entrega', 
-          'Outros', 'Revisão', 'Aguardando Aprovação', 'Aprovado',
+          'Outros', 'Aguardando Aprovação', 'Aprovado',
           'Em Pausa', 'Cancelado'
         );
       EXCEPTION
