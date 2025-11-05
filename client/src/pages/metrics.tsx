@@ -15,6 +15,7 @@ import { ProjetoWithRelations } from "@shared/schema";
 export default function Metrics() {
   const { mainContentClass } = useSidebarLayout();
   const [selectedResponsavel, setSelectedResponsavel] = useState<string | null>(null);
+  const [selectedTipoVideo, setSelectedTipoVideo] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
   
   const { data: metricas, isLoading } = useQuery<any>({
@@ -29,9 +30,13 @@ export default function Metrics() {
     queryKey: ["/api/users"],
   });
 
+  const { data: tiposVideo = [] } = useQuery<any[]>({
+    queryKey: ["/api/tipos-video"],
+  });
+
   // Buscar projetos do responsável selecionado
-  const { data: projetosResponsavel = [], isLoading: isLoadingProjetos } = useQuery<ProjetoWithRelations[]>({
-    queryKey: ["/api/projetos", selectedResponsavel],
+  const { data: projetosResponsavel = [], isLoading: isLoadingProjetosResponsavel } = useQuery<ProjetoWithRelations[]>({
+    queryKey: ["/api/projetos", "responsavel", selectedResponsavel],
     queryFn: async () => {
       if (!selectedResponsavel) return [];
       const response = await fetch(`/api/projetos?responsavelId=${selectedResponsavel}`, {
@@ -41,6 +46,20 @@ export default function Metrics() {
       return response.json();
     },
     enabled: !!selectedResponsavel,
+  });
+
+  // Buscar projetos do tipo de vídeo selecionado
+  const { data: projetosTipo = [], isLoading: isLoadingProjetosTipo } = useQuery<ProjetoWithRelations[]>({
+    queryKey: ["/api/projetos", "tipo", selectedTipoVideo],
+    queryFn: async () => {
+      if (!selectedTipoVideo) return [];
+      const response = await fetch(`/api/projetos?tipoVideoId=${selectedTipoVideo}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Erro ao carregar projetos");
+      return response.json();
+    },
+    enabled: !!selectedTipoVideo,
   });
 
   if (isLoading) {
@@ -64,13 +83,24 @@ export default function Metrics() {
     );
   }
 
-  // Handler para clicar na barra do gráfico
+  // Handler para clicar na barra do gráfico de responsáveis
   const handleBarClick = (data: any) => {
     if (data && data.name) {
       // Encontrar o usuário pelo nome
       const user = users.find((u: any) => u.nome === data.name);
       if (user) {
         setSelectedResponsavel(user.id);
+      }
+    }
+  };
+
+  // Handler para clicar na barra do gráfico de tipos
+  const handleTipoBarClick = (data: any) => {
+    if (data && data.name) {
+      // Encontrar o tipo de vídeo pelo nome
+      const tipo = tiposVideo.find((t: any) => t.nome === data.name);
+      if (tipo) {
+        setSelectedTipoVideo(tipo.id);
       }
     }
   };
@@ -250,7 +280,13 @@ export default function Metrics() {
                         <XAxis dataKey="name" />
                         <YAxis />
                         <Tooltip />
-                        <Bar dataKey="projetos" fill="#82ca9d" />
+                        <Bar 
+                          dataKey="projetos" 
+                          fill="#82ca9d" 
+                          onClick={handleTipoBarClick}
+                          cursor="pointer"
+                          data-testid="bar-tipo"
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -320,7 +356,7 @@ export default function Metrics() {
             </div>
           </DrawerHeader>
           <div className="overflow-y-auto p-6" style={{ maxHeight: 'calc(70vh - 80px)' }}>
-            {isLoadingProjetos ? (
+            {isLoadingProjetosResponsavel ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />
@@ -333,6 +369,49 @@ export default function Metrics() {
             ) : (
               <div className="space-y-4">
                 {projetosResponsavel.map((projeto) => (
+                  <ProjectCard
+                    key={projeto.id}
+                    projeto={projeto}
+                    onEdit={setSelectedProject}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Drawer para mostrar projetos do tipo de vídeo */}
+      <Drawer open={!!selectedTipoVideo && !selectedProject} onOpenChange={(open) => !open && setSelectedTipoVideo(null)}>
+        <DrawerContent className="max-h-[70vh] max-w-2xl mx-auto">
+          <DrawerHeader className="border-b px-6 py-4 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <DrawerTitle>
+                Projetos do tipo {tiposVideo.find((t: any) => t.id === selectedTipoVideo)?.nome || "Tipo de Vídeo"}
+              </DrawerTitle>
+              <button
+                onClick={() => setSelectedTipoVideo(null)}
+                className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                data-testid="close-drawer-tipo"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </DrawerHeader>
+          <div className="overflow-y-auto p-6" style={{ maxHeight: 'calc(70vh - 80px)' }}>
+            {isLoadingProjetosTipo ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
+            ) : projetosTipo.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Nenhum projeto encontrado para este tipo de vídeo.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {projetosTipo.map((projeto) => (
                   <ProjectCard
                     key={projeto.id}
                     projeto={projeto}
