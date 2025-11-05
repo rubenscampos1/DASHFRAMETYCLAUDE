@@ -234,6 +234,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NPS route
+  app.put("/api/projetos/:id/nps", requireAuth, async (req, res, next) => {
+    try {
+      const { npsScore, npsContact, npsResponsible } = req.body;
+      
+      // Validate NPS score is between 1 and 10
+      if (npsScore && (npsScore < 1 || npsScore > 10)) {
+        return res.status(400).json({ message: "A nota NPS deve estar entre 1 e 10" });
+      }
+
+      const projeto = await storage.updateProjeto(req.params.id, {
+        npsScore,
+        npsContact,
+        npsResponsible,
+      });
+      
+      res.json(projeto);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Tipos de video routes
   app.get("/api/tipos-video", requireAuth, async (req, res, next) => {
     try {
