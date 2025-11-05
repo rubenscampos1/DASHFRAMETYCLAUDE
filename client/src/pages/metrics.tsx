@@ -1,19 +1,46 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
 import { Sidebar } from "@/components/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, Users, Video, AlertTriangle } from "lucide-react";
+import { TrendingUp, Users, Video, AlertTriangle, X } from "lucide-react";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ProjectCard } from "@/components/project-card";
+import { ProjectDetailsDrawer } from "@/components/project-details-drawer";
+import { ProjetoWithRelations } from "@shared/schema";
 
 export default function Metrics() {
   const { mainContentClass } = useSidebarLayout();
+  const [selectedResponsavel, setSelectedResponsavel] = useState<string | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
+  
   const { data: metricas, isLoading } = useQuery<any>({
     queryKey: ["/api/metricas"],
     refetchInterval: 30000, // Atualiza a cada 30 segundos
     refetchOnWindowFocus: true, // Atualiza quando volta ao foco da janela
     refetchOnReconnect: true, // Atualiza quando reconecta à internet
     staleTime: 0, // Dados sempre considerados desatualizados para forçar refetch
+  });
+
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ["/api/users"],
+  });
+
+  // Buscar projetos do responsável selecionado
+  const { data: projetosResponsavel = [], isLoading: isLoadingProjetos } = useQuery<ProjetoWithRelations[]>({
+    queryKey: ["/api/projetos", selectedResponsavel],
+    queryFn: async () => {
+      if (!selectedResponsavel) return [];
+      const response = await fetch(`/api/projetos?responsavelId=${selectedResponsavel}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Erro ao carregar projetos");
+      return response.json();
+    },
+    enabled: !!selectedResponsavel,
   });
 
   if (isLoading) {
@@ -36,6 +63,17 @@ export default function Metrics() {
       </div>
     );
   }
+
+  // Handler para clicar na barra do gráfico
+  const handleBarClick = (data: any) => {
+    if (data && data.name) {
+      // Encontrar o usuário pelo nome
+      const user = users.find((u: any) => u.nome === data.name);
+      if (user) {
+        setSelectedResponsavel(user.id);
+      }
+    }
+  };
 
   const responsavelData = Object.entries(metricas?.projetosPorResponsavel || {}).map(([responsavel, count]) => ({
     name: responsavel,
@@ -185,7 +223,13 @@ export default function Metrics() {
                         <XAxis dataKey="name" />
                         <YAxis />
                         <Tooltip />
-                        <Bar dataKey="projetos" fill="#8884d8" />
+                        <Bar 
+                          dataKey="projetos" 
+                          fill="#8884d8" 
+                          onClick={handleBarClick}
+                          cursor="pointer"
+                          data-testid="bar-responsavel"
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -257,6 +301,57 @@ export default function Metrics() {
           </div>
         </main>
       </div>
+
+      {/* Drawer para mostrar projetos do responsável */}
+      <Drawer open={!!selectedResponsavel && !selectedProject} onOpenChange={(open) => !open && setSelectedResponsavel(null)}>
+        <DrawerContent className="max-h-[90vh]">
+          <DrawerHeader className="border-b px-6 py-4">
+            <div className="flex items-center justify-between">
+              <DrawerTitle>
+                Projetos de {users.find((u: any) => u.id === selectedResponsavel)?.nome || "Responsável"}
+              </DrawerTitle>
+              <button
+                onClick={() => setSelectedResponsavel(null)}
+                className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                data-testid="close-drawer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </DrawerHeader>
+          <ScrollArea className="flex-1 p-6">
+            {isLoadingProjetos ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
+            ) : projetosResponsavel.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Nenhum projeto encontrado para este responsável.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {projetosResponsavel.map((projeto) => (
+                  <ProjectCard
+                    key={projeto.id}
+                    projeto={projeto}
+                    onEdit={setSelectedProject}
+                  />
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Drawer para detalhes do projeto */}
+      <ProjectDetailsDrawer
+        projeto={selectedProject}
+        isOpen={!!selectedProject}
+        onClose={() => setSelectedProject(null)}
+        onProjectUpdate={(updatedProject) => setSelectedProject(updatedProject)}
+      />
     </div>
   );
 }
