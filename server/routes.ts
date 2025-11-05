@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { insertProjetoSchema, updateProjetoSchema, insertLogStatusSchema, insertClienteSchema, insertEmpreendimentoSchema, insertTagSchema, insertTipoVideoSchema, insertComentarioSchema, insertNotaSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
+import { z } from "zod";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -237,17 +238,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // NPS route
   app.put("/api/projetos/:id/nps", requireAuth, async (req, res, next) => {
     try {
-      const { npsScore, npsContact, npsResponsible } = req.body;
-      
-      // Validate NPS score is between 1 and 10
-      if (npsScore && (npsScore < 1 || npsScore > 10)) {
-        return res.status(400).json({ message: "A nota NPS deve estar entre 1 e 10" });
-      }
+      // Define NPS validation schema
+      const npsSchema = z.object({
+        npsScore: z.coerce.number().int().min(1).max(10),
+        npsContact: z.string().trim().min(1, "Número de contato é obrigatório"),
+        npsResponsible: z.string().trim().min(1, "Nome do responsável é obrigatório"),
+      });
+
+      const validatedData = npsSchema.parse(req.body);
 
       const projeto = await storage.updateProjeto(req.params.id, {
-        npsScore,
-        npsContact,
-        npsResponsible,
+        npsScore: validatedData.npsScore,
+        npsContact: validatedData.npsContact,
+        npsResponsible: validatedData.npsResponsible,
       });
       
       res.json(projeto);
