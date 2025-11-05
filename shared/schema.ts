@@ -96,6 +96,10 @@ export const projetos = pgTable("projetos", {
   caminho: text("caminho"),
   referencias: text("referencias"), // links simples, várias linhas
   informacoesAdicionais: text("informacoes_adicionais"), // texto livre
+  // Campos NPS
+  npsScore: integer("nps_score"), // nota de 1 a 10
+  npsContact: text("nps_contact"), // número de contato
+  npsResponsible: text("nps_responsible"), // nome do responsável pela avaliação
 });
 
 export const logsDeStatus = pgTable("logs_de_status", {
