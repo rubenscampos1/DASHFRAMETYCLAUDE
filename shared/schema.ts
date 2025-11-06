@@ -70,6 +70,7 @@ export const empreendimentos = pgTable("empreendimentos", {
 
 export const projetos = pgTable("projetos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sequencialId: integer("sequencial_id").notNull(),
   titulo: text("titulo").notNull(),
   descricao: text("descricao"),
   tipoVideoId: varchar("tipo_video_id").references(() => tiposDeVideo.id).notNull(),
@@ -260,6 +261,7 @@ export const insertEmpreendimentoSchema = createInsertSchema(empreendimentos).om
 
 export const insertProjetoSchema = createInsertSchema(projetos).omit({
   id: true,
+  sequencialId: true,
   dataCriacao: true,
   dataAprovacao: true,
 }).extend({
