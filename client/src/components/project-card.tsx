@@ -6,6 +6,7 @@ import { Calendar, AlertTriangle, Trash2, Copy } from "lucide-react";
 import { ProjetoWithRelations } from "@shared/schema";
 import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatSequentialId } from "@/lib/utils";
 
 interface ProjectCardProps {
   projeto: ProjetoWithRelations;
@@ -59,12 +60,22 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
       data-testid={`project-card-${projeto.id}`}
     >
       <CardHeader className="pb-2 pt-4 px-4 md:px-6 space-y-2">
-        <Badge 
-          className={`${statusColors[projeto.status] || "default"} text-xs md:text-xs px-2.5 py-1 rounded-lg`}
-          data-testid="project-type"
-        >
-          {projeto.tipoVideo?.nome}
-        </Badge>
+        <div className="flex items-center justify-between gap-2">
+          <Badge 
+            className={`${statusColors[projeto.status] || "default"} text-xs md:text-xs px-2.5 py-1 rounded-lg`}
+            data-testid="project-type"
+          >
+            {projeto.tipoVideo?.nome}
+          </Badge>
+          
+          <Badge 
+            variant="outline" 
+            className="text-xs font-mono font-semibold px-2 py-1 rounded-md bg-secondary/50"
+            data-testid="project-sequential-id"
+          >
+            {formatSequentialId(projeto.sequencialId)}
+          </Badge>
+        </div>
 
         <h4 className="text-sm md:text-sm font-bold text-foreground line-clamp-2 leading-snug min-h-[2.5rem]" data-testid="project-title">
           {projeto.titulo}
