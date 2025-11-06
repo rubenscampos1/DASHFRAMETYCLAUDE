@@ -1,0 +1,59 @@
+[690ca48b.ad-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=34908
+[690ca48b.ae-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=34914
+[690ca48b.af-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=34924
+[690ca48b.af-2] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+[690ca48b.af-3] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+[690ca48b.af-4] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  disconnection: session time: 0:00:03.006 user=postgres database=framety host=10.22.154.83 port=34924
+[690ca4ad.cc-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=48060
+[690ca4ad.cd-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=48076
+[690ca4ad.ce-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=48088
+[690ca4ad.ce-2] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+[690ca4ad.ce-3] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+[690ca4ad.ce-4] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  disconnection: session time: 0:00:03.099 user=postgres database=framety host=10.22.154.83 port=48088
+[690ca4c7.ec-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=58300
+[690ca4c7.ed-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=58292
+[690ca4c7.ee-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=58306
+[690ca4c7.ee-2] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+[690ca4c7.ee-3] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+[690ca4c7.ee-4] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  disconnection: session time: 0:00:03.096 user=postgres database=framety host=10.22.154.83 port=58306
+[690ca4e9.10a-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=52874
+[690ca4e9.10b-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=52872
+[690ca4e9.112-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=52892
+[690ca4e9.112-2] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+[690ca4e9.112-3] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+[690ca4e9.112-4] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  disconnection: session time: 0:00:03.104 user=postgres database=framety host=10.22.154.83 port=52892
+[690ca503.12a-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=52440
+[690ca503.12b-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=52454
+[690ca503.12c-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=52468
+[690ca503.12c-2] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+[690ca503.12c-3] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+[690ca503.12c-4] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  disconnection: session time: 0:00:03.097 user=postgres database=framety host=10.22.154.83 port=52468
+[690ca525.147-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=47092
+[690ca525.148-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=47094
+[690ca525.149-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=47104
+[690ca525.149-2] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+[690ca525.149-3] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+[690ca525.149-4] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  disconnection: session time: 0:00:03.100 user=postgres database=framety host=10.22.154.83 port=47104
+[690ca53f.167-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=53658
+[690ca53f.168-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=53666
+[690ca53f.169-1] user=[unknown],db=[unknown],app=[unknown],client=10.22.154.83,LOG:  connection received: host=10.22.154.83 port=53678
+[690ca53f.169-2] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authenticated: identity="postgres" method=md5 (/pgdata/dpg-d3g0olhr0fns73dlmqp0-a/pg_hba.conf:88)
+[690ca53f.169-3] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  connection authorized: user=postgres database=framety SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, bits=256)
+[690ca53f.169-4] user=postgres,db=framety,app=[unknown],client=10.22.154.83,LOG:  disconnection: session time: 0:00:03.095 user=postgres database=framety host=10.22.154.83 port=53678
+[690ca422.40-1] user=,db=,app=,client=,LOG:  checkpoint starting: time
+[690ca422.40-2] user=,db=,app=,client=,LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.310 s, sync=0.004 s, total=0.386 s; sync files=3, longest=0.003 s, average=0.002 s; distance=4 kB, estimate=4 kB; lsn=3/6E000060, redo lsn=3/6D001170
+2025-11-06 13:40:31.641 P00   INFO: archive-push command begin 2.51: [pg_wal/00000001000000030000006D] --archive-async --archive-push-queue-max=163840kB --compress-level=1 --compress-type=lz4 --exec-id=410-76af46c6 --log-level-console=detail --log-level-file=off --log-level-stderr=warn --pg1-path=/pgdata/dpg-d3g0olhr0fns73dlmqp0-a --process-max=1 --repo1-host=dpg-d3g0olhr0fns73dlmqp0-a-pgbackrest --repo1-host-ca-file=/etc/pgbackrest/certs/ca.crt --repo1-host-cert-file=/etc/pgbackrest/certs/tls.crt --repo1-host-key-file=/etc/pgbackrest/certs/tls.key --repo1-host-type=tls --repo1-host-user=pgbackrest --spool-path=/pgdata/pgbackrest-async-spool --stanza=dpg-d3g0olhr0fns73dlmqp0-a
+2025-11-06 13:40:32.840 P00   INFO: pushed WAL file '00000001000000030000006D' to the archive asynchronously
+2025-11-06 13:40:32.840 P00   INFO: archive-push command end: completed successfully (1202ms)
+[690ca422.3a-7] user=,db=,app=,client=,LOG:  received fast shutdown request
+[690ca422.3a-8] user=,db=,app=,client=,LOG:  aborting any active transactions
+[690ca423.46-2] user=,db=,app=,client=,FATAL:  terminating background worker "TimescaleDB Background Worker Launcher" due to administrator command
+[690ca422.3a-9] user=,db=,app=,client=,LOG:  background worker "TimescaleDB Background Worker Launcher" (PID 70) exited with exit code 1
+[690ca422.3a-10] user=,db=,app=,client=,LOG:  background worker "logical replication launcher" (PID 71) exited with exit code 1
+[690ca422.40-3] user=,db=,app=,client=,LOG:  shutting down
+[690ca422.40-4] user=,db=,app=,client=,LOG:  checkpoint starting: shutdown immediate
+[690ca422.40-5] user=,db=,app=,client=,LOG:  checkpoint complete: wrote 0 buffers (0.0%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.001 s, sync=0.001 s, total=0.009 s; sync files=0, longest=0.000 s, average=0.000 s; distance=32763 kB, estimate=32763 kB; lsn=3/6F000028, redo lsn=3/6F000028
+2025-11-06 13:40:37.539 P00   INFO: archive-push command begin 2.51: [pg_wal/00000001000000030000006E] --archive-async --archive-push-queue-max=163840kB --compress-level=1 --compress-type=lz4 --exec-id=502-48174da8 --log-level-console=detail --log-level-file=off --log-level-stderr=warn --pg1-path=/pgdata/dpg-d3g0olhr0fns73dlmqp0-a --process-max=1 --repo1-host=dpg-d3g0olhr0fns73dlmqp0-a-pgbackrest --repo1-host-ca-file=/etc/pgbackrest/certs/ca.crt --repo1-host-cert-file=/etc/pgbackrest/certs/tls.crt --repo1-host-key-file=/etc/pgbackrest/certs/tls.key --repo1-host-type=tls --repo1-host-user=pgbackrest --spool-path=/pgdata/pgbackrest-async-spool --stanza=dpg-d3g0olhr0fns73dlmqp0-a
+2025-11-06 13:40:38.644 P00   INFO: pushed WAL file '00000001000000030000006E' to the archive asynchronously
+2025-11-06 13:40:38.644 P00   INFO: archive-push command end: completed successfully (1198ms)
+[690ca422.3a-11] user=,db=,app=,client=,LOG:  database system is shut down
