@@ -138,14 +138,50 @@ export default function Relatorios() {
     });
   };
 
-  const exportToPDF = () => {
-    // This would integrate with a PDF library like jsPDF
-    // For now, we'll show a toast indicating the feature
-    toast({
-      title: "Exportar PDF",
-      description: "Funcionalidade de PDF em desenvolvimento. Use o CSV por enquanto.",
-      variant: "default",
-    });
+  const exportToPDF = async () => {
+    try {
+      const params = new URLSearchParams();
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && typeof value === "string") {
+          params.append(key, value);
+        } else if (value instanceof Date) {
+          params.append(key, value.toISOString());
+        }
+      });
+
+      const response = await fetch(`/api/relatorios/pdf?${params}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao gerar PDF");
+      }
+
+      // Get the blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `relatorio-projetos-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Relatório exportado!",
+        description: "O arquivo PDF foi baixado com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao exportar PDF",
+        description: "Ocorreu um erro ao gerar o relatório em PDF. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Calculate statistics
