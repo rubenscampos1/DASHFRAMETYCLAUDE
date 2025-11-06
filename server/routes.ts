@@ -261,9 +261,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tableTop = yPosition;
       const leftMargin = 40;
       const colWidths = {
-        titulo: 280,
-        cliente: 180,
-        responsavel: 180,
+        id: 60,
+        titulo: 250,
+        cliente: 160,
+        responsavel: 160,
         dataAprovacao: 100
       };
 
@@ -271,14 +272,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       doc.fontSize(10)
          .fillColor('#1e40af')
          .font('Helvetica-Bold')
-         .text('Título', leftMargin, tableTop, { width: colWidths.titulo, align: 'left' })
-         .text('Cliente', leftMargin + colWidths.titulo, tableTop, { width: colWidths.cliente, align: 'left' })
-         .text('Responsável', leftMargin + colWidths.titulo + colWidths.cliente, tableTop, { width: colWidths.responsavel, align: 'left' })
-         .text('Data Aprovação', leftMargin + colWidths.titulo + colWidths.cliente + colWidths.responsavel, tableTop, { width: colWidths.dataAprovacao, align: 'left' });
+         .text('ID', leftMargin, tableTop, { width: colWidths.id, align: 'left' })
+         .text('Título', leftMargin + colWidths.id, tableTop, { width: colWidths.titulo, align: 'left' })
+         .text('Cliente', leftMargin + colWidths.id + colWidths.titulo, tableTop, { width: colWidths.cliente, align: 'left' })
+         .text('Responsável', leftMargin + colWidths.id + colWidths.titulo + colWidths.cliente, tableTop, { width: colWidths.responsavel, align: 'left' })
+         .text('Data Aprovação', leftMargin + colWidths.id + colWidths.titulo + colWidths.cliente + colWidths.responsavel, tableTop, { width: colWidths.dataAprovacao, align: 'left' });
 
       // Draw line under header
       doc.moveTo(leftMargin, tableTop + 14)
-         .lineTo(leftMargin + colWidths.titulo + colWidths.cliente + colWidths.responsavel + colWidths.dataAprovacao, tableTop + 14)
+         .lineTo(leftMargin + colWidths.id + colWidths.titulo + colWidths.cliente + colWidths.responsavel + colWidths.dataAprovacao, tableTop + 14)
          .strokeColor('#1e40af')
          .lineWidth(1.5)
          .stroke();
@@ -300,13 +302,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           doc.fontSize(10)
              .fillColor('#1e40af')
              .font('Helvetica-Bold')
-             .text('Título', leftMargin, yPosition, { width: colWidths.titulo, align: 'left' })
-             .text('Cliente', leftMargin + colWidths.titulo, yPosition, { width: colWidths.cliente, align: 'left' })
-             .text('Responsável', leftMargin + colWidths.titulo + colWidths.cliente, yPosition, { width: colWidths.responsavel, align: 'left' })
-             .text('Data Aprovação', leftMargin + colWidths.titulo + colWidths.cliente + colWidths.responsavel, yPosition, { width: colWidths.dataAprovacao, align: 'left' });
+             .text('ID', leftMargin, yPosition, { width: colWidths.id, align: 'left' })
+             .text('Título', leftMargin + colWidths.id, yPosition, { width: colWidths.titulo, align: 'left' })
+             .text('Cliente', leftMargin + colWidths.id + colWidths.titulo, yPosition, { width: colWidths.cliente, align: 'left' })
+             .text('Responsável', leftMargin + colWidths.id + colWidths.titulo + colWidths.cliente, yPosition, { width: colWidths.responsavel, align: 'left' })
+             .text('Data Aprovação', leftMargin + colWidths.id + colWidths.titulo + colWidths.cliente + colWidths.responsavel, yPosition, { width: colWidths.dataAprovacao, align: 'left' });
           
           doc.moveTo(leftMargin, yPosition + 14)
-             .lineTo(leftMargin + colWidths.titulo + colWidths.cliente + colWidths.responsavel + colWidths.dataAprovacao, yPosition + 14)
+             .lineTo(leftMargin + colWidths.id + colWidths.titulo + colWidths.cliente + colWidths.responsavel + colWidths.dataAprovacao, yPosition + 14)
              .strokeColor('#1e40af')
              .lineWidth(1.5)
              .stroke();
@@ -318,11 +321,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Zebra striping background
         if (index % 2 === 0) {
           doc.fillColor('#f9fafb')
-             .rect(leftMargin, yPosition - 2, colWidths.titulo + colWidths.cliente + colWidths.responsavel + colWidths.dataAprovacao, 16)
+             .rect(leftMargin, yPosition - 2, colWidths.id + colWidths.titulo + colWidths.cliente + colWidths.responsavel + colWidths.dataAprovacao, 16)
              .fill();
           doc.fillColor('#000000');
         }
 
+        const sequencialId = `#SKY${projeto.sequencialId}`;
         const titulo = projeto.titulo || '-';
         const cliente = projeto.cliente?.nome || '-';
         const responsavel = projeto.responsavel?.nome || '-';
@@ -330,10 +334,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? new Date(projeto.dataAprovacao).toLocaleDateString('pt-BR')
           : '-';
 
-        doc.text(titulo, leftMargin, yPosition, { width: colWidths.titulo - 5, ellipsis: true })
-           .text(cliente, leftMargin + colWidths.titulo, yPosition, { width: colWidths.cliente - 5, ellipsis: true })
-           .text(responsavel, leftMargin + colWidths.titulo + colWidths.cliente, yPosition, { width: colWidths.responsavel - 5, ellipsis: true })
-           .text(dataAprovacao, leftMargin + colWidths.titulo + colWidths.cliente + colWidths.responsavel, yPosition, { width: colWidths.dataAprovacao, align: 'left' });
+        doc.text(sequencialId, leftMargin, yPosition, { width: colWidths.id - 5, ellipsis: true })
+           .text(titulo, leftMargin + colWidths.id, yPosition, { width: colWidths.titulo - 5, ellipsis: true })
+           .text(cliente, leftMargin + colWidths.id + colWidths.titulo, yPosition, { width: colWidths.cliente - 5, ellipsis: true })
+           .text(responsavel, leftMargin + colWidths.id + colWidths.titulo + colWidths.cliente, yPosition, { width: colWidths.responsavel - 5, ellipsis: true })
+           .text(dataAprovacao, leftMargin + colWidths.id + colWidths.titulo + colWidths.cliente + colWidths.responsavel, yPosition, { width: colWidths.dataAprovacao, align: 'left' });
 
         yPosition += 16;
       });

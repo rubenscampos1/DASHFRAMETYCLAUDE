@@ -90,6 +90,7 @@ export default function Relatorios() {
 
   const exportToCSV = () => {
     const headers = [
+      "ID",
       "Título",
       "Status", 
       "Responsável",
@@ -103,6 +104,7 @@ export default function Relatorios() {
     ];
 
     const csvData = projetos.map(projeto => [
+      `#SKY${projeto.sequencialId}`,
       projeto.titulo,
       projeto.status,
       projeto.responsavel?.nome || "",
