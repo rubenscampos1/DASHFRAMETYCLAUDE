@@ -348,8 +348,8 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Projeto não encontrado");
     }
 
-    // Criar cópia do projeto (novo ID, nova data de criação, sem data de aprovação)
-    const novoProjeto: InsertProjeto = {
+    // Criar cópia do projeto (novo ID, nova data de criação, mas MANTÉM o mesmo sequencialId)
+    const novoProjeto = {
       titulo: projetoOriginal.titulo,
       descricao: projetoOriginal.descricao,
       tipoVideoId: projetoOriginal.tipoVideoId,
@@ -376,6 +376,7 @@ export class DatabaseStorage implements IStorage {
       npsScore: projetoOriginal.npsScore,
       npsContact: projetoOriginal.npsContact,
       npsResponsible: projetoOriginal.npsResponsible,
+      sequencialId: projetoOriginal.sequencialId, // MANTÉM o mesmo ID sequencial
     };
 
     // Inserir projeto duplicado
