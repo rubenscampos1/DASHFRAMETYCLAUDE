@@ -6,6 +6,7 @@ import { insertProjetoSchema, updateProjetoSchema, insertLogStatusSchema, insert
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { z } from "zod";
+import PDFDocument from "pdfkit";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -164,6 +165,183 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
       res.json(projeto);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // PDF Export endpoint
+  app.get("/api/relatorios/pdf", requireAuth, async (req, res, next) => {
+    try {
+      const filters = {
+        status: req.query.status as string,
+        responsavelId: req.query.responsavelId as string,
+        tipoVideoId: req.query.tipoVideoId as string,
+        prioridade: req.query.prioridade as string,
+        search: req.query.search as string,
+        dataInicioAprovacao: req.query.dataInicioAprovacao as string,
+        dataFimAprovacao: req.query.dataFimAprovacao as string,
+      };
+
+      // Remove undefined values and "all" values
+      Object.keys(filters).forEach(key => {
+        const value = filters[key as keyof typeof filters];
+        if (!value || value === "all") {
+          delete filters[key as keyof typeof filters];
+        }
+      });
+
+      const projetos = await storage.getProjetos(filters);
+
+      // Create PDF
+      const doc = new PDFDocument({ 
+        size: 'A4',
+        margin: 50,
+        bufferPages: true
+      });
+
+      // Set response headers
+      const filename = `relatorio-projetos-${new Date().toISOString().split('T')[0]}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      // Pipe PDF to response
+      doc.pipe(res);
+
+      // Header with logo text
+      doc.fontSize(24)
+         .fillColor('#1e40af')
+         .text('FRAMETY', 50, 50);
+      
+      doc.fontSize(10)
+         .fillColor('#666666')
+         .text('Sistema de Gestão de Projetos de Vídeo', 50, 80);
+
+      // Title
+      doc.fontSize(18)
+         .fillColor('#000000')
+         .text('Relatório de Projetos', 50, 120);
+
+      // Date and filters info
+      doc.fontSize(10)
+         .fillColor('#666666')
+         .text(`Gerado em: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, 50, 150);
+      
+      let yPosition = 170;
+
+      // Applied filters
+      if (Object.keys(filters).length > 0) {
+        doc.fontSize(10)
+           .fillColor('#666666')
+           .text('Filtros Aplicados:', 50, yPosition);
+        yPosition += 15;
+
+        if (filters.status) {
+          doc.text(`• Status: ${filters.status}`, 70, yPosition);
+          yPosition += 15;
+        }
+        if (filters.dataInicioAprovacao || filters.dataFimAprovacao) {
+          const dataInicio = filters.dataInicioAprovacao ? new Date(filters.dataInicioAprovacao).toLocaleDateString('pt-BR') : '...';
+          const dataFim = filters.dataFimAprovacao ? new Date(filters.dataFimAprovacao).toLocaleDateString('pt-BR') : '...';
+          doc.text(`• Período: ${dataInicio} a ${dataFim}`, 70, yPosition);
+          yPosition += 15;
+        }
+        yPosition += 10;
+      }
+
+      // Summary
+      doc.fontSize(12)
+         .fillColor('#000000')
+         .text(`Total de Projetos: ${projetos.length}`, 50, yPosition);
+      yPosition += 30;
+
+      // Table header
+      const tableTop = yPosition;
+      const colWidths = {
+        titulo: 180,
+        cliente: 120,
+        responsavel: 120,
+        dataAprovacao: 100
+      };
+
+      doc.fontSize(10)
+         .fillColor('#1e40af')
+         .text('Título', 50, tableTop)
+         .text('Cliente', 50 + colWidths.titulo, tableTop)
+         .text('Responsável', 50 + colWidths.titulo + colWidths.cliente, tableTop)
+         .text('Data Aprovação', 50 + colWidths.titulo + colWidths.cliente + colWidths.responsavel, tableTop);
+
+      // Draw line under header
+      doc.moveTo(50, tableTop + 15)
+         .lineTo(550, tableTop + 15)
+         .stroke();
+
+      yPosition = tableTop + 25;
+
+      // Table rows
+      doc.fontSize(9).fillColor('#000000');
+      
+      projetos.forEach((projeto, index) => {
+        // Check if we need a new page
+        if (yPosition > 700) {
+          doc.addPage();
+          yPosition = 50;
+          
+          // Redraw header on new page
+          doc.fontSize(10)
+             .fillColor('#1e40af')
+             .text('Título', 50, yPosition)
+             .text('Cliente', 50 + colWidths.titulo, yPosition)
+             .text('Responsável', 50 + colWidths.titulo + colWidths.cliente, yPosition)
+             .text('Data Aprovação', 50 + colWidths.titulo + colWidths.cliente + colWidths.responsavel, yPosition);
+          
+          doc.moveTo(50, yPosition + 15)
+             .lineTo(550, yPosition + 15)
+             .stroke();
+          
+          yPosition += 25;
+          doc.fontSize(9).fillColor('#000000');
+        }
+
+        const titulo = projeto.titulo.length > 30 ? projeto.titulo.substring(0, 27) + '...' : projeto.titulo;
+        const cliente = (projeto.cliente?.nome || '-').length > 20 ? (projeto.cliente?.nome || '-').substring(0, 17) + '...' : (projeto.cliente?.nome || '-');
+        const responsavel = (projeto.responsavel?.nome || '-').length > 20 ? (projeto.responsavel?.nome || '-').substring(0, 17) + '...' : (projeto.responsavel?.nome || '-');
+        const dataAprovacao = projeto.dataAprovacao 
+          ? new Date(projeto.dataAprovacao).toLocaleDateString('pt-BR')
+          : '-';
+
+        doc.text(titulo, 50, yPosition)
+           .text(cliente, 50 + colWidths.titulo, yPosition)
+           .text(responsavel, 50 + colWidths.titulo + colWidths.cliente, yPosition)
+           .text(dataAprovacao, 50 + colWidths.titulo + colWidths.cliente + colWidths.responsavel, yPosition);
+
+        yPosition += 20;
+
+        // Zebra striping
+        if (index % 2 === 0) {
+          doc.fillColor('#f9fafb')
+             .rect(50, yPosition - 18, 500, 18)
+             .fill();
+          doc.fillColor('#000000');
+        }
+      });
+
+      // Footer
+      const pageCount = doc.bufferedPageRange().count;
+      for (let i = 0; i < pageCount; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8)
+           .fillColor('#666666')
+           .text(
+             `Página ${i + 1} de ${pageCount}`,
+             50,
+             doc.page.height - 50,
+             { align: 'center', width: doc.page.width - 100 }
+           );
+      }
+
+      // Finalize PDF
+      doc.end();
     } catch (error) {
       next(error);
     }
