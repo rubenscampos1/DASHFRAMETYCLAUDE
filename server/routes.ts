@@ -193,10 +193,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const projetos = await storage.getProjetos(filters);
 
-      // Create PDF
+      // Create PDF in landscape mode for better table visibility
       const doc = new PDFDocument({ 
         size: 'A4',
-        margin: 50,
+        layout: 'landscape',
+        margin: 40,
         bufferPages: true
       });
 
@@ -211,119 +212,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Header with logo text
       doc.fontSize(24)
          .fillColor('#1e40af')
-         .text('FRAMETY', 50, 50);
+         .text('FRAMETY', 40, 40);
       
       doc.fontSize(10)
          .fillColor('#666666')
-         .text('Sistema de Gestão de Projetos de Vídeo', 50, 80);
+         .text('Sistema de Gestão de Projetos de Vídeo', 40, 70);
 
       // Title
-      doc.fontSize(18)
+      doc.fontSize(16)
          .fillColor('#000000')
-         .text('Relatório de Projetos', 50, 120);
+         .text('Relatório de Projetos', 40, 100);
 
       // Date and filters info
-      doc.fontSize(10)
+      doc.fontSize(9)
          .fillColor('#666666')
-         .text(`Gerado em: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, 50, 150);
+         .text(`Gerado em: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, 40, 125);
       
-      let yPosition = 170;
+      let yPosition = 145;
 
       // Applied filters
       if (Object.keys(filters).length > 0) {
-        doc.fontSize(10)
+        doc.fontSize(9)
            .fillColor('#666666')
-           .text('Filtros Aplicados:', 50, yPosition);
-        yPosition += 15;
+           .text('Filtros Aplicados:', 40, yPosition);
+        yPosition += 12;
 
         if (filters.status) {
-          doc.text(`• Status: ${filters.status}`, 70, yPosition);
-          yPosition += 15;
+          doc.text(`• Status: ${filters.status}`, 55, yPosition);
+          yPosition += 12;
         }
         if (filters.dataInicioAprovacao || filters.dataFimAprovacao) {
           const dataInicio = filters.dataInicioAprovacao ? new Date(filters.dataInicioAprovacao).toLocaleDateString('pt-BR') : '...';
           const dataFim = filters.dataFimAprovacao ? new Date(filters.dataFimAprovacao).toLocaleDateString('pt-BR') : '...';
-          doc.text(`• Período: ${dataInicio} a ${dataFim}`, 70, yPosition);
-          yPosition += 15;
+          doc.text(`• Período: ${dataInicio} a ${dataFim}`, 55, yPosition);
+          yPosition += 12;
         }
-        yPosition += 10;
+        yPosition += 8;
       }
 
       // Summary
-      doc.fontSize(12)
+      doc.fontSize(11)
          .fillColor('#000000')
-         .text(`Total de Projetos: ${projetos.length}`, 50, yPosition);
-      yPosition += 30;
+         .text(`Total de Projetos: ${projetos.length}`, 40, yPosition);
+      yPosition += 25;
 
-      // Table header
+      // Table configuration - landscape A4 is ~842 x 595 points
+      // Available width: 842 - 80 (margins) = 762 points
       const tableTop = yPosition;
+      const leftMargin = 40;
       const colWidths = {
-        titulo: 180,
-        cliente: 120,
-        responsavel: 120,
+        titulo: 280,
+        cliente: 180,
+        responsavel: 180,
         dataAprovacao: 100
       };
 
+      // Table header
       doc.fontSize(10)
          .fillColor('#1e40af')
-         .text('Título', 50, tableTop)
-         .text('Cliente', 50 + colWidths.titulo, tableTop)
-         .text('Responsável', 50 + colWidths.titulo + colWidths.cliente, tableTop)
-         .text('Data Aprovação', 50 + colWidths.titulo + colWidths.cliente + colWidths.responsavel, tableTop);
+         .font('Helvetica-Bold')
+         .text('Título', leftMargin, tableTop, { width: colWidths.titulo, align: 'left' })
+         .text('Cliente', leftMargin + colWidths.titulo, tableTop, { width: colWidths.cliente, align: 'left' })
+         .text('Responsável', leftMargin + colWidths.titulo + colWidths.cliente, tableTop, { width: colWidths.responsavel, align: 'left' })
+         .text('Data Aprovação', leftMargin + colWidths.titulo + colWidths.cliente + colWidths.responsavel, tableTop, { width: colWidths.dataAprovacao, align: 'left' });
 
       // Draw line under header
-      doc.moveTo(50, tableTop + 15)
-         .lineTo(550, tableTop + 15)
+      doc.moveTo(leftMargin, tableTop + 14)
+         .lineTo(leftMargin + colWidths.titulo + colWidths.cliente + colWidths.responsavel + colWidths.dataAprovacao, tableTop + 14)
+         .strokeColor('#1e40af')
+         .lineWidth(1.5)
          .stroke();
 
-      yPosition = tableTop + 25;
+      yPosition = tableTop + 22;
 
       // Table rows
-      doc.fontSize(9).fillColor('#000000');
+      doc.font('Helvetica')
+         .fontSize(9)
+         .fillColor('#000000');
       
       projetos.forEach((projeto, index) => {
         // Check if we need a new page
-        if (yPosition > 700) {
-          doc.addPage();
-          yPosition = 50;
+        if (yPosition > 520) {
+          doc.addPage({ layout: 'landscape' });
+          yPosition = 40;
           
           // Redraw header on new page
           doc.fontSize(10)
              .fillColor('#1e40af')
-             .text('Título', 50, yPosition)
-             .text('Cliente', 50 + colWidths.titulo, yPosition)
-             .text('Responsável', 50 + colWidths.titulo + colWidths.cliente, yPosition)
-             .text('Data Aprovação', 50 + colWidths.titulo + colWidths.cliente + colWidths.responsavel, yPosition);
+             .font('Helvetica-Bold')
+             .text('Título', leftMargin, yPosition, { width: colWidths.titulo, align: 'left' })
+             .text('Cliente', leftMargin + colWidths.titulo, yPosition, { width: colWidths.cliente, align: 'left' })
+             .text('Responsável', leftMargin + colWidths.titulo + colWidths.cliente, yPosition, { width: colWidths.responsavel, align: 'left' })
+             .text('Data Aprovação', leftMargin + colWidths.titulo + colWidths.cliente + colWidths.responsavel, yPosition, { width: colWidths.dataAprovacao, align: 'left' });
           
-          doc.moveTo(50, yPosition + 15)
-             .lineTo(550, yPosition + 15)
+          doc.moveTo(leftMargin, yPosition + 14)
+             .lineTo(leftMargin + colWidths.titulo + colWidths.cliente + colWidths.responsavel + colWidths.dataAprovacao, yPosition + 14)
+             .strokeColor('#1e40af')
+             .lineWidth(1.5)
              .stroke();
           
-          yPosition += 25;
-          doc.fontSize(9).fillColor('#000000');
+          yPosition += 22;
+          doc.font('Helvetica').fontSize(9).fillColor('#000000');
         }
 
-        const titulo = projeto.titulo.length > 30 ? projeto.titulo.substring(0, 27) + '...' : projeto.titulo;
-        const cliente = (projeto.cliente?.nome || '-').length > 20 ? (projeto.cliente?.nome || '-').substring(0, 17) + '...' : (projeto.cliente?.nome || '-');
-        const responsavel = (projeto.responsavel?.nome || '-').length > 20 ? (projeto.responsavel?.nome || '-').substring(0, 17) + '...' : (projeto.responsavel?.nome || '-');
+        // Zebra striping background
+        if (index % 2 === 0) {
+          doc.fillColor('#f9fafb')
+             .rect(leftMargin, yPosition - 2, colWidths.titulo + colWidths.cliente + colWidths.responsavel + colWidths.dataAprovacao, 16)
+             .fill();
+          doc.fillColor('#000000');
+        }
+
+        const titulo = projeto.titulo || '-';
+        const cliente = projeto.cliente?.nome || '-';
+        const responsavel = projeto.responsavel?.nome || '-';
         const dataAprovacao = projeto.dataAprovacao 
           ? new Date(projeto.dataAprovacao).toLocaleDateString('pt-BR')
           : '-';
 
-        doc.text(titulo, 50, yPosition)
-           .text(cliente, 50 + colWidths.titulo, yPosition)
-           .text(responsavel, 50 + colWidths.titulo + colWidths.cliente, yPosition)
-           .text(dataAprovacao, 50 + colWidths.titulo + colWidths.cliente + colWidths.responsavel, yPosition);
+        doc.text(titulo, leftMargin, yPosition, { width: colWidths.titulo - 5, ellipsis: true })
+           .text(cliente, leftMargin + colWidths.titulo, yPosition, { width: colWidths.cliente - 5, ellipsis: true })
+           .text(responsavel, leftMargin + colWidths.titulo + colWidths.cliente, yPosition, { width: colWidths.responsavel - 5, ellipsis: true })
+           .text(dataAprovacao, leftMargin + colWidths.titulo + colWidths.cliente + colWidths.responsavel, yPosition, { width: colWidths.dataAprovacao, align: 'left' });
 
-        yPosition += 20;
-
-        // Zebra striping
-        if (index % 2 === 0) {
-          doc.fillColor('#f9fafb')
-             .rect(50, yPosition - 18, 500, 18)
-             .fill();
-          doc.fillColor('#000000');
-        }
+        yPosition += 16;
       });
 
       // Footer
