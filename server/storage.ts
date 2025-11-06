@@ -31,7 +31,7 @@ import {
   type InsertNota
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, desc, asc, sql } from "drizzle-orm";
+import { eq, and, or, like, desc, asc, sql, gte, lte } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -56,6 +56,8 @@ export interface IStorage {
     tipoVideoId?: string;
     prioridade?: string;
     search?: string;
+    dataInicioAprovacao?: string;
+    dataFimAprovacao?: string;
   }): Promise<ProjetoWithRelations[]>;
   getProjeto(id: string): Promise<ProjetoWithRelations | undefined>;
   createProjeto(projeto: InsertProjeto): Promise<Projeto>;
@@ -202,6 +204,8 @@ export class DatabaseStorage implements IStorage {
     tipoVideoId?: string;
     prioridade?: string;
     search?: string;
+    dataInicioAprovacao?: string;
+    dataFimAprovacao?: string;
   }): Promise<ProjetoWithRelations[]> {
     const conditions = [];
 
@@ -225,6 +229,15 @@ export class DatabaseStorage implements IStorage {
           like(clientes.nome, `%${filters.search}%`)
         )
       );
+    }
+    if (filters?.dataInicioAprovacao) {
+      conditions.push(gte(projetos.dataAprovacao, new Date(filters.dataInicioAprovacao)));
+    }
+    if (filters?.dataFimAprovacao) {
+      // Add one day to include the full end date
+      const endDate = new Date(filters.dataFimAprovacao);
+      endDate.setDate(endDate.getDate() + 1);
+      conditions.push(lte(projetos.dataAprovacao, endDate));
     }
 
     let query = db

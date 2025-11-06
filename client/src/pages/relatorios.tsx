@@ -33,13 +33,10 @@ export default function Relatorios() {
     status: "all",
     responsavelId: "all",
     tipoVideoId: "all",
-    prioridade: "all",
     cliente: "",
     search: "",
-    dataInicioCreated: undefined as Date | undefined,
-    dataFimCreated: undefined as Date | undefined,
-    dataInicioEntrega: undefined as Date | undefined,
-    dataFimEntrega: undefined as Date | undefined,
+    dataInicioAprovacao: undefined as Date | undefined,
+    dataFimAprovacao: undefined as Date | undefined,
   });
 
   const { data: projetos = [], isLoading, refetch } = useQuery<ProjetoWithRelations[]>({
@@ -50,6 +47,8 @@ export default function Relatorios() {
       Object.entries(filters).forEach(([key, value]) => {
         if (value && typeof value === "string") {
           params.append(key, value);
+        } else if (value instanceof Date) {
+          params.append(key, value.toISOString());
         }
       });
       
@@ -82,13 +81,10 @@ export default function Relatorios() {
       status: "all",
       responsavelId: "all",
       tipoVideoId: "all",
-      prioridade: "all",
       cliente: "",
       search: "",
-      dataInicioCreated: undefined,
-      dataFimCreated: undefined,
-      dataInicioEntrega: undefined,
-      dataFimEntrega: undefined,
+      dataInicioAprovacao: undefined,
+      dataFimAprovacao: undefined,
     });
   };
 
@@ -98,7 +94,6 @@ export default function Relatorios() {
       "Status", 
       "Responsável",
       "Tipo de Vídeo",
-      "Prioridade",
       "Cliente",
       "Data de Criação",
       "Data Prevista de Entrega",
@@ -112,7 +107,6 @@ export default function Relatorios() {
       projeto.status,
       projeto.responsavel?.nome || "",
       projeto.tipoVideo?.nome || "",
-      projeto.prioridade,
       projeto.cliente || "",
       projeto.dataCriacao ? format(new Date(projeto.dataCriacao), "dd/MM/yyyy", { locale: ptBR }) : "",
       projeto.dataPrevistaEntrega ? format(new Date(projeto.dataPrevistaEntrega), "dd/MM/yyyy", { locale: ptBR }) : "",
@@ -237,7 +231,7 @@ export default function Relatorios() {
               <span className="text-sm font-medium text-foreground">Filtros Avançados</span>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
@@ -296,24 +290,68 @@ export default function Relatorios() {
                 </SelectContent>
               </Select>
               
-              <Select value={filters.prioridade} onValueChange={(value) => handleFilterChange("prioridade", value === "all" ? "" : value)}>
-                <SelectTrigger data-testid="filter-prioridade">
-                  <SelectValue placeholder="Prioridade" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  <SelectItem value="Alta">Alta</SelectItem>
-                  <SelectItem value="Média">Média</SelectItem>
-                  <SelectItem value="Baixa">Baixa</SelectItem>
-                </SelectContent>
-              </Select>
-              
               <Input
                 placeholder="Cliente"
                 value={filters.cliente}
                 onChange={(e) => handleFilterChange("cliente", e.target.value)}
                 data-testid="filter-cliente"
               />
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !filters.dataInicioAprovacao && "text-muted-foreground"
+                    )}
+                    data-testid="filter-data-inicio"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {filters.dataInicioAprovacao ? (
+                      format(filters.dataInicioAprovacao, "dd/MM/yyyy", { locale: ptBR })
+                    ) : (
+                      "Data inicial"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={filters.dataInicioAprovacao}
+                    onSelect={(date) => handleFilterChange("dataInicioAprovacao", date)}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !filters.dataFimAprovacao && "text-muted-foreground"
+                    )}
+                    data-testid="filter-data-fim"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {filters.dataFimAprovacao ? (
+                      format(filters.dataFimAprovacao, "dd/MM/yyyy", { locale: ptBR })
+                    ) : (
+                      "Data final"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={filters.dataFimAprovacao}
+                    onSelect={(date) => handleFilterChange("dataFimAprovacao", date)}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             
             {Object.values(filters).some(Boolean) && (
@@ -408,10 +446,10 @@ export default function Relatorios() {
                             <TableHead>Status</TableHead>
                             <TableHead>Responsável</TableHead>
                             <TableHead>Tipo</TableHead>
-                            <TableHead>Prioridade</TableHead>
                             <TableHead>Cliente</TableHead>
                             <TableHead>Criado em</TableHead>
                             <TableHead>Prazo</TableHead>
+                            <TableHead>Data Aprovação</TableHead>
                             <TableHead>Situação</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -435,11 +473,6 @@ export default function Relatorios() {
                                 <TableCell data-testid="cell-type">
                                   {projeto.tipoVideo?.nome}
                                 </TableCell>
-                                <TableCell data-testid="cell-priority">
-                                  <Badge variant={projeto.prioridade === "Alta" ? "destructive" : "secondary"}>
-                                    {projeto.prioridade}
-                                  </Badge>
-                                </TableCell>
                                 <TableCell data-testid="cell-client">
                                   {projeto.cliente?.nome || "-"}
                                 </TableCell>
@@ -449,6 +482,12 @@ export default function Relatorios() {
                                 <TableCell data-testid="cell-due-date">
                                   {projeto.dataPrevistaEntrega 
                                     ? format(new Date(projeto.dataPrevistaEntrega), "dd/MM/yyyy", { locale: ptBR })
+                                    : "-"
+                                  }
+                                </TableCell>
+                                <TableCell data-testid="cell-approval-date">
+                                  {projeto.dataAprovacao 
+                                    ? format(new Date(projeto.dataAprovacao), "dd/MM/yyyy", { locale: ptBR })
                                     : "-"
                                   }
                                 </TableCell>

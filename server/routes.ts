@@ -127,6 +127,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tipoVideoId: req.query.tipoVideoId as string,
         prioridade: req.query.prioridade as string,
         search: req.query.search as string,
+        dataInicioAprovacao: req.query.dataInicioAprovacao as string,
+        dataFimAprovacao: req.query.dataFimAprovacao as string,
       };
 
       // Remove undefined values and "all" values
