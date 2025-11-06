@@ -270,126 +270,147 @@ export default function Relatorios() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Buscar..."
-                  className="pl-10"
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange("search", e.target.value)}
-                  data-testid="search-input"
-                />
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Buscar</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Buscar..."
+                    className="pl-10"
+                    value={filters.search}
+                    onChange={(e) => handleFilterChange("search", e.target.value)}
+                    data-testid="search-input"
+                  />
+                </div>
               </div>
               
-              <Select value={filters.status} onValueChange={(value) => handleFilterChange("status", value === "all" ? "" : value)}>
-                <SelectTrigger data-testid="filter-status">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Status</SelectItem>
-                  <SelectItem value="Briefing">Briefing</SelectItem>
-                  <SelectItem value="Roteiro">Roteiro</SelectItem>
-                  <SelectItem value="Captação">Captação</SelectItem>
-                  <SelectItem value="Edição">Edição</SelectItem>
-                  <SelectItem value="Aguardando Aprovação">Aguardando Aprovação</SelectItem>
-                  <SelectItem value="Aprovado">Aprovado</SelectItem>
-                  <SelectItem value="Em Pausa">Em Pausa</SelectItem>
-                  <SelectItem value="Cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              {canViewAll && (
-                <Select value={filters.responsavelId} onValueChange={(value) => handleFilterChange("responsavelId", value === "all" ? "" : value)}>
-                  <SelectTrigger data-testid="filter-responsavel">
-                    <SelectValue placeholder="Responsável" />
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Status</label>
+                <Select value={filters.status} onValueChange={(value) => handleFilterChange("status", value === "all" ? "" : value)}>
+                  <SelectTrigger data-testid="filter-status">
+                    <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.nome}
+                    <SelectItem value="Briefing">Briefing</SelectItem>
+                    <SelectItem value="Roteiro">Roteiro</SelectItem>
+                    <SelectItem value="Captação">Captação</SelectItem>
+                    <SelectItem value="Edição">Edição</SelectItem>
+                    <SelectItem value="Aguardando Aprovação">Aguardando Aprovação</SelectItem>
+                    <SelectItem value="Aprovado">Aprovado</SelectItem>
+                    <SelectItem value="Em Pausa">Em Pausa</SelectItem>
+                    <SelectItem value="Cancelado">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {canViewAll && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Responsável</label>
+                  <Select value={filters.responsavelId} onValueChange={(value) => handleFilterChange("responsavelId", value === "all" ? "" : value)}>
+                    <SelectTrigger data-testid="filter-responsavel">
+                      <SelectValue placeholder="Responsável" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Tipo</label>
+                <Select value={filters.tipoVideoId} onValueChange={(value) => handleFilterChange("tipoVideoId", value === "all" ? "" : value)}>
+                  <SelectTrigger data-testid="filter-tipo">
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {tiposVideo.map((tipo) => (
+                      <SelectItem key={tipo.id} value={tipo.id}>
+                        {tipo.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              )}
+              </div>
               
-              <Select value={filters.tipoVideoId} onValueChange={(value) => handleFilterChange("tipoVideoId", value === "all" ? "" : value)}>
-                <SelectTrigger data-testid="filter-tipo">
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {tiposVideo.map((tipo) => (
-                    <SelectItem key={tipo.id} value={tipo.id}>
-                      {tipo.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Input
-                placeholder="Cliente"
-                value={filters.cliente}
-                onChange={(e) => handleFilterChange("cliente", e.target.value)}
-                data-testid="filter-cliente"
-              />
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Cliente</label>
+                <Input
+                  placeholder="Cliente"
+                  value={filters.cliente}
+                  onChange={(e) => handleFilterChange("cliente", e.target.value)}
+                  data-testid="filter-cliente"
+                />
+              </div>
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "justify-start text-left font-normal",
-                      !filters.dataInicioAprovacao && "text-muted-foreground"
-                    )}
-                    data-testid="filter-data-inicio"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filters.dataInicioAprovacao ? (
-                      format(filters.dataInicioAprovacao, "dd/MM/yyyy", { locale: ptBR })
-                    ) : (
-                      "Data inicial"
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={filters.dataInicioAprovacao}
-                    onSelect={(date) => handleFilterChange("dataInicioAprovacao", date)}
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Data Inicial</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !filters.dataInicioAprovacao && "text-muted-foreground"
+                      )}
+                      data-testid="filter-data-inicio"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dataInicioAprovacao ? (
+                        format(filters.dataInicioAprovacao, "dd/MM/yyyy", { locale: ptBR })
+                      ) : (
+                        "Selecionar"
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dataInicioAprovacao}
+                      onSelect={(date) => handleFilterChange("dataInicioAprovacao", date)}
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "justify-start text-left font-normal",
-                      !filters.dataFimAprovacao && "text-muted-foreground"
-                    )}
-                    data-testid="filter-data-fim"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filters.dataFimAprovacao ? (
-                      format(filters.dataFimAprovacao, "dd/MM/yyyy", { locale: ptBR })
-                    ) : (
-                      "Data final"
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={filters.dataFimAprovacao}
-                    onSelect={(date) => handleFilterChange("dataFimAprovacao", date)}
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Data Final</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !filters.dataFimAprovacao && "text-muted-foreground"
+                      )}
+                      data-testid="filter-data-fim"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dataFimAprovacao ? (
+                        format(filters.dataFimAprovacao, "dd/MM/yyyy", { locale: ptBR })
+                      ) : (
+                        "Selecionar"
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dataFimAprovacao}
+                      onSelect={(date) => handleFilterChange("dataFimAprovacao", date)}
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             
             {Object.values(filters).some(Boolean) && (
