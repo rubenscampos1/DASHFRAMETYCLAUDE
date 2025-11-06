@@ -363,7 +363,7 @@ export default function Finalizados() {
                 <SelectValue placeholder="Responsável" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os responsáveis</SelectItem>
+                <SelectItem value="all">Responsável</SelectItem>
                 {responsaveis.map((resp) => (
                   <SelectItem key={resp.id} value={resp.id}>
                     {resp.nome}
