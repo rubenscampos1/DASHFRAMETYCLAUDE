@@ -223,13 +223,20 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(projetos.prioridade, filters.prioridade as any));
     }
     if (filters?.search) {
-      conditions.push(
-        or(
-          like(projetos.titulo, `%${filters.search}%`),
-          like(projetos.descricao, `%${filters.search}%`),
-          like(clientes.nome, `%${filters.search}%`)
-        )
-      );
+      const searchConditions = [
+        like(projetos.titulo, `%${filters.search}%`),
+        like(projetos.descricao, `%${filters.search}%`),
+        like(clientes.nome, `%${filters.search}%`)
+      ];
+      
+      // Extract numeric value from search (supports #SKY42, SKY42, or 42)
+      const numericMatch = filters.search.match(/\d+/);
+      if (numericMatch) {
+        const searchNumber = parseInt(numericMatch[0], 10);
+        searchConditions.push(eq(projetos.sequencialId, searchNumber));
+      }
+      
+      conditions.push(or(...searchConditions));
     }
     if (filters?.dataInicioAprovacao) {
       conditions.push(gte(projetos.dataAprovacao, new Date(filters.dataInicioAprovacao)));
