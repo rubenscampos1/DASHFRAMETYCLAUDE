@@ -16,12 +16,6 @@ interface ProjectCardProps {
   onDuplicate?: (projetoId: string) => void;
 }
 
-const priorityColors = {
-  "Alta": "destructive",
-  "Média": "default", 
-  "Baixa": "secondary",
-} as const;
-
 const statusColors = {
   "Briefing": "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200",
   "Roteiro": "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200",
@@ -40,12 +34,6 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
     isBefore(startOfDay(new Date(projeto.dataPrevistaEntrega)), startOfDay(new Date())) && 
     !["Aprovado", "Cancelado"].includes(projeto.status);
 
-  const priorityBorderClass = {
-    "Alta": "border-l-destructive",
-    "Média": "border-l-chart-3", 
-    "Baixa": "border-l-chart-4",
-  }[projeto.prioridade];
-
   return (
     <Card 
       className={`
@@ -53,7 +41,6 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
         transition-all duration-200 
         hover:shadow-md active:scale-[0.98] 
         rounded-xl
-        ${priorityBorderClass} border-l-4
         ${isDragging ? "opacity-50 rotate-2 scale-105" : ""}
       `}
       onClick={() => onEdit?.(projeto)}
@@ -146,14 +133,6 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
                 <Trash2 className="h-4 w-4 md:h-3.5 md:w-3.5" />
               </Button>
             )}
-            
-            <Badge 
-              variant={priorityColors[projeto.prioridade]}
-              className="text-xs px-2.5 py-1.5 md:py-1 rounded-lg"
-              data-testid="project-priority"
-            >
-              {projeto.prioridade}
-            </Badge>
           </div>
           
           <span className="text-xs md:text-xs text-muted-foreground truncate max-w-[120px]" data-testid="project-responsible">
