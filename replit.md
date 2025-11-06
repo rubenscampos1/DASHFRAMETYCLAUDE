@@ -27,7 +27,9 @@ Preferred communication style: Simple, everyday language.
 
 ## Feature Specifications
 - **Core Project Workflow**: Nine distinct project status stages from Briefing to Aprovado.
-- **Filtering & Reporting**: Multi-criteria filtering for projects and exportable reports with date range options.
+- **Filtering & Reporting**: Multi-criteria filtering for projects and exportable reports with date range options, including approval date filters (dataInicioAprovacao and dataFimAprovacao).
+- **PDF Export**: Professional PDF report generation using PDFKit, optimized for Render.com deployment. Reports include FRAMETY branding, filter summaries, project tables with pagination, and are available via GET /api/relatorios/pdf endpoint.
+- **CSV Export**: Export filtered project data to CSV format for external analysis.
 - **Integration**: YouTube link management for approved projects.
 - **Safe Deletion**: Transactional deletion for projects and soft deletion for users to maintain data integrity.
 - **Performance**: Memoization, cached computations, debounced search, optimized API payloads, and optimistic updates for a fluid user experience.
@@ -44,6 +46,7 @@ Preferred communication style: Simple, everyday language.
 - **connect-pg-simple**: PostgreSQL session store.
 - **@aws-sdk/client-s3**: AWS S3 client for object storage.
 - **@aws-sdk/s3-request-presigner**: For generating presigned S3 URLs.
+- **pdfkit**: Lightweight PDF generation library for creating professional reports.
 
 ## Frontend Libraries
 - **@tanstack/react-query**: Server state management.
