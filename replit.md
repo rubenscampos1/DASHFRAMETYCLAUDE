@@ -21,7 +21,7 @@ Preferred communication style: Simple, everyday language.
 - **Backend**: Express.js with TypeScript, RESTful API design, Passport.js for session-based authentication with secure password hashing (scrypt).
 - **Database**: PostgreSQL (Neon for development, standard for production) managed by Drizzle ORM. Schema includes Users (with role-based permissions), Projects (with nine status stages), Types, Tags, and Audit Logs.
 - **Authentication & Authorization**: Three-tier role-based system (Admin > Gestor > Membro) with session management stored in PostgreSQL, CSRF protection, and secure cookies.
-- **Data Flow**: Optimistic UI updates, automatic query invalidation, client/server-side validation, centralized error handling, and transactional database operations.
+- **Data Flow**: Advanced optimistic UI updates with filter-aware cache management, automatic query invalidation, client/server-side validation, centralized error handling, and transactional database operations. Optimistic updates respect active filters to prevent ghost entries in incompatible filtered views.
 - **File Storage**: Hybrid object storage system supporting Replit Object Storage for development and AWS S3 for production, handling file uploads, downloads, and secure note attachments.
 - **Notes System**: Comprehensive personal notes feature with support for files, annotations, and secure password storage, including categorization and filtering.
 
@@ -32,7 +32,7 @@ Preferred communication style: Simple, everyday language.
 - **CSV Export**: Export filtered project data to CSV format for external analysis.
 - **Integration**: YouTube link management for approved projects.
 - **Safe Deletion**: Transactional deletion for projects and soft deletion for users to maintain data integrity.
-- **Performance**: Memoization, cached computations, debounced search, optimized API payloads, and optimistic updates for a fluid user experience.
+- **Performance**: Memoization, cached computations, debounced search, optimized API payloads, and intelligent optimistic updates with filter validation. Projects appear instantly with complete relations (tipo, cliente, responsável) preventing visual glitches. Filter-aware cache updates ensure temporary projects only appear in compatible filtered views, with automatic rollback on errors.
 - **Metrics Logic**: Approved projects are excluded from general metrics to focus on active/in-progress work, counted separately in "Projetos Aprovados."
 - **Cascading Filters**: Dynamic filtering of related entities (e.g., `empreendimentos` based on `cliente`) in forms.
 
