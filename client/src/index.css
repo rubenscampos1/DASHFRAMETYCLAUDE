@@ -12,7 +12,7 @@
 @tailwind utilities;
 
 :root {
-  --background: hsl(0, 0%, 100%);
+  --background: hsl(0, 0%, 93%);
   --foreground: hsl(0, 0%, 0%);
   --card: hsl(0, 0%, 96%);
   --card-foreground: hsl(0, 0%, 0%);
@@ -105,7 +105,7 @@
   --background: hsl(0, 0%, 13%);
   --foreground: hsl(45, 25%, 91%);
   --card: hsl(0, 0%, 11%);
-  --card-foreground: hsl(0, 0%, 98%);
+  --card-foreground: hsl(0, 0%, 60%);
   --popover: hsl(20, 14%, 4%);
   --popover-foreground: hsl(0, 0%, 100%);
   --primary: hsl(342, 85%, 53%);

@@ -104,8 +104,34 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
       const response = await apiRequest("POST", "/api/projetos", data);
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+    onMutate: async (newProjeto) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos"] });
+      
+      const tempProjeto = {
+        ...newProjeto,
+        id: `temp-${Date.now()}`,
+        dataCriacao: new Date().toISOString(),
+        dataAprovacao: null,
+        sequencialId: 0,
+      };
+      
+      const previousQueries: any[] = [];
+      queryClient.getQueriesData({ queryKey: ["/api/projetos"] }).forEach(([key, data]) => {
+        previousQueries.push({ key, data });
+        queryClient.setQueryData(key, (old: any) => {
+          return old ? [tempProjeto, ...old] : [tempProjeto];
+        });
+      });
+      
+      return { previousQueries };
+    },
+    onSuccess: (data) => {
+      queryClient.getQueriesData({ queryKey: ["/api/projetos"] }).forEach(([key]) => {
+        queryClient.setQueryData(key, (old: any) => {
+          if (!old) return old;
+          return old.map((p: any) => p.id.toString().startsWith('temp-') ? data : p);
+        });
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
       toast({
         title: "Projeto criado com sucesso!",
@@ -114,7 +140,12 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
       form.reset();
       onSuccess?.();
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _newProjeto, context) => {
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(({ key, data }: any) => {
+          queryClient.setQueryData(key, data);
+        });
+      }
       toast({
         title: "Erro ao criar projeto",
         description: error.message,
@@ -128,15 +159,42 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
       const response = await apiRequest("PATCH", `/api/projetos/${projectId}`, data);
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+    onMutate: async (updatedData) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos"] });
+      
+      const previousQueries: any[] = [];
+      queryClient.getQueriesData({ queryKey: ["/api/projetos"] }).forEach(([key, data]) => {
+        previousQueries.push({ key, data });
+        queryClient.setQueryData(key, (old: any) => {
+          if (!old) return old;
+          return old.map((p: any) => 
+            p.id === projectId ? { ...p, ...updatedData } : p
+          );
+        });
+      });
+      
+      return { previousQueries };
+    },
+    onSuccess: (data) => {
+      queryClient.getQueriesData({ queryKey: ["/api/projetos"] }).forEach(([key]) => {
+        queryClient.setQueryData(key, (old: any) => {
+          if (!old) return old;
+          return old.map((p: any) => p.id === projectId ? data : p);
+        });
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
       toast({
         title: "Projeto atualizado com sucesso!",
         description: "As alterações foram salvas.",
       });
       onSuccess?.();
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _updatedData, context) => {
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(({ key, data }: any) => {
+          queryClient.setQueryData(key, data);
+        });
+      }
       toast({
         title: "Erro ao atualizar projeto",
         description: error.message,

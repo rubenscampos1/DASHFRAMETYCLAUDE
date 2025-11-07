@@ -64,7 +64,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     // Optimistic update: atualiza a UI imediatamente antes da resposta do servidor
     onMutate: async ({ id, status: newStatus }) => {
       // Cancelar queries em andamento para evitar conflito
-      await queryClient.cancelQueries({ queryKey: ["/api/projetos"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos", filters] });
       
       // Salvar estado anterior para rollback se necessário
       const previousProjetos = queryClient.getQueryData(["/api/projetos", filters]);
@@ -131,6 +131,18 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       await apiRequest("DELETE", `/api/projetos/${projetoId}`);
       return { success: true };
     },
+    onMutate: async (projetoId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos", filters] });
+      
+      const previousProjetos = queryClient.getQueryData(["/api/projetos", filters]);
+      
+      queryClient.setQueryData(["/api/projetos", filters], (old: any) => {
+        if (!old) return old;
+        return old.filter((p: any) => p.id !== projetoId);
+      });
+      
+      return { previousProjetos };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
       queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
@@ -139,7 +151,10 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
         description: "O projeto foi removido com sucesso.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _projetoId, context) => {
+      if (context?.previousProjetos) {
+        queryClient.setQueryData(["/api/projetos", filters], context.previousProjetos);
+      }
       toast({
         title: "Erro ao remover projeto",
         description: error.message,
@@ -153,15 +168,43 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       const response = await apiRequest("POST", `/api/projetos/${projetoId}/duplicar`);
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+    onMutate: async (projetoId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos", filters] });
+      
+      const previousProjetos = queryClient.getQueryData(["/api/projetos", filters]);
+      
+      const originalProject = projetos.find(p => p.id === projetoId);
+      if (originalProject) {
+        const tempDuplicate = {
+          ...originalProject,
+          id: `temp-dup-${Date.now()}`,
+          titulo: `${originalProject.titulo} (Cópia)`,
+        };
+        
+        queryClient.setQueryData(["/api/projetos", filters], (old: any) => {
+          return old ? [tempDuplicate, ...old] : [tempDuplicate];
+        });
+      }
+      
+      return { previousProjetos };
+    },
+    onSuccess: (newProject) => {
+      queryClient.setQueryData(["/api/projetos", filters], (old: any) => {
+        if (!old) return [newProject];
+        return old.map((p: any) => 
+          p.id.toString().startsWith('temp-dup-') ? newProject : p
+        );
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
       toast({
         title: "Projeto duplicado",
         description: "O projeto foi duplicado com sucesso. Agora você pode editá-lo.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _projetoId, context) => {
+      if (context?.previousProjetos) {
+        queryClient.setQueryData(["/api/projetos", filters], context.previousProjetos);
+      }
       toast({
         title: "Erro ao duplicar projeto",
         description: error.message,
