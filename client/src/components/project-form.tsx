@@ -132,7 +132,7 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
         if (filters.responsavelId && filters.responsavelId !== tempProjeto.responsavelId) return false;
         if (filters.tipoVideoId && filters.tipoVideoId !== tempProjeto.tipoVideoId) return false;
         if (filters.prioridade && filters.prioridade !== tempProjeto.prioridade) return false;
-        if (filters.search) {
+        if (filters.search && typeof filters.search === 'string') {
           const searchLower = filters.search.toLowerCase();
           const matchesSearch = 
             (tempProjeto.titulo ?? "").toLowerCase().includes(searchLower) ||
