@@ -5,6 +5,12 @@ server/public
 vite.config.ts.*
 *.tar.gz
 
+# macOS metadata files
+._*
+.config/
+.local/
+.claude/
+
 # Environment variables (NUNCA SUBIR)
 .env
 .env.local

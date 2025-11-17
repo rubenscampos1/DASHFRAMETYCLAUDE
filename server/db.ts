@@ -12,16 +12,19 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Use standard PostgreSQL in production (Render), Neon in development (Replit)
+// For local development (localhost), use standard PostgreSQL
 const isProduction = process.env.NODE_ENV === 'production';
+const isLocalhost = process.env.DATABASE_URL.includes('localhost') ||
+                     process.env.DATABASE_URL.includes('127.0.0.1');
 
 let pool: any;
 let db: any;
 
-if (isProduction) {
-  // Standard PostgreSQL connection for Render
-  pool = new PgPool({ 
+if (isLocalhost || isProduction) {
+  // Standard PostgreSQL connection for Render or Local Development
+  pool = new PgPool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
+    ssl: isLocalhost ? false : { rejectUnauthorized: false }
   });
   db = drizzlePg({ client: pool, schema });
 } else {
