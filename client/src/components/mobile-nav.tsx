@@ -13,14 +13,15 @@
 
 import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { 
-  LayoutDashboard, 
-  BarChart3, 
-  CheckCircle, 
-  User, 
-  FileText, 
+import {
+  LayoutDashboard,
+  BarChart3,
+  CheckCircle,
+  User,
+  FileText,
   Database,
   StickyNote,
+  Clock,
   LogOut,
   Moon,
   Sun,
@@ -89,6 +90,11 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
       name: "Notas",
       href: "/notas",
       icon: StickyNote,
+    },
+    {
+      name: "Timelapse",
+      href: "/timelapse",
+      icon: Clock,
     },
   ];
 

@@ -1,14 +1,15 @@
 import { Link, useLocation } from "wouter";
-import { 
-  Video, 
-  LayoutDashboard, 
-  BarChart3, 
-  CheckCircle, 
-  Plus, 
-  User, 
-  FileText, 
+import {
+  Video,
+  LayoutDashboard,
+  BarChart3,
+  CheckCircle,
+  Plus,
+  User,
+  FileText,
   Database,
   StickyNote,
+  Clock,
   Settings,
   LogOut,
   Moon,
@@ -64,6 +65,11 @@ export function Sidebar() {
       name: "Notas",
       href: "/notas",
       icon: StickyNote,
+    },
+    {
+      name: "Timelapse",
+      href: "/timelapse",
+      icon: Clock,
     },
   ];
 
