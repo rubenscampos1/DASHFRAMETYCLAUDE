@@ -1,15 +1,16 @@
-import { 
-  users, 
-  projetos, 
-  tiposDeVideo, 
-  tags, 
+import {
+  users,
+  projetos,
+  tiposDeVideo,
+  tags,
   logsDeStatus,
   clientes,
   empreendimentos,
   comentarios,
   notas,
-  type User, 
-  type InsertUser, 
+  timelapses,
+  type User,
+  type InsertUser,
   type Projeto,
   type InsertProjeto,
   type TipoVideo,
@@ -28,7 +29,10 @@ import {
   type InsertComentario,
   type ComentarioWithRelations,
   type Nota,
-  type InsertNota
+  type InsertNota,
+  type Timelapse,
+  type InsertTimelapse,
+  type TimelapseWithRelations
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, asc, sql, gte, lte, max } from "drizzle-orm";
@@ -126,10 +130,12 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   public sessionStore: any;
+  private db: typeof db;
 
   constructor() {
-    this.sessionStore = new PostgresSessionStore({ 
-      pool, 
+    this.db = db;
+    this.sessionStore = new PostgresSessionStore({
+      pool,
       createTableIfMissing: true,
       tableName: "session"
     });
@@ -746,6 +752,58 @@ export class DatabaseStorage implements IStorage {
       ),
       projetosAtrasados: projetosAtrasados[0]?.count || 0,
     };
+  }
+
+  // Timelapses
+  async getTimelapses(): Promise<schema.TimelapseWithRelations[]> {
+    return await this.db.query.timelapses.findMany({
+      with: {
+        cliente: true,
+        empreendimento: {
+          with: {
+            cliente: true,
+          },
+        },
+      },
+      orderBy: (timelapses, { desc }) => [desc(timelapses.createdAt)],
+    });
+  }
+
+  async getTimelapseById(id: string): Promise<TimelapseWithRelations | undefined> {
+    return await this.db.query.timelapses.findFirst({
+      where: eq(timelapses.id, id),
+      with: {
+        cliente: true,
+        empreendimento: {
+          with: {
+            cliente: true,
+          },
+        },
+      },
+    });
+  }
+
+  async createTimelapse(data: InsertTimelapse): Promise<Timelapse> {
+    const [timelapse] = await this.db
+      .insert(timelapses)
+      .values(data)
+      .returning();
+    return timelapse;
+  }
+
+  async updateTimelapse(id: string, data: Partial<InsertTimelapse>): Promise<Timelapse | undefined> {
+    const [updated] = await this.db
+      .update(timelapses)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(timelapses.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteTimelapse(id: string): Promise<void> {
+    await this.db
+      .delete(timelapses)
+      .where(eq(timelapses.id, id));
   }
 
   async seedData(): Promise<void> {

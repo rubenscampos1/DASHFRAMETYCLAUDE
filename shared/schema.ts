@@ -19,6 +19,8 @@ export const projectStatusEnum = pgEnum("project_status", [
 ]);
 export const priorityEnum = pgEnum("priority", ["Baixa", "Média", "Alta"]);
 export const noteTipoEnum = pgEnum("note_tipo", ["Nota", "Senha", "Arquivo"]);
+export const timelapseFrequenciaEnum = pgEnum("timelapse_frequencia", ["Semanal", "Quinzenal", "Mensal"]);
+export const timelapseStatusEnum = pgEnum("timelapse_status", ["Ativo", "Pausado", "Cancelado"]);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -141,6 +143,20 @@ export const notas = pgTable("notas", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const timelapses = pgTable("timelapses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clienteId: varchar("cliente_id").references(() => clientes.id).notNull(),
+  empreendimentoId: varchar("empreendimento_id").references(() => empreendimentos.id).notNull(),
+  dataUltimoVideo: timestamp("data_ultimo_video"),
+  linkVideo: text("link_video"),
+  dataProximoVideo: timestamp("data_proximo_video"),
+  frequencia: timelapseFrequenciaEnum("frequencia").notNull().default("Semanal"),
+  status: timelapseStatusEnum("status").notNull().default("Ativo"),
+  observacoes: text("observacoes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   projetosResponsavel: many(projetos, { relationName: "responsavel" }),
@@ -156,13 +172,15 @@ export const tiposDeVideoRelations = relations(tiposDeVideo, ({ many }) => ({
 export const clientesRelations = relations(clientes, ({ many }) => ({
   projetos: many(projetos),
   empreendimentos: many(empreendimentos),
+  timelapses: many(timelapses),
 }));
 
-export const empreendimentosRelations = relations(empreendimentos, ({ one }) => ({
+export const empreendimentosRelations = relations(empreendimentos, ({ one, many }) => ({
   cliente: one(clientes, {
     fields: [empreendimentos.clienteId],
     references: [clientes.id],
   }),
+  timelapses: many(timelapses),
 }));
 
 export const projetosRelations = relations(projetos, ({ one, many }) => ({
@@ -213,6 +231,17 @@ export const notasRelations = relations(notas, ({ one }) => ({
   usuario: one(users, {
     fields: [notas.usuarioId],
     references: [users.id],
+  }),
+}));
+
+export const timelapsesRelations = relations(timelapses, ({ one }) => ({
+  cliente: one(clientes, {
+    fields: [timelapses.clienteId],
+    references: [clientes.id],
+  }),
+  empreendimento: one(empreendimentos, {
+    fields: [timelapses.empreendimentoId],
+    references: [empreendimentos.id],
   }),
 }));
 
@@ -424,6 +453,30 @@ export const insertNotaSchema = createInsertSchema(notas).omit({
   updatedAt: true,
 });
 
+export const insertTimelapseSchema = createInsertSchema(timelapses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  dataUltimoVideo: z.string().optional().or(z.literal("")).transform((val) => {
+    if (!val || val === "" || typeof val !== 'string') return undefined;
+    const parts = val.split('-');
+    if (parts.length !== 3) return undefined;
+    const [year, month, day] = parts.map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  }),
+  dataProximoVideo: z.string().optional().or(z.literal("")).transform((val) => {
+    if (!val || val === "" || typeof val !== 'string') return undefined;
+    const parts = val.split('-');
+    if (parts.length !== 3) return undefined;
+    const [year, month, day] = parts.map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
+    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  }),
+  linkVideo: z.string().url().optional().or(z.literal("")),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -444,6 +497,8 @@ export type Comentario = typeof comentarios.$inferSelect;
 export type InsertComentario = z.infer<typeof insertComentarioSchema>;
 export type Nota = typeof notas.$inferSelect;
 export type InsertNota = z.infer<typeof insertNotaSchema>;
+export type Timelapse = typeof timelapses.$inferSelect;
+export type InsertTimelapse = z.infer<typeof insertTimelapseSchema>;
 
 // Extended types with relations
 export type ProjetoWithRelations = Projeto & {
@@ -459,4 +514,9 @@ export type EmpreendimentoWithRelations = Empreendimento & {
 
 export type ComentarioWithRelations = Comentario & {
   autor: User;
+};
+
+export type TimelapseWithRelations = Timelapse & {
+  cliente: Cliente;
+  empreendimento: Empreendimento;
 };

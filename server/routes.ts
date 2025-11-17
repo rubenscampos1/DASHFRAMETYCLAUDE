@@ -3,10 +3,12 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertProjetoSchema, updateProjetoSchema, insertLogStatusSchema, insertClienteSchema, insertEmpreendimentoSchema, insertTagSchema, insertTipoVideoSchema, insertComentarioSchema, insertNotaSchema } from "@shared/schema";
+import * as schema from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { z } from "zod";
 import PDFDocument from "pdfkit";
+import { log } from "./vite";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -831,8 +833,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (nota.usuarioId !== req.user!.id) {
         return res.status(403).json({ message: "Acesso negado" });
       }
-      
+
       await storage.deleteNota(req.params.id);
+      res.sendStatus(204);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Timelapse routes
+  app.get("/api/timelapses", requireAuth, async (req, res, next) => {
+    try {
+      const timelapses = await storage.getTimelapses();
+      res.json(timelapses);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/timelapses/:id", requireAuth, async (req, res, next) => {
+    try {
+      const timelapse = await storage.getTimelapseById(req.params.id);
+      if (!timelapse) {
+        return res.status(404).json({ message: "Timelapse não encontrado" });
+      }
+      res.json(timelapse);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/timelapses", requireAuth, async (req, res, next) => {
+    try {
+      log("[POST /api/timelapses] req.body:", JSON.stringify(req.body, null, 2));
+
+      const validation = schema.insertTimelapseSchema.safeParse(req.body);
+      if (!validation.success) {
+        log("[POST /api/timelapses] validation failed:", JSON.stringify(validation.error.errors, null, 2));
+        return res.status(400).json({
+          message: "Dados inválidos",
+          errors: validation.error.errors,
+        });
+      }
+
+      log("[POST /api/timelapses] validatedData:", JSON.stringify(validation.data, null, 2));
+      const timelapse = await storage.createTimelapse(validation.data);
+      log("[POST /api/timelapses] created:", JSON.stringify(timelapse, null, 2));
+      res.status(201).json(timelapse);
+    } catch (error) {
+      log("[POST /api/timelapses] error:", error);
+      next(error);
+    }
+  });
+
+  app.patch("/api/timelapses/:id", requireAuth, async (req, res, next) => {
+    try {
+      const timelapse = await storage.getTimelapseById(req.params.id);
+      if (!timelapse) {
+        return res.status(404).json({ message: "Timelapse não encontrado" });
+      }
+
+      const validation = schema.insertTimelapseSchema.partial().safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({
+          message: "Dados inválidos",
+          errors: validation.error.errors,
+        });
+      }
+
+      const updated = await storage.updateTimelapse(req.params.id, validation.data);
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/timelapses/:id", requireAuth, async (req, res, next) => {
+    try {
+      const timelapse = await storage.getTimelapseById(req.params.id);
+      if (!timelapse) {
+        return res.status(404).json({ message: "Timelapse não encontrado" });
+      }
+
+      await storage.deleteTimelapse(req.params.id);
       res.sendStatus(204);
     } catch (error) {
       next(error);
