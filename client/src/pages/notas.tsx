@@ -43,6 +43,8 @@ import {
 } from "lucide-react";
 import type { Nota } from "@shared/schema";
 import { format } from "date-fns";
+import { motion } from "framer-motion";
+import { containerVariants, itemVariants } from "@/components/motion-wrapper";
 
 export default function NotasPage() {
   const { toast } = useToast();
@@ -217,9 +219,17 @@ export default function NotasPage() {
 
       <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         <main className="flex-1 overflow-y-auto">
-          <div className="p-6 md:p-8 max-w-7xl mx-auto">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="p-6 md:p-8 max-w-7xl mx-auto"
+          >
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <motion.div
+            variants={itemVariants}
+            className="flex items-center justify-between mb-6"
+          >
             <div>
               <h1 className="text-3xl font-bold">Notas</h1>
               <p className="text-muted-foreground">
@@ -230,10 +240,13 @@ export default function NotasPage() {
               <Plus className="h-4 w-4 mr-2" />
               Nova Nota
             </Button>
-          </div>
+          </motion.div>
 
           {/* Filters */}
-          <div className="flex gap-4 mb-6">
+          <motion.div
+            variants={itemVariants}
+            className="flex gap-4 mb-6"
+          >
             <Select value={filtroTipo} onValueChange={setFiltroTipo}>
               <SelectTrigger className="w-48" data-testid="select-filter-tipo">
                 <SelectValue placeholder="Tipo" />
@@ -259,9 +272,10 @@ export default function NotasPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </motion.div>
 
           {/* Notes Grid */}
+          <motion.div variants={itemVariants}>
           {isLoading ? (
             <div className="text-center py-12">Carregando...</div>
           ) : notas.length === 0 ? (
@@ -461,7 +475,8 @@ export default function NotasPage() {
               ))}
             </div>
           )}
-        </div>
+          </motion.div>
+        </motion.div>
       </main>
 
       {/* Create/Edit Modal */}

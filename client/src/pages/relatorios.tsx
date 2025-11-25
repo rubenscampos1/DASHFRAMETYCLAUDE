@@ -9,10 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { 
-  Download, 
-  FileText, 
-  Calendar as CalendarIcon, 
+import {
+  Download,
+  FileText,
+  Calendar as CalendarIcon,
   Search,
   Filter,
   RefreshCw
@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
+import { motion } from "framer-motion";
+import { containerVariants, itemVariants } from "@/components/motion-wrapper";
 
 export default function Relatorios() {
   const { user } = useAuth();
@@ -219,7 +221,12 @@ export default function Relatorios() {
       
       <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         {/* Header */}
-        <div className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm">
+        <motion.div
+          variants={itemVariants}
+          initial="hidden"
+          animate="visible"
+          className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm"
+        >
           <div className="flex-1 px-6 flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-semibold text-foreground" data-testid="relatorios-title">
@@ -259,10 +266,15 @@ export default function Relatorios() {
               </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Filters */}
-        <div className="bg-card border-b border-border px-6 py-4">
+        <motion.div
+          variants={itemVariants}
+          initial="hidden"
+          animate="visible"
+          className="bg-card border-b border-border px-6 py-4"
+        >
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
@@ -424,15 +436,20 @@ export default function Relatorios() {
               </Button>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Main Content */}
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
-            <div className="max-w-full mx-auto px-6 space-y-6">
-              
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="max-w-full mx-auto px-6 space-y-6"
+            >
+
               {/* Summary Statistics */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium">Total</CardTitle>
@@ -476,10 +493,11 @@ export default function Relatorios() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              </motion.div>
 
               {/* Projects Table */}
-              <Card>
+              <motion.div variants={itemVariants}>
+                <Card>
                 <CardHeader>
                   <CardTitle>Projetos Detalhados</CardTitle>
                 </CardHeader>
@@ -572,7 +590,8 @@ export default function Relatorios() {
                   )}
                 </CardContent>
               </Card>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
         </main>
       </div>

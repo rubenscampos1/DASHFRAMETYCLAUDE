@@ -1,31 +1,30 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Sidebar } from "@/components/sidebar";
-import { KanbanBoard } from "@/components/kanban-board";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
+import {
+  Search,
+  Plus
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Plus } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Sidebar } from "@/components/sidebar";
+import { KanbanBoard } from "@/components/kanban-board";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
-import { useDebounce } from "@/hooks/use-debounce";
-import { Link } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { containerVariants, itemVariants } from "@/components/motion-wrapper";
+import { motion } from "framer-motion";
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const { toast } = useToast();
   const { mainContentClass } = useSidebarLayout();
-  const [filters, setFilters] = useState({
-    responsavelId: "all",
-    tipoVideoId: "all",
-    search: "",
-  });
-
-  // Debounce search para evitar requisições excessivas enquanto usuário digita
-  const debouncedSearch = useDebounce(filters.search, 300);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [responsavelId, setResponsavelId] = useState<string>("all");
+  const [tipoVideoId, setTipoVideoId] = useState<string>("all");
 
   const { data: users = [] } = useQuery<any[]>({
     queryKey: ["/api/users"],
@@ -35,170 +34,101 @@ export default function Dashboard() {
     queryKey: ["/api/tipos-video"],
   });
 
-  const { data: metricas } = useQuery<any>({
-    queryKey: ["/api/metricas"],
-    refetchInterval: 30000, // Atualiza a cada 30 segundos
-    refetchOnWindowFocus: true, // Atualiza quando volta ao foco da janela
-    refetchOnReconnect: true, // Atualiza quando reconecta à internet
-    staleTime: 0, // Dados sempre considerados desatualizados para forçar refetch
-  });
-
-  // Seed data mutation for development
-  const seedMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/seed");
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Dados iniciais criados",
-        description: "Tipos de vídeo e tags foram adicionados ao sistema.",
-      });
-    },
-  });
-
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      responsavelId: "all",
-      tipoVideoId: "all",
-      search: "",
-    });
-  };
-
-  const activeProjetos = metricas?.totalProjetos || 0;
-  const projetosAtrasados = metricas?.projetosAtrasados || 0;
-
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      
+
       <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         {/* Header */}
-        <div className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm">
-          <div className="flex-1 px-6 flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-semibold text-foreground" data-testid="dashboard-title">
-                Dashboard
-              </h1>
-              <div className="hidden md:flex items-center space-x-2">
-                <Badge className="bg-chart-1 text-white" data-testid="active-projects-count">
-                  {activeProjetos} Ativos
-                </Badge>
-                {projetosAtrasados > 0 && (
-                  <Badge variant="destructive" data-testid="overdue-projects-count">
-                    {projetosAtrasados} Atrasados
-                  </Badge>
-                )}
-              </div>
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="relative z-10 flex-shrink-0 flex h-20 glass border-b border-white/10 shadow-sm"
+        >
+          <div className="flex-1 px-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <motion.div variants={itemVariants} className="flex flex-col gap-2 justify-center">
+                <label className="text-xs font-medium text-muted-foreground px-1">Buscar</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <Input
+                    type="search"
+                    placeholder="Buscar projetos..."
+                    className="pl-10 w-64 bg-white/50 dark:bg-slate-950/50 border-white/20 dark:border-white/10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/50"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </motion.div>
+
+              <motion.div variants={itemVariants} className="flex flex-col gap-2 justify-center">
+                <label className="text-xs font-medium text-muted-foreground px-1">Responsável</label>
+                <Select value={responsavelId} onValueChange={setResponsavelId}>
+                  <SelectTrigger className="w-[170px] bg-white/50 dark:bg-slate-950/50 border-white/20 dark:border-white/10">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent className="glass-card">
+                    <SelectItem value="all">Todos</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </motion.div>
+
+              <motion.div variants={itemVariants} className="flex flex-col gap-2 justify-center">
+                <label className="text-xs font-medium text-muted-foreground px-1">Tipo de Vídeo</label>
+                <Select value={tipoVideoId} onValueChange={setTipoVideoId}>
+                  <SelectTrigger className="w-[180px] bg-white/50 dark:bg-slate-950/50 border-white/20 dark:border-white/10">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent className="glass-card">
+                    <SelectItem value="all">Todos</SelectItem>
+                    {tiposVideo.map((tipo) => (
+                      <SelectItem key={tipo.id} value={tipo.id}>
+                        {tipo.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </motion.div>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Buscar projetos..."
-                  className="pl-10 w-64"
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange("search", e.target.value)}
-                  data-testid="search-input"
-                />
-              </div>
-              
+
+            <motion.div variants={itemVariants} className="flex items-center">
               <Link href="/novo-projeto">
-                <Button data-testid="new-project-button">
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all">
                   <Plus className="h-4 w-4 mr-2" />
                   Novo Projeto
                 </Button>
               </Link>
-
-              {/* Development seed button */}
-              {user?.papel === "Admin" && (
-                <Button
-                  variant="outline"
-                  onClick={() => seedMutation.mutate()}
-                  disabled={seedMutation.isPending}
-                  data-testid="seed-button"
-                >
-                  {seedMutation.isPending ? "Criando..." : "Seed Data"}
-                </Button>
-              )}
-            </div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Filters Bar */}
-        <div className="bg-card border-b border-border px-6 py-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Filtros:</span>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground">Responsável</label>
-              <Select value={filters.responsavelId} onValueChange={(value) => handleFilterChange("responsavelId", value === "all" ? "" : value)}>
-                <SelectTrigger className="w-40" data-testid="filter-responsavel">
-                  <SelectValue placeholder="Responsável" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground">Tipo</label>
-              <Select value={filters.tipoVideoId} onValueChange={(value) => handleFilterChange("tipoVideoId", value === "all" ? "" : value)}>
-                <SelectTrigger className="w-40" data-testid="filter-tipo">
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {tiposVideo.map((tipo) => (
-                    <SelectItem key={tipo.id} value={tipo.id}>
-                      {tipo.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {Object.values(filters).some(Boolean) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                data-testid="clear-filters"
-              >
-                Limpar Filtros
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Main Content - Removido overflow-y-auto para layout estático */}
-        <main className="flex-1 relative overflow-hidden focus:outline-none min-h-0">
-          <div className="h-full py-6 min-h-0">
-            <div className="h-full max-w-full mx-auto px-6 min-h-0">
-              <KanbanBoard filters={{
-                ...filters,
-                search: debouncedSearch // Usar busca com debounce
-              }} />
-            </div>
-          </div>
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col overflow-hidden p-6">
+          <motion.div
+            className="flex flex-col h-full w-full"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {/* Kanban Board */}
+            <motion.div variants={itemVariants} className="flex-1 min-h-0">
+              <KanbanBoard
+                filters={{
+                  search: searchQuery,
+                  responsavelId: responsavelId !== "all" ? responsavelId : undefined,
+                  tipoVideoId: tipoVideoId !== "all" ? tipoVideoId : undefined
+                }}
+              />
+            </motion.div>
+          </motion.div>
         </main>
       </div>
     </div>

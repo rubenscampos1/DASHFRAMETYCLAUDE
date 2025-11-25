@@ -21,6 +21,9 @@ export const priorityEnum = pgEnum("priority", ["Baixa", "Média", "Alta"]);
 export const noteTipoEnum = pgEnum("note_tipo", ["Nota", "Senha", "Arquivo"]);
 export const timelapseFrequenciaEnum = pgEnum("timelapse_frequencia", ["Semanal", "Quinzenal", "Mensal"]);
 export const timelapseStatusEnum = pgEnum("timelapse_status", ["Ativo", "Pausado", "Cancelado"]);
+export const generoEnum = pgEnum("genero", ["Masculino", "Feminino", "Outro"]);
+export const faixaEtariaEnum = pgEnum("faixa_etaria", ["Jovem", "Adulto", "Idoso"]);
+export const regiaoEnum = pgEnum("regiao", ["Sul", "Sudeste", "Norte", "Nordeste", "Centro-Oeste", "Nacional"]);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -103,6 +106,20 @@ export const projetos = pgTable("projetos", {
   npsScore: integer("nps_score"), // nota de 1 a 10
   npsContact: text("nps_contact"), // número de contato
   npsResponsible: text("nps_responsible"), // nome do responsável pela avaliação
+  // Portal do Cliente
+  clientToken: text("client_token").unique(), // token único para acesso do cliente
+  musicaUrl: text("musica_url"), // URL do arquivo de música para aprovação
+  musicaAprovada: boolean("musica_aprovada"), // null = pendente, true = aprovado, false = reprovado
+  musicaFeedback: text("musica_feedback"), // feedback do cliente sobre a música
+  musicaDataAprovacao: timestamp("musica_data_aprovacao"), // data da aprovação/reprovação
+  locucaoUrl: text("locucao_url"), // URL do arquivo de locução
+  locucaoAprovada: boolean("locucao_aprovada"), // null = pendente, true = aprovado, false = reprovado
+  locucaoFeedback: text("locucao_feedback"), // feedback do cliente sobre a locução
+  locucaoDataAprovacao: timestamp("locucao_data_aprovacao"), // data da aprovação/reprovação
+  videoFinalUrl: text("video_final_url"), // URL do vídeo final
+  videoFinalAprovado: boolean("video_final_aprovado"), // null = pendente, true = aprovado, false = reprovado
+  videoFinalFeedback: text("video_final_feedback"), // feedback do cliente sobre o vídeo
+  videoFinalDataAprovacao: timestamp("video_final_data_aprovacao"), // data da aprovação/reprovação
 });
 
 export const logsDeStatus = pgTable("logs_de_status", {
@@ -157,6 +174,84 @@ export const timelapses = pgTable("timelapses", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const estilosLocucao = pgTable("estilos_locucao", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nome: text("nome").notNull().unique(),
+  descricao: text("descricao"),
+  icone: text("icone"),
+  cor: text("cor").notNull().default("#3b82f6"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const locutores = pgTable("locutores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nome: text("nome").notNull(),
+  fotoUrl: text("foto_url"),
+  biografia: text("biografia"),
+  // Características
+  genero: generoEnum("genero").notNull(),
+  faixaEtaria: faixaEtariaEnum("faixa_etaria").notNull(),
+  idadePorVoz: text("idade_por_voz"), // Ex: "18-25", "26-35"
+  regiao: regiaoEnum("regiao").notNull(),
+  sotaque: text("sotaque").notNull(), // Ex: "Neutro", "Carioca", "Paulista"
+  idiomas: text("idiomas").array().default(["Português"]),
+  // Valores
+  valorPorPalavra: integer("valor_por_palavra"), // em centavos
+  valorMinimo: integer("valor_minimo"), // em centavos
+  valorPorMinuto: integer("valor_por_minuto"), // em centavos
+  // Contato
+  email: text("email"),
+  telefone: text("telefone"),
+  instagram: text("instagram"),
+  // Avaliação
+  avaliacaoMedia: integer("avaliacao_media").default(0), // 0-500 (0-5.0 estrelas * 100)
+  totalProjetos: integer("total_projetos").default(0),
+  // Status
+  disponivel: boolean("disponivel").notNull().default(true),
+  ativo: boolean("ativo").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const amostrasLocutores = pgTable("amostras_locutores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  locutorId: varchar("locutor_id").references(() => locutores.id).notNull(),
+  estiloId: varchar("estilo_id").references(() => estilosLocucao.id),
+  titulo: text("titulo").notNull(),
+  descricao: text("descricao"),
+  arquivoUrl: text("arquivo_url").notNull(), // Caminho do arquivo de áudio
+  duracao: integer("duracao"), // duração em segundos
+  ordem: integer("ordem").default(0), // para ordenação
+  destaque: boolean("destaque").default(false), // amostra principal
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Tabela para múltiplas músicas de um projeto
+export const projetoMusicas = pgTable("projeto_musicas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projetoId: varchar("projeto_id").references(() => projetos.id, { onDelete: "cascade" }).notNull(),
+  titulo: text("titulo").notNull(),
+  artistaUrl: text("artista_url"), // Link do artista (ex: Spotify, YouTube)
+  musicaUrl: text("musica_url").notNull(), // Link da música
+  aprovada: boolean("aprovada"), // null = pendente, true = aprovado, false = reprovado
+  feedback: text("feedback"), // feedback do cliente
+  dataAprovacao: timestamp("data_aprovacao"), // data da aprovação/reprovação
+  ordem: integer("ordem").default(0), // ordem de exibição
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Tabela de relacionamento many-to-many entre projetos e locutores
+export const projetoLocutores = pgTable("projeto_locutores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projetoId: varchar("projeto_id").references(() => projetos.id, { onDelete: "cascade" }).notNull(),
+  locutorId: varchar("locutor_id").references(() => locutores.id).notNull(),
+  aprovado: boolean("aprovado"), // null = pendente, true = aprovado, false = reprovado
+  feedback: text("feedback"), // feedback do cliente sobre este locutor
+  dataAprovacao: timestamp("data_aprovacao"), // data da aprovação/reprovação
+  ordem: integer("ordem").default(0), // ordem de exibição
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   projetosResponsavel: many(projetos, { relationName: "responsavel" }),
@@ -203,6 +298,8 @@ export const projetosRelations = relations(projetos, ({ one, many }) => ({
   }),
   logsDeStatus: many(logsDeStatus),
   comentarios: many(comentarios),
+  musicas: many(projetoMusicas),
+  locutores: many(projetoLocutores),
 }));
 
 export const logsDeStatusRelations = relations(logsDeStatus, ({ one }) => ({
@@ -242,6 +339,44 @@ export const timelapsesRelations = relations(timelapses, ({ one }) => ({
   empreendimento: one(empreendimentos, {
     fields: [timelapses.empreendimentoId],
     references: [empreendimentos.id],
+  }),
+}));
+
+export const estilosLocucaoRelations = relations(estilosLocucao, ({ many }) => ({
+  amostras: many(amostrasLocutores),
+}));
+
+export const locutoresRelations = relations(locutores, ({ many }) => ({
+  amostras: many(amostrasLocutores),
+  projetos: many(projetoLocutores),
+}));
+
+export const amostrasLocutoresRelations = relations(amostrasLocutores, ({ one }) => ({
+  locutor: one(locutores, {
+    fields: [amostrasLocutores.locutorId],
+    references: [locutores.id],
+  }),
+  estilo: one(estilosLocucao, {
+    fields: [amostrasLocutores.estiloId],
+    references: [estilosLocucao.id],
+  }),
+}));
+
+export const projetoMusicasRelations = relations(projetoMusicas, ({ one }) => ({
+  projeto: one(projetos, {
+    fields: [projetoMusicas.projetoId],
+    references: [projetos.id],
+  }),
+}));
+
+export const projetoLocutoresRelations = relations(projetoLocutores, ({ one }) => ({
+  projeto: one(projetos, {
+    fields: [projetoLocutores.projetoId],
+    references: [projetos.id],
+  }),
+  locutor: one(locutores, {
+    fields: [projetoLocutores.locutorId],
+    references: [locutores.id],
   }),
 }));
 
@@ -432,9 +567,9 @@ export const updateProjetoSchema = z.object({
   
   linkFrameIo: z.string().url().optional().or(z.literal("")),
   linkYoutube: z.string().url().optional().or(z.literal("")),
-  caminho: z.string().optional(),
-  referencias: z.string().optional(),
-  informacoesAdicionais: z.string().optional(),
+  caminho: z.string().optional().or(z.literal("")),
+  referencias: z.string().optional().or(z.literal("")),
+  informacoesAdicionais: z.string().optional().or(z.literal("")),
 }).partial();
 
 export const insertLogStatusSchema = createInsertSchema(logsDeStatus).omit({
@@ -477,6 +612,34 @@ export const insertTimelapseSchema = createInsertSchema(timelapses).omit({
   linkVideo: z.string().url().optional().or(z.literal("")),
 });
 
+export const insertEstiloLocucaoSchema = createInsertSchema(estilosLocucao).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertLocutorSchema = createInsertSchema(locutores).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  avaliacaoMedia: true,
+  totalProjetos: true,
+});
+
+export const insertAmostraLocutorSchema = createInsertSchema(amostrasLocutores).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertProjetoMusicaSchema = createInsertSchema(projetoMusicas).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertProjetoLocutorSchema = createInsertSchema(projetoLocutores).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -499,6 +662,16 @@ export type Nota = typeof notas.$inferSelect;
 export type InsertNota = z.infer<typeof insertNotaSchema>;
 export type Timelapse = typeof timelapses.$inferSelect;
 export type InsertTimelapse = z.infer<typeof insertTimelapseSchema>;
+export type EstiloLocucao = typeof estilosLocucao.$inferSelect;
+export type InsertEstiloLocucao = z.infer<typeof insertEstiloLocucaoSchema>;
+export type Locutor = typeof locutores.$inferSelect;
+export type InsertLocutor = z.infer<typeof insertLocutorSchema>;
+export type AmostraLocutor = typeof amostrasLocutores.$inferSelect;
+export type InsertAmostraLocutor = z.infer<typeof insertAmostraLocutorSchema>;
+export type ProjetoMusica = typeof projetoMusicas.$inferSelect;
+export type InsertProjetoMusica = z.infer<typeof insertProjetoMusicaSchema>;
+export type ProjetoLocutor = typeof projetoLocutores.$inferSelect;
+export type InsertProjetoLocutor = z.infer<typeof insertProjetoLocutorSchema>;
 
 // Extended types with relations
 export type ProjetoWithRelations = Projeto & {
@@ -519,4 +692,22 @@ export type ComentarioWithRelations = Comentario & {
 export type TimelapseWithRelations = Timelapse & {
   cliente: Cliente;
   empreendimento: Empreendimento;
+};
+
+export type LocutorWithRelations = Locutor & {
+  amostras: AmostraLocutor[];
+};
+
+export type AmostraLocutorWithRelations = AmostraLocutor & {
+  locutor: Locutor;
+  estilo?: EstiloLocucao;
+};
+
+export type ProjetoMusicaWithRelations = ProjetoMusica & {
+  projeto: Projeto;
+};
+
+export type ProjetoLocutorWithRelations = ProjetoLocutor & {
+  projeto: Projeto;
+  locutor: Locutor;
 };

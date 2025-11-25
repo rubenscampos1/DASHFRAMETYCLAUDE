@@ -4,13 +4,14 @@ import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
 import { Sidebar } from "@/components/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { TrendingUp, Users, Video, AlertTriangle, X } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ProjectCard } from "@/components/project-card";
 import { ProjectDetailsDrawer } from "@/components/project-details-drawer";
 import { ProjetoWithRelations } from "@shared/schema";
+import { motion } from "framer-motion";
+import { MotionWrapper, containerVariants, itemVariants } from "@/components/motion-wrapper";
 
 export default function Metrics() {
   const { mainContentClass } = useSidebarLayout();
@@ -18,13 +19,13 @@ export default function Metrics() {
   const [selectedTipoVideo, setSelectedTipoVideo] = useState<string | null>(null);
   const [selectedCliente, setSelectedCliente] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
-  
+
   const { data: metricas, isLoading } = useQuery<any>({
     queryKey: ["/api/metricas"],
-    refetchInterval: 30000, // Atualiza a cada 30 segundos
-    refetchOnWindowFocus: true, // Atualiza quando volta ao foco da janela
-    refetchOnReconnect: true, // Atualiza quando reconecta à internet
-    staleTime: 0, // Dados sempre considerados desatualizados para forçar refetch
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    staleTime: 0,
   });
 
   const { data: users = [] } = useQuery<any[]>({
@@ -49,7 +50,6 @@ export default function Metrics() {
       });
       if (!response.ok) throw new Error("Erro ao carregar projetos");
       const projetos = await response.json();
-      // Filtrar projetos aprovados
       return projetos.filter((p: ProjetoWithRelations) => p.status !== "Aprovado");
     },
     enabled: !!selectedResponsavel,
@@ -65,7 +65,6 @@ export default function Metrics() {
       });
       if (!response.ok) throw new Error("Erro ao carregar projetos");
       const projetos = await response.json();
-      // Filtrar projetos aprovados
       return projetos.filter((p: ProjetoWithRelations) => p.status !== "Aprovado");
     },
     enabled: !!selectedTipoVideo,
@@ -81,13 +80,27 @@ export default function Metrics() {
       });
       if (!response.ok) throw new Error("Erro ao carregar projetos");
       const projetos = await response.json();
-      // Filtrar por cliente e excluir projetos aprovados
-      return projetos.filter((p: ProjetoWithRelations) => 
+      return projetos.filter((p: ProjetoWithRelations) =>
         p.empreendimento?.clienteId === selectedCliente && p.status !== "Aprovado"
       );
     },
     enabled: !!selectedCliente,
   });
+
+  // Custom Tooltip Component
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="glass-card p-3 rounded-lg border border-white/20 shadow-xl backdrop-blur-md">
+          <p className="font-medium text-sm mb-1">{label}</p>
+          <p className="text-primary font-bold text-lg">
+            {payload[0].value}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   if (isLoading) {
     return (
@@ -110,61 +123,52 @@ export default function Metrics() {
     );
   }
 
-  // Handler para clicar na barra do gráfico de responsáveis
+  // Handlers
   const handleBarClick = (data: any) => {
     if (data && data.name) {
-      // Encontrar o usuário pelo nome
       const user = users.find((u: any) => u.nome === data.name);
-      if (user) {
-        setSelectedResponsavel(user.id);
-      }
+      if (user) setSelectedResponsavel(user.id);
     }
   };
 
-  // Handler para clicar na barra do gráfico de tipos
   const handleTipoBarClick = (data: any) => {
     if (data && data.name) {
-      // Encontrar o tipo de vídeo pelo nome
       const tipo = tiposVideo.find((t: any) => t.nome === data.name);
-      if (tipo) {
-        setSelectedTipoVideo(tipo.id);
-      }
+      if (tipo) setSelectedTipoVideo(tipo.id);
     }
   };
 
-  // Handler para clicar na barra do gráfico de clientes
   const handleClienteBarClick = (data: any) => {
     if (data && data.name) {
-      // Encontrar o cliente pelo nome
       const cliente = clientes.find((c: any) => c.nome === data.name);
-      if (cliente) {
-        setSelectedCliente(cliente.id);
-      }
+      if (cliente) setSelectedCliente(cliente.id);
     }
   };
 
-  const responsavelData = Object.entries(metricas?.projetosPorResponsavel || {}).map(([responsavel, count]) => ({
-    name: responsavel,
-    projetos: count,
-  }));
+  const responsavelData = Object.entries(metricas?.projetosPorResponsavel || {})
+    .filter(([responsavel]) => responsavel !== "Sem Responsável" && responsavel !== "Sem responsável")
+    .map(([responsavel, count]) => ({
+      name: responsavel,
+      value: count,
+    }));
 
-  const tipoData = Object.entries(metricas?.projetosPorTipo || {}).map(([tipo, count]) => ({
+  const tipoVideoData = Object.entries(metricas?.projetosPorTipoVideo || {}).map(([tipo, count]) => ({
     name: tipo,
-    projetos: count,
+    value: count,
   }));
 
-  const clienteData = Object.entries(metricas?.videosPorCliente || {}).map(([cliente, count]) => ({
+  const clienteData = Object.entries(metricas?.projetosPorCliente || {}).map(([cliente, count]) => ({
     name: cliente,
-    videos: count,
+    value: count,
   }));
 
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      
+
       <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         {/* Header */}
-        <div className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm">
+        <div className="relative z-10 flex-shrink-0 flex h-16 bg-white/10 dark:bg-black/20 backdrop-blur-xl border-b border-white/20 dark:border-white/10 shadow-sm">
           <div className="flex-1 px-6 flex items-center">
             <h1 className="text-2xl font-semibold text-foreground" data-testid="metrics-title">
               Métricas
@@ -173,219 +177,254 @@ export default function Metrics() {
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 relative overflow-y-auto focus:outline-none">
-          <div className="py-6">
-            <div className="max-w-7xl mx-auto px-6 space-y-6">
-              
-              {/* Overview Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total de Projetos</CardTitle>
-                    <Video className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold" data-testid="total-projects">
-                      {metricas?.totalProjetos || 0}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Excluindo aprovados
-                    </p>
-                  </CardContent>
-                </Card>
+        <main className="flex-1 relative overflow-y-auto focus:outline-none p-6">
+          <motion.div
+            className="flex flex-col w-full space-y-8"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <MotionWrapper>
+              <h1 className="text-3xl font-bold mb-8">Visão Geral</h1>
+            </MotionWrapper>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Projetos Aprovados</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-chart-4" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-chart-4" data-testid="approved-projects">
-                      {metricas?.projetosAprovados || 0}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Projetos finalizados
-                    </p>
-                  </CardContent>
-                </Card>
+            {/* Overview Cards */}
+            <motion.div
+              variants={itemVariants}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+            >
+              <Card className="glass-card hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Projetos</CardTitle>
+                  <Video className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="total-projects">
+                    {metricas?.totalProjetos || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Excluindo aprovados
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Projetos Ativos</CardTitle>
-                    <Users className="h-4 w-4 text-chart-1" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-chart-1" data-testid="active-projects">
-                      {metricas?.projetosAtivos || 0}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Em produção
-                    </p>
-                  </CardContent>
-                </Card>
+              <Card className="glass-card hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Projetos Aprovados</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-chart-4" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-chart-4" data-testid="approved-projects">
+                    {metricas?.projetosAprovados || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Projetos finalizados
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Projetos Atrasados</CardTitle>
-                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-destructive" data-testid="overdue-projects">
-                      {metricas?.projetosAtrasados || 0}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Precisam de atenção
-                    </p>
-                  </CardContent>
-                </Card>
+              <Card className="glass-card hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Projetos Ativos</CardTitle>
+                  <Users className="h-4 w-4 text-chart-1" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-chart-1" data-testid="active-projects">
+                    {metricas?.projetosAtivos || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Em produção
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Taxa de Conclusão</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-chart-2" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-chart-2" data-testid="completion-rate">
-                      {(metricas?.totalProjetos || 0) + (metricas?.projetosAprovados || 0) > 0 
-                        ? Math.round(((metricas?.projetosAprovados || 0) / ((metricas?.totalProjetos || 0) + (metricas?.projetosAprovados || 0))) * 100)
-                        : 0
-                      }%
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Taxa geral
-                    </p>
-                  </CardContent>
-                </Card>
+              <Card className="glass-card hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Projetos Atrasados</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-destructive" data-testid="overdue-projects">
+                    {metricas?.projetosAtrasados || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Precisam de atenção
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Membros Ativos</CardTitle>
-                    <Users className="h-4 w-4 text-chart-3" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-chart-3" data-testid="active-members">
-                      {Object.keys(metricas?.projetosPorResponsavel || {}).length}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Produtividade
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* Projects by Responsible */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Projetos por Responsável</CardTitle>
-                    <CardDescription>
-                      Distribuição de trabalho na equipe
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
+            {/* Charts Section */}
+            <motion.div
+              variants={itemVariants}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            >
+              {/* Projects by Responsible */}
+              <Card className="glass-card col-span-1 lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Projetos por Responsável</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={responsavelData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" hide />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar 
-                          dataKey="projetos" 
-                          fill="#8884d8" 
+                        <defs>
+                          <linearGradient id="colorResponsavel" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted/20" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          stroke="#ffffff"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          stroke="#ffffff"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => `${value}`}
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={false} />
+                        <Bar
+                          dataKey="value"
+                          fill="url(#colorResponsavel)"
+                          radius={[8, 8, 0, 0]}
+                          animationDuration={1500}
+                          animationBegin={300}
                           onClick={handleBarClick}
                           cursor="pointer"
-                          data-testid="bar-responsavel"
                         />
                       </BarChart>
                     </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* Projects by Type */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Projetos por Tipo de Vídeo</CardTitle>
-                    <CardDescription>
-                      Tipos de conteúdo mais produzidos
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={tipoData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" hide />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar 
-                          dataKey="projetos" 
-                          fill="#82ca9d" 
+              {/* Projects by Type */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle>Projetos por Tipo de Vídeo</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={tipoVideoData}>
+                        <defs>
+                          <linearGradient id="colorTipo" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.3} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted/20" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          stroke="#ffffff"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          stroke="#ffffff"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => `${value}`}
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={false} />
+                        <Bar
+                          dataKey="value"
+                          fill="url(#colorTipo)"
+                          radius={[8, 8, 0, 0]}
+                          animationDuration={1500}
+                          animationBegin={500}
                           onClick={handleTipoBarClick}
                           cursor="pointer"
-                          data-testid="bar-tipo"
                         />
                       </BarChart>
                     </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* Videos by Client */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Vídeos por Cliente</CardTitle>
-                    <CardDescription>
-                      Distribuição de projetos por cliente
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
+              {/* Projects by Client */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle>Vídeos por Cliente</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={clienteData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" hide />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar 
-                          dataKey="videos" 
-                          fill="#8884d8" 
+                        <defs>
+                          <linearGradient id="colorCliente" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.3} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted/20" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          stroke="#ffffff"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          stroke="#ffffff"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => `${value}`}
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={false} />
+                        <Bar
+                          dataKey="value"
+                          fill="url(#colorCliente)"
+                          radius={[8, 8, 0, 0]}
+                          animationDuration={1500}
+                          animationBegin={700}
                           onClick={handleClienteBarClick}
                           cursor="pointer"
-                          data-testid="bar-cliente"
                         />
                       </BarChart>
                     </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* Status Summary */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Resumo por Status</CardTitle>
-                    <CardDescription>
-                      Visão detalhada do pipeline de projetos
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {Object.entries(metricas?.projetosPorStatus || {}).map(([status, count]) => (
-                      <div key={status} className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{status}</span>
-                        <Badge variant="secondary" data-testid={`status-count-${status}`}>
-                          {count as number}
-                        </Badge>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
+              {/* Status Summary */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle>Resumo por Status</CardTitle>
+                  <CardDescription>
+                    Visão detalhada do pipeline de projetos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {Object.entries(metricas?.projetosPorStatus || {}).map(([status, count]) => (
+                    <div key={status} className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{status}</span>
+                      <Badge variant="secondary" data-testid={`status-count-${status}`}>
+                        {count as number}
+                      </Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
         </main>
       </div>
 
-      {/* Drawer para mostrar projetos do responsável */}
+      {/* Drawers */}
       <Drawer open={!!selectedResponsavel && !selectedProject} onOpenChange={(open) => !open && setSelectedResponsavel(null)}>
-        <DrawerContent className="max-h-[70vh] max-w-2xl mx-auto">
-          <DrawerHeader className="border-b px-6 py-4 flex-shrink-0">
+        <DrawerContent className="max-h-[70vh] max-w-2xl mx-auto glass-card">
+          <DrawerHeader className="border-b border-white/10 px-6 py-4 flex-shrink-0">
             <div className="flex items-center justify-between">
               <DrawerTitle>
                 Projetos de {users.find((u: any) => u.id === selectedResponsavel)?.nome || "Responsável"}
@@ -393,7 +432,6 @@ export default function Metrics() {
               <button
                 onClick={() => setSelectedResponsavel(null)}
                 className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                data-testid="close-drawer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -425,10 +463,9 @@ export default function Metrics() {
         </DrawerContent>
       </Drawer>
 
-      {/* Drawer para mostrar projetos do tipo de vídeo */}
       <Drawer open={!!selectedTipoVideo && !selectedProject} onOpenChange={(open) => !open && setSelectedTipoVideo(null)}>
-        <DrawerContent className="max-h-[70vh] max-w-2xl mx-auto">
-          <DrawerHeader className="border-b px-6 py-4 flex-shrink-0">
+        <DrawerContent className="max-h-[70vh] max-w-2xl mx-auto glass-card">
+          <DrawerHeader className="border-b border-white/10 px-6 py-4 flex-shrink-0">
             <div className="flex items-center justify-between">
               <DrawerTitle>
                 Projetos do tipo {tiposVideo.find((t: any) => t.id === selectedTipoVideo)?.nome || "Tipo de Vídeo"}
@@ -436,7 +473,6 @@ export default function Metrics() {
               <button
                 onClick={() => setSelectedTipoVideo(null)}
                 className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                data-testid="close-drawer-tipo"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -468,10 +504,9 @@ export default function Metrics() {
         </DrawerContent>
       </Drawer>
 
-      {/* Drawer para mostrar projetos do cliente */}
       <Drawer open={!!selectedCliente && !selectedProject} onOpenChange={(open) => !open && setSelectedCliente(null)}>
-        <DrawerContent className="max-h-[70vh] max-w-2xl mx-auto">
-          <DrawerHeader className="border-b px-6 py-4 flex-shrink-0">
+        <DrawerContent className="max-h-[70vh] max-w-2xl mx-auto glass-card">
+          <DrawerHeader className="border-b border-white/10 px-6 py-4 flex-shrink-0">
             <div className="flex items-center justify-between">
               <DrawerTitle>
                 Projetos de {clientes.find((c: any) => c.id === selectedCliente)?.nome || "Cliente"}
@@ -479,7 +514,6 @@ export default function Metrics() {
               <button
                 onClick={() => setSelectedCliente(null)}
                 className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                data-testid="close-drawer-cliente"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -511,7 +545,6 @@ export default function Metrics() {
         </DrawerContent>
       </Drawer>
 
-      {/* Drawer para detalhes do projeto */}
       <ProjectDetailsDrawer
         projeto={selectedProject}
         isOpen={!!selectedProject}

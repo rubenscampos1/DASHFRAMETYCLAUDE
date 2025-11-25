@@ -9,6 +9,11 @@ import {
   comentarios,
   notas,
   timelapses,
+  locutores,
+  estilosLocucao,
+  amostrasLocutores,
+  projetoMusicas,
+  projetoLocutores,
   type User,
   type InsertUser,
   type Projeto,
@@ -32,13 +37,26 @@ import {
   type InsertNota,
   type Timelapse,
   type InsertTimelapse,
-  type TimelapseWithRelations
+  type TimelapseWithRelations,
+  type Locutor,
+  type InsertLocutor,
+  type LocutorWithRelations,
+  type EstiloLocucao,
+  type InsertEstiloLocucao,
+  type AmostraLocutor,
+  type InsertAmostraLocutor,
+  type ProjetoMusica,
+  type InsertProjetoMusica,
+  type ProjetoLocutor,
+  type InsertProjetoLocutor,
+  type ProjetoLocutorWithRelations
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, asc, sql, gte, lte, max } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
+import { nanoid } from "nanoid";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -117,13 +135,55 @@ export interface IStorage {
     totalProjetos: number;
     projetosAprovados: number;
     projetosAtivos: number;
-    videosPorCliente: Record<string, number>;
+    projetosPorCliente: Record<string, number>;
     projetosPorStatus: Record<string, number>;
     projetosPorResponsavel: Record<string, number>;
-    projetosPorTipo: Record<string, number>;
+    projetosPorTipoVideo: Record<string, number>;
     projetosAtrasados: number;
   }>;
-  
+
+  // Estilos de Locução
+  getEstilosLocucao(): Promise<EstiloLocucao[]>;
+  getEstiloLocucao(id: string): Promise<EstiloLocucao | undefined>;
+  createEstiloLocucao(estilo: InsertEstiloLocucao): Promise<EstiloLocucao>;
+  updateEstiloLocucao(id: string, estilo: Partial<InsertEstiloLocucao>): Promise<EstiloLocucao>;
+  deleteEstiloLocucao(id: string): Promise<void>;
+
+  // Locutores
+  getLocutores(filters?: { genero?: string; faixaEtaria?: string; regiao?: string; disponivel?: boolean }): Promise<LocutorWithRelations[]>;
+  getLocutor(id: string): Promise<LocutorWithRelations | undefined>;
+  createLocutor(locutor: InsertLocutor): Promise<Locutor>;
+  updateLocutor(id: string, locutor: Partial<InsertLocutor>): Promise<Locutor>;
+  deleteLocutor(id: string): Promise<void>;
+
+  // Amostras de Locutores
+  getAmostrasLocutor(locutorId: string): Promise<AmostraLocutor[]>;
+  getAmostraLocutor(id: string): Promise<AmostraLocutor | undefined>;
+  createAmostraLocutor(amostra: InsertAmostraLocutor): Promise<AmostraLocutor>;
+  updateAmostraLocutor(id: string, amostra: Partial<InsertAmostraLocutor>): Promise<AmostraLocutor>;
+  deleteAmostraLocutor(id: string): Promise<void>;
+
+  // Músicas do Projeto
+  getProjetoMusicas(projetoId: string): Promise<ProjetoMusica[]>;
+  getProjetoMusica(id: string): Promise<ProjetoMusica | undefined>;
+  createProjetoMusica(musica: InsertProjetoMusica): Promise<ProjetoMusica>;
+  updateProjetoMusica(id: string, musica: Partial<InsertProjetoMusica>): Promise<ProjetoMusica>;
+  deleteProjetoMusica(id: string): Promise<void>;
+
+  // Locutores do Projeto
+  getProjetoLocutores(projetoId: string): Promise<ProjetoLocutorWithRelations[]>;
+  getProjetoLocutor(id: string): Promise<ProjetoLocutor | undefined>;
+  createProjetoLocutor(locutor: InsertProjetoLocutor): Promise<ProjetoLocutor>;
+  updateProjetoLocutor(id: string, locutor: Partial<InsertProjetoLocutor>): Promise<ProjetoLocutor>;
+  deleteProjetoLocutor(id: string): Promise<void>;
+
+  // Portal do Cliente
+  getProjetoByClientToken(token: string): Promise<ProjetoWithRelations | undefined>;
+  aprovarMusica(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
+  aprovarLocucao(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
+  aprovarVideoFinal(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
+  regenerarClientToken(projetoId: string): Promise<string>;
+
   // Seeds
   seedData(): Promise<void>;
 }
@@ -312,16 +372,20 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select({ maxId: max(projetos.sequencialId) })
       .from(projetos);
-    
+
     const maxSequencialId = result[0]?.maxId || 0;
     const nextSequencialId = maxSequencialId + 1;
-    
-    // Criar projeto com o próximo sequencialId
+
+    // Gerar token único para o cliente
+    const clientToken = nanoid(32); // Token de 32 caracteres
+
+    // Criar projeto com o próximo sequencialId e token do cliente
     const [newProjeto] = await db
       .insert(projetos)
       .values({
         ...projeto,
         sequencialId: nextSequencialId,
+        clientToken,
       })
       .returning();
     return newProjeto;
@@ -735,22 +799,22 @@ export class DatabaseStorage implements IStorage {
       );
 
     return {
-      totalProjetos: totalProjetos[0]?.count || 0,
-      projetosAprovados: projetosAprovados[0]?.count || 0,
-      projetosAtivos: projetosAtivos[0]?.count || 0,
-      videosPorCliente: Object.fromEntries(
-        videosPorCliente.map(item => [item.cliente || "Sem cliente", item.count])
+      totalProjetos: Number(totalProjetos[0]?.count) || 0,
+      projetosAprovados: Number(projetosAprovados[0]?.count) || 0,
+      projetosAtivos: Number(projetosAtivos[0]?.count) || 0,
+      projetosPorCliente: Object.fromEntries(
+        videosPorCliente.map(item => [item.cliente || "Sem cliente", Number(item.count)])
       ),
       projetosPorStatus: Object.fromEntries(
-        projetosPorStatus.map(item => [item.status, item.count])
+        projetosPorStatus.map(item => [item.status, Number(item.count)])
       ),
       projetosPorResponsavel: Object.fromEntries(
-        projetosPorResponsavel.map(item => [item.responsavel || "Sem responsável", item.count])
+        projetosPorResponsavel.map(item => [item.responsavel || "Sem responsável", Number(item.count)])
       ),
-      projetosPorTipo: Object.fromEntries(
-        projetosPorTipo.map(item => [item.tipo || "Sem tipo", item.count])
+      projetosPorTipoVideo: Object.fromEntries(
+        projetosPorTipo.map(item => [item.tipo || "Sem tipo", Number(item.count)])
       ),
-      projetosAtrasados: projetosAtrasados[0]?.count || 0,
+      projetosAtrasados: Number(projetosAtrasados[0]?.count) || 0,
     };
   }
 
@@ -806,6 +870,282 @@ export class DatabaseStorage implements IStorage {
       .where(eq(timelapses.id, id));
   }
 
+  // Estilos de Locução
+  async getEstilosLocucao(): Promise<EstiloLocucao[]> {
+    return await this.db.select().from(estilosLocucao);
+  }
+
+  async getEstiloLocucao(id: string): Promise<EstiloLocucao | undefined> {
+    const [estilo] = await this.db
+      .select()
+      .from(estilosLocucao)
+      .where(eq(estilosLocucao.id, id));
+    return estilo;
+  }
+
+  async createEstiloLocucao(estilo: InsertEstiloLocucao): Promise<EstiloLocucao> {
+    const [novoEstilo] = await this.db
+      .insert(estilosLocucao)
+      .values(estilo)
+      .returning();
+    return novoEstilo;
+  }
+
+  async updateEstiloLocucao(id: string, estilo: Partial<InsertEstiloLocucao>): Promise<EstiloLocucao> {
+    const [updatedEstilo] = await this.db
+      .update(estilosLocucao)
+      .set(estilo)
+      .where(eq(estilosLocucao.id, id))
+      .returning();
+    return updatedEstilo;
+  }
+
+  async deleteEstiloLocucao(id: string): Promise<void> {
+    await this.db
+      .delete(estilosLocucao)
+      .where(eq(estilosLocucao.id, id));
+  }
+
+  // Locutores
+  async getLocutores(filters?: { genero?: string; faixaEtaria?: string; regiao?: string; disponivel?: boolean }): Promise<LocutorWithRelations[]> {
+    let query = this.db
+      .select()
+      .from(locutores)
+      .leftJoin(amostrasLocutores, eq(locutores.id, amostrasLocutores.locutorId))
+      .orderBy(locutores.nome);
+
+    if (filters?.genero) {
+      query = query.where(eq(locutores.genero, filters.genero as any));
+    }
+    if (filters?.faixaEtaria) {
+      query = query.where(eq(locutores.faixaEtaria, filters.faixaEtaria as any));
+    }
+    if (filters?.regiao) {
+      query = query.where(eq(locutores.regiao, filters.regiao as any));
+    }
+    if (filters?.disponivel !== undefined) {
+      query = query.where(eq(locutores.disponivel, filters.disponivel));
+    }
+
+    const results = await query;
+
+    // Group amostras by locutor
+    const locutoresMap = new Map<string, LocutorWithRelations>();
+
+    for (const row of results) {
+      const locutor = row.locutores;
+      const amostra = row.amostras_locutores;
+
+      if (!locutoresMap.has(locutor.id)) {
+        locutoresMap.set(locutor.id, {
+          ...locutor,
+          amostras: [],
+        });
+      }
+
+      if (amostra) {
+        locutoresMap.get(locutor.id)!.amostras.push(amostra);
+      }
+    }
+
+    return Array.from(locutoresMap.values());
+  }
+
+  async getLocutor(id: string): Promise<LocutorWithRelations | undefined> {
+    const [locutor] = await this.db
+      .select()
+      .from(locutores)
+      .where(eq(locutores.id, id));
+
+    if (!locutor) return undefined;
+
+    const amostras = await this.db
+      .select()
+      .from(amostrasLocutores)
+      .where(eq(amostrasLocutores.locutorId, id))
+      .orderBy(amostrasLocutores.ordem);
+
+    return {
+      ...locutor,
+      amostras,
+    };
+  }
+
+  async createLocutor(locutor: InsertLocutor): Promise<Locutor> {
+    const [novoLocutor] = await this.db
+      .insert(locutores)
+      .values(locutor)
+      .returning();
+    return novoLocutor;
+  }
+
+  async updateLocutor(id: string, locutor: Partial<InsertLocutor>): Promise<Locutor> {
+    const [updatedLocutor] = await this.db
+      .update(locutores)
+      .set({ ...locutor, updatedAt: new Date() })
+      .where(eq(locutores.id, id))
+      .returning();
+    return updatedLocutor;
+  }
+
+  async deleteLocutor(id: string): Promise<void> {
+    // Delete all amostras first
+    await this.db
+      .delete(amostrasLocutores)
+      .where(eq(amostrasLocutores.locutorId, id));
+
+    // Then delete locutor
+    await this.db
+      .delete(locutores)
+      .where(eq(locutores.id, id));
+  }
+
+  // Amostras de Locutores
+  async getAmostrasLocutor(locutorId: string): Promise<AmostraLocutor[]> {
+    return await this.db
+      .select()
+      .from(amostrasLocutores)
+      .where(eq(amostrasLocutores.locutorId, locutorId))
+      .orderBy(amostrasLocutores.ordem);
+  }
+
+  async getAmostraLocutor(id: string): Promise<AmostraLocutor | undefined> {
+    const [amostra] = await this.db
+      .select()
+      .from(amostrasLocutores)
+      .where(eq(amostrasLocutores.id, id));
+    return amostra;
+  }
+
+  async createAmostraLocutor(amostra: InsertAmostraLocutor): Promise<AmostraLocutor> {
+    const [novaAmostra] = await this.db
+      .insert(amostrasLocutores)
+      .values(amostra)
+      .returning();
+    return novaAmostra;
+  }
+
+  async updateAmostraLocutor(id: string, amostra: Partial<InsertAmostraLocutor>): Promise<AmostraLocutor> {
+    const [updatedAmostra] = await this.db
+      .update(amostrasLocutores)
+      .set(amostra)
+      .where(eq(amostrasLocutores.id, id))
+      .returning();
+    return updatedAmostra;
+  }
+
+  async deleteAmostraLocutor(id: string): Promise<void> {
+    await this.db
+      .delete(amostrasLocutores)
+      .where(eq(amostrasLocutores.id, id));
+  }
+
+  // Músicas do Projeto
+  async getProjetoMusicas(projetoId: string): Promise<ProjetoMusica[]> {
+    return await this.db
+      .select()
+      .from(projetoMusicas)
+      .where(eq(projetoMusicas.projetoId, projetoId))
+      .orderBy(projetoMusicas.ordem);
+  }
+
+  async getProjetoMusica(id: string): Promise<ProjetoMusica | undefined> {
+    const [musica] = await this.db
+      .select()
+      .from(projetoMusicas)
+      .where(eq(projetoMusicas.id, id));
+    return musica;
+  }
+
+  async createProjetoMusica(musica: InsertProjetoMusica): Promise<ProjetoMusica> {
+    const [novaMusica] = await this.db
+      .insert(projetoMusicas)
+      .values(musica)
+      .returning();
+    return novaMusica;
+  }
+
+  async updateProjetoMusica(id: string, musica: Partial<InsertProjetoMusica>): Promise<ProjetoMusica> {
+    const [updatedMusica] = await this.db
+      .update(projetoMusicas)
+      .set(musica)
+      .where(eq(projetoMusicas.id, id))
+      .returning();
+    return updatedMusica;
+  }
+
+  async deleteProjetoMusica(id: string): Promise<void> {
+    await this.db
+      .delete(projetoMusicas)
+      .where(eq(projetoMusicas.id, id));
+  }
+
+  // Locutores do Projeto
+  async getProjetoLocutores(projetoId: string): Promise<ProjetoLocutorWithRelations[]> {
+    const result = await this.db
+      .select({
+        projetoLocutores,
+        locutores,
+      })
+      .from(projetoLocutores)
+      .leftJoin(locutores, eq(projetoLocutores.locutorId, locutores.id))
+      .where(eq(projetoLocutores.projetoId, projetoId))
+      .orderBy(projetoLocutores.ordem);
+
+    // Buscar amostras de áudio para cada locutor
+    const locutoresWithAmostras = await Promise.all(
+      result.map(async (row) => {
+        const amostras = await this.db
+          .select()
+          .from(amostrasLocutores)
+          .where(eq(amostrasLocutores.locutorId, row.locutores!.id))
+          .orderBy(amostrasLocutores.ordem);
+
+        return {
+          ...row.projetoLocutores,
+          projeto: {} as Projeto, // Will be populated if needed
+          locutor: {
+            ...row.locutores!,
+            amostras,
+          },
+        };
+      })
+    );
+
+    return locutoresWithAmostras;
+  }
+
+  async getProjetoLocutor(id: string): Promise<ProjetoLocutor | undefined> {
+    const [locutor] = await this.db
+      .select()
+      .from(projetoLocutores)
+      .where(eq(projetoLocutores.id, id));
+    return locutor;
+  }
+
+  async createProjetoLocutor(locutor: InsertProjetoLocutor): Promise<ProjetoLocutor> {
+    const [novoLocutor] = await this.db
+      .insert(projetoLocutores)
+      .values(locutor)
+      .returning();
+    return novoLocutor;
+  }
+
+  async updateProjetoLocutor(id: string, locutor: Partial<InsertProjetoLocutor>): Promise<ProjetoLocutor> {
+    const [updatedLocutor] = await this.db
+      .update(projetoLocutores)
+      .set(locutor)
+      .where(eq(projetoLocutores.id, id))
+      .returning();
+    return updatedLocutor;
+  }
+
+  async deleteProjetoLocutor(id: string): Promise<void> {
+    await this.db
+      .delete(projetoLocutores)
+      .where(eq(projetoLocutores.id, id));
+  }
+
   async seedData(): Promise<void> {
     // Seed tipos de video
     const tiposData = [
@@ -843,6 +1183,85 @@ export class DatabaseStorage implements IStorage {
         // Ignore if already exists
       }
     }
+  }
+
+  // Métodos para o Portal do Cliente
+  async getProjetoByClientToken(token: string): Promise<ProjetoWithRelations | undefined> {
+    const result = await db
+      .select({
+        projetos,
+        tiposDeVideo,
+        users,
+        clientes,
+        empreendimentos,
+      })
+      .from(projetos)
+      .leftJoin(tiposDeVideo, eq(projetos.tipoVideoId, tiposDeVideo.id))
+      .leftJoin(users, eq(projetos.responsavelId, users.id))
+      .leftJoin(clientes, eq(projetos.clienteId, clientes.id))
+      .leftJoin(empreendimentos, eq(projetos.empreendimentoId, empreendimentos.id))
+      .where(eq(projetos.clientToken, token))
+      .limit(1);
+
+    if (result.length === 0) {
+      return undefined;
+    }
+
+    return {
+      ...result[0].projetos,
+      tipoVideo: result[0].tiposDeVideo!,
+      responsavel: result[0].users!,
+      cliente: result[0].clientes || undefined,
+      empreendimento: result[0].empreendimentos || undefined,
+    };
+  }
+
+  async aprovarMusica(token: string, aprovado: boolean, feedback?: string): Promise<Projeto> {
+    const [updatedProjeto] = await db
+      .update(projetos)
+      .set({
+        musicaAprovada: aprovado,
+        musicaFeedback: feedback || null,
+        musicaDataAprovacao: new Date(),
+      })
+      .where(eq(projetos.clientToken, token))
+      .returning();
+    return updatedProjeto;
+  }
+
+  async aprovarLocucao(token: string, aprovado: boolean, feedback?: string): Promise<Projeto> {
+    const [updatedProjeto] = await db
+      .update(projetos)
+      .set({
+        locucaoAprovada: aprovado,
+        locucaoFeedback: feedback || null,
+        locucaoDataAprovacao: new Date(),
+      })
+      .where(eq(projetos.clientToken, token))
+      .returning();
+    return updatedProjeto;
+  }
+
+  async aprovarVideoFinal(token: string, aprovado: boolean, feedback?: string): Promise<Projeto> {
+    const [updatedProjeto] = await db
+      .update(projetos)
+      .set({
+        videoFinalAprovado: aprovado,
+        videoFinalFeedback: feedback || null,
+        videoFinalDataAprovacao: new Date(),
+      })
+      .where(eq(projetos.clientToken, token))
+      .returning();
+    return updatedProjeto;
+  }
+
+  async regenerarClientToken(projetoId: string): Promise<string> {
+    const novoToken = nanoid(32);
+    await db
+      .update(projetos)
+      .set({ clientToken: novoToken })
+      .where(eq(projetos.id, projetoId));
+    return novoToken;
   }
 }
 

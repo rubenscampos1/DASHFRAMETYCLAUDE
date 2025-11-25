@@ -13,6 +13,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { format, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
+import { motion } from "framer-motion";
+import { containerVariants, itemVariants } from "@/components/motion-wrapper";
 
 export default function MinhaFila() {
   const { user } = useAuth();
@@ -115,7 +117,12 @@ export default function MinhaFila() {
       
       <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         {/* Header */}
-        <div className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm">
+        <motion.div
+          variants={itemVariants}
+          initial="hidden"
+          animate="visible"
+          className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm"
+        >
           <div className="flex-1 px-6 flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-semibold text-foreground" data-testid="minha-fila-title">
@@ -152,10 +159,15 @@ export default function MinhaFila() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Filters and User Selection */}
-        <div className="bg-card border-b border-border px-6 py-4">
+        <motion.div
+          variants={itemVariants}
+          initial="hidden"
+          animate="visible"
+          className="bg-card border-b border-border px-6 py-4"
+        >
           <div className="flex flex-wrap items-center gap-3">
             {canViewOthers && (
               <>
@@ -208,15 +220,20 @@ export default function MinhaFila() {
               </Button>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Main Content */}
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
-            <div className="max-w-7xl mx-auto px-6 space-y-6">
-              
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="max-w-7xl mx-auto px-6 space-y-6"
+            >
+
               {/* Statistics Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total de Projetos</CardTitle>
@@ -252,7 +269,7 @@ export default function MinhaFila() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              </motion.div>
 
               {/* Projects by Status */}
               {totalProjetos === 0 ? (
@@ -270,8 +287,12 @@ export default function MinhaFila() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {Object.entries(projetosPorStatus).map(([status, statusProjetos]) => (
-                    <div key={status}>
+                  {Object.entries(projetosPorStatus).map(([status, statusProjetos], index) => (
+                    <motion.div
+                      key={status}
+                      variants={itemVariants}
+                      custom={index}
+                    >
                       <div className="flex items-center space-x-2 mb-4">
                         <h2 className="text-lg font-semibold text-foreground">{status}</h2>
                         <Badge variant="secondary" data-testid={`status-count-${status}`}>
@@ -287,11 +308,11 @@ export default function MinhaFila() {
                           />
                         ))}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </div>
+            </motion.div>
           </div>
         </main>
       </div>

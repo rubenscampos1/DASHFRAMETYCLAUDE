@@ -20,4 +20,4 @@ vite.config.ts.*
 *.dump
 *.sql
 backups/
-logs/
+logs/uploads/

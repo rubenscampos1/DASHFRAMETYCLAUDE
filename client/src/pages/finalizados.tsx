@@ -24,6 +24,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
+import { MotionWrapper, containerVariants, itemVariants } from "@/components/motion-wrapper";
+import { motion } from "framer-motion";
 
 type ViewMode = "card" | "list";
 
@@ -33,25 +35,25 @@ export default function Finalizados() {
   const { mainContentClass } = useSidebarLayout();
   const [editingProject, setEditingProject] = useState<ProjetoWithRelations | null>(null);
   const [youtubeLink, setYoutubeLink] = useState("");
-  
+
   // NPS State
   const [npsProject, setNpsProject] = useState<ProjetoWithRelations | null>(null);
   const [npsScore, setNpsScore] = useState<number | null>(null);
   const [npsContact, setNpsContact] = useState("");
   const [npsResponsible, setNpsResponsible] = useState("");
-  
+
   // View mode com persistência
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem("finalizados_view_mode");
     return (saved as ViewMode) || "card";
   });
-  
+
   // Filtros
   const [dateFilter, setDateFilter] = useState<string>("all"); // all, this_month, last_month, custom
   const [customDateStart, setCustomDateStart] = useState<string>("");
   const [customDateEnd, setCustomDateEnd] = useState<string>("");
   const [responsavelFilter, setResponsavelFilter] = useState<string>("all");
-  
+
   // Salvar preferência de visualização
   useEffect(() => {
     localStorage.setItem("finalizados_view_mode", viewMode);
@@ -63,12 +65,12 @@ export default function Finalizados() {
       const response = await fetch("/api/projetos?status=Aprovado", {
         credentials: "include",
       });
-      
+
       if (!response.ok) throw new Error("Erro ao carregar projetos finalizados");
       return response.json();
     },
   });
-  
+
   // Responsáveis únicos dos projetos finalizados
   const responsaveis = useMemo(() => {
     const unique = new Map<string, { id: string; nome: string }>();
@@ -79,37 +81,37 @@ export default function Finalizados() {
     });
     return Array.from(unique.values()).sort((a, b) => a.nome.localeCompare(b.nome));
   }, [projetos]);
-  
+
   // Projetos filtrados
   const projetosFiltrados = useMemo(() => {
     let filtered = [...projetos];
-    
+
     // Filtro por data
     if (dateFilter === "this_month") {
       const start = startOfMonth(new Date());
       const end = endOfMonth(new Date());
-      filtered = filtered.filter(p => 
+      filtered = filtered.filter(p =>
         p.dataAprovacao && isWithinInterval(new Date(p.dataAprovacao), { start, end })
       );
     } else if (dateFilter === "last_month") {
       const start = startOfMonth(subMonths(new Date(), 1));
       const end = endOfMonth(subMonths(new Date(), 1));
-      filtered = filtered.filter(p => 
+      filtered = filtered.filter(p =>
         p.dataAprovacao && isWithinInterval(new Date(p.dataAprovacao), { start, end })
       );
     } else if (dateFilter === "custom" && customDateStart && customDateEnd) {
       const start = new Date(customDateStart);
       const end = new Date(customDateEnd);
-      filtered = filtered.filter(p => 
+      filtered = filtered.filter(p =>
         p.dataAprovacao && isWithinInterval(new Date(p.dataAprovacao), { start, end })
       );
     }
-    
+
     // Filtro por responsável
     if (responsavelFilter !== "all") {
       filtered = filtered.filter(p => p.responsavelId === responsavelFilter);
     }
-    
+
     // Ordenar por data de aprovação (mais recente primeiro)
     return filtered.sort((a, b) => {
       if (!a.dataAprovacao) return 1;
@@ -117,7 +119,7 @@ export default function Finalizados() {
       return new Date(b.dataAprovacao).getTime() - new Date(a.dataAprovacao).getTime();
     });
   }, [projetos, dateFilter, customDateStart, customDateEnd, responsavelFilter]);
-  
+
   // Limpar filtros
   const clearFilters = () => {
     setDateFilter("all");
@@ -125,7 +127,7 @@ export default function Finalizados() {
     setCustomDateEnd("");
     setResponsavelFilter("all");
   };
-  
+
   // Verificar se há filtros ativos (data personalizada só conta se ambas as datas estiverem preenchidas)
   const hasActiveFilters = (dateFilter !== "all" && (dateFilter !== "custom" || (customDateStart && customDateEnd))) || responsavelFilter !== "all";
 
@@ -153,16 +155,16 @@ export default function Finalizados() {
   });
 
   const updateNpsMutation = useMutation({
-    mutationFn: async ({ id, npsScore, npsContact, npsResponsible }: { 
-      id: string; 
-      npsScore: number | null; 
-      npsContact: string; 
+    mutationFn: async ({ id, npsScore, npsContact, npsResponsible }: {
+      id: string;
+      npsScore: number | null;
+      npsContact: string;
       npsResponsible: string;
     }) => {
-      const response = await apiRequest("PUT", `/api/projetos/${id}/nps`, { 
-        npsScore, 
-        npsContact, 
-        npsResponsible 
+      const response = await apiRequest("PUT", `/api/projetos/${id}/nps`, {
+        npsScore,
+        npsContact,
+        npsResponsible
       });
       return response.json();
     },
@@ -193,7 +195,7 @@ export default function Finalizados() {
 
   const handleSaveYoutubeLink = () => {
     if (!editingProject) return;
-    
+
     // Basic YouTube URL validation
     if (youtubeLink && !youtubeLink.includes('youtube.com') && !youtubeLink.includes('youtu.be')) {
       toast({
@@ -204,9 +206,9 @@ export default function Finalizados() {
       return;
     }
 
-    updateProjectMutation.mutate({ 
-      id: editingProject.id, 
-      linkYoutube: youtubeLink 
+    updateProjectMutation.mutate({
+      id: editingProject.id,
+      linkYoutube: youtubeLink
     });
   };
 
@@ -275,10 +277,15 @@ export default function Finalizados() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      
+
       <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         {/* Header */}
-        <div className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm">
+        <motion.div
+          variants={itemVariants}
+          initial="hidden"
+          animate="visible"
+          className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm"
+        >
           <div className="flex-1 px-6 flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-semibold text-foreground" data-testid="finalizados-title">
@@ -288,7 +295,7 @@ export default function Finalizados() {
                 {projetosFiltrados.length} projetos
               </Badge>
             </div>
-            
+
             {/* Toggle Card/Lista */}
             <div className="flex items-center border rounded-md">
               <Button
@@ -313,16 +320,21 @@ export default function Finalizados() {
               </Button>
             </div>
           </div>
-        </div>
-        
+        </motion.div>
+
         {/* Barra de Filtros */}
-        <div className="bg-card border-b border-border px-6 py-4">
+        <motion.div
+          variants={itemVariants}
+          initial="hidden"
+          animate="visible"
+          className="bg-card border-b border-border px-6 py-4"
+        >
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center space-x-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Filtros:</span>
             </div>
-            
+
             {/* Filtro de Data */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Período</label>
@@ -338,7 +350,7 @@ export default function Finalizados() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             {/* Campos de data personalizada */}
             {dateFilter === "custom" && (
               <>
@@ -364,7 +376,7 @@ export default function Finalizados() {
                 </div>
               </>
             )}
-            
+
             {/* Filtro de Responsável */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Responsável</label>
@@ -382,7 +394,7 @@ export default function Finalizados() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             {/* Chips de filtros ativos e botão limpar */}
             {hasActiveFilters && (
               <>
@@ -423,13 +435,18 @@ export default function Finalizados() {
               </>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Main Content */}
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
-            <div className="max-w-7xl mx-auto px-6">
-              
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="w-full px-6"
+            >
+
               {projetosFiltrados.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-muted-foreground">
@@ -444,7 +461,10 @@ export default function Finalizados() {
                 </div>
               ) : viewMode === "list" ? (
                 /* Visualização em Lista (Tabela) */
-                <div className="rounded-md border">
+                <motion.div
+                  variants={itemVariants}
+                  className="rounded-md border"
+                >
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -472,7 +492,7 @@ export default function Finalizados() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {projeto.dataAprovacao 
+                            {projeto.dataAprovacao
                               ? format(new Date(projeto.dataAprovacao), "dd/MM/yyyy", { locale: ptBR })
                               : "-"
                             }
@@ -504,163 +524,169 @@ export default function Finalizados() {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
+                </motion.div>
               ) : (
                 /* Visualização em Card (padrão) */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {projetosFiltrados.map((projeto) => (
-                    <Card key={projeto.id} className="hover:shadow-lg transition-shadow" data-testid={`finalized-project-${projeto.id}`}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <h3 className="text-lg font-semibold text-foreground line-clamp-2" data-testid="project-title">
-                            {projeto.titulo}
-                          </h3>
-                          <Badge className="bg-chart-4 text-white">
-                            Finalizado
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      
-                      <CardContent className="space-y-4">
-                        {projeto.descricao && (
-                          <p className="text-sm text-muted-foreground line-clamp-3" data-testid="project-description">
-                            {projeto.descricao}
-                          </p>
-                        )}
-                        
-                        <div className="flex items-center justify-between">
-                          <Badge variant="outline" data-testid="project-type">
-                            {projeto.tipoVideo?.nome}
-                          </Badge>
-                          {projeto.prioridade && (
-                            <Badge variant={projeto.prioridade === "Alta" ? "destructive" : "secondary"} data-testid="project-priority">
-                              {projeto.prioridade}
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {projetosFiltrados.map((projeto, index) => (
+                    <motion.div
+                      key={projeto.id}
+                      variants={itemVariants}
+                      custom={index}
+                    >
+                      <Card className="hover:shadow-lg transition-shadow" data-testid={`finalized-project-${projeto.id}`}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <h3 className="text-lg font-semibold text-foreground line-clamp-2" data-testid="project-title">
+                              {projeto.titulo}
+                            </h3>
+                            <Badge className="bg-chart-4 text-white">
+                              Finalizado
                             </Badge>
-                          )}
-                        </div>
-
-                        {projeto.tags && projeto.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1" data-testid="project-tags">
-                            {projeto.tags.map((tag, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
                           </div>
-                        )}
-                        
-                        <div className="flex items-center space-x-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                              {projeto.responsavel?.nome?.substring(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate" data-testid="project-responsible">
-                              {projeto.responsavel?.nome}
+                        </CardHeader>
+
+                        <CardContent className="space-y-4">
+                          {projeto.descricao && (
+                            <p className="text-sm text-muted-foreground line-clamp-3" data-testid="project-description">
+                              {projeto.descricao}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              Responsável
-                            </p>
-                          </div>
-                        </div>
-
-                        {projeto.dataAprovacao && (
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Calendar className="w-4 h-4 mr-2" />
-                            <span data-testid="approval-date">
-                              Aprovado em {format(new Date(projeto.dataAprovacao), "dd/MM/yyyy", { locale: ptBR })}
-                            </span>
-                          </div>
-                        )}
-
-                        {projeto.cliente && (
-                          <div className="text-sm text-muted-foreground" data-testid="project-client">
-                            <strong>Cliente:</strong> {projeto.cliente.nome}
-                          </div>
-                        )}
-
-                        {/* YouTube Link Section */}
-                        <div className="border-t pt-4">
-                          {projeto.linkYoutube ? (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Link do YouTube:</span>
-                                {canEdit(projeto) && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleEditYoutubeLink(projeto)}
-                                    data-testid="edit-youtube-link"
-                                  >
-                                    <Edit className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                              <a
-                                href={projeto.linkYoutube}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center text-sm text-chart-1 hover:underline"
-                                data-testid="youtube-link"
-                              >
-                                <Youtube className="w-4 h-4 mr-2" />
-                                Ver no YouTube
-                                <ExternalLink className="w-3 h-3 ml-1" />
-                              </a>
-                            </div>
-                          ) : (
-                            canEdit(projeto) && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditYoutubeLink(projeto)}
-                                className="w-full"
-                                data-testid="add-youtube-link"
-                              >
-                                <Youtube className="w-4 h-4 mr-2" />
-                                Adicionar Link do YouTube
-                              </Button>
-                            )
                           )}
-                        </div>
 
-                        {/* NPS Section */}
-                        <div className="border-t pt-4 space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Avaliação NPS:</span>
-                            {projeto.npsScore ? (
-                              <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950">
-                                <Star className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-400" />
-                                {projeto.npsScore}/10
+                            <Badge variant="outline" data-testid="project-type">
+                              {projeto.tipoVideo?.nome}
+                            </Badge>
+                            {projeto.prioridade && (
+                              <Badge variant={projeto.prioridade === "Alta" ? "destructive" : "secondary"} data-testid="project-priority">
+                                {projeto.prioridade}
                               </Badge>
-                            ) : projeto.npsContact ? (
-                              <Badge variant="outline" className="bg-gray-50 dark:bg-gray-900">
-                                Pendente
-                              </Badge>
-                            ) : null}
+                            )}
                           </div>
-                          <Button
-                            size="sm"
-                            variant={projeto.npsScore ? "ghost" : "outline"}
-                            onClick={() => handleEditNps(projeto)}
-                            className="w-full"
-                            data-testid={`nps-button-${projeto.id}`}
-                          >
-                            <Star className="w-4 h-4 mr-2" />
-                            {projeto.npsScore 
-                              ? "Editar NPS" 
-                              : projeto.npsContact 
-                                ? "Adicionar Nota" 
-                                : "Cadastrar Contato"}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+
+                          {projeto.tags && projeto.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1" data-testid="project-tags">
+                              {projeto.tags.map((tag, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex items-center space-x-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                {projeto.responsavel?.nome?.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate" data-testid="project-responsible">
+                                {projeto.responsavel?.nome}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Responsável
+                              </p>
+                            </div>
+                          </div>
+
+                          {projeto.dataAprovacao && (
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <Calendar className="w-4 h-4 mr-2" />
+                              <span data-testid="approval-date">
+                                Aprovado em {format(new Date(projeto.dataAprovacao), "dd/MM/yyyy", { locale: ptBR })}
+                              </span>
+                            </div>
+                          )}
+
+                          {projeto.cliente && (
+                            <div className="text-sm text-muted-foreground" data-testid="project-client">
+                              <strong>Cliente:</strong> {projeto.cliente.nome}
+                            </div>
+                          )}
+
+                          {/* YouTube Link Section */}
+                          <div className="border-t pt-4">
+                            {projeto.linkYoutube ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium">Link do YouTube:</span>
+                                  {canEdit(projeto) && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleEditYoutubeLink(projeto)}
+                                      data-testid="edit-youtube-link"
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <a
+                                  href={projeto.linkYoutube}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center text-sm text-chart-1 hover:underline"
+                                  data-testid="youtube-link"
+                                >
+                                  <Youtube className="w-4 h-4 mr-2" />
+                                  Ver no YouTube
+                                  <ExternalLink className="w-3 h-3 ml-1" />
+                                </a>
+                              </div>
+                            ) : (
+                              canEdit(projeto) && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditYoutubeLink(projeto)}
+                                  className="w-full"
+                                  data-testid="add-youtube-link"
+                                >
+                                  <Youtube className="w-4 h-4 mr-2" />
+                                  Adicionar Link do YouTube
+                                </Button>
+                              )
+                            )}
+                          </div>
+
+                          {/* NPS Section */}
+                          <div className="border-t pt-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">Avaliação NPS:</span>
+                              {projeto.npsScore ? (
+                                <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950">
+                                  <Star className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-400" />
+                                  {projeto.npsScore}/10
+                                </Badge>
+                              ) : projeto.npsContact ? (
+                                <Badge variant="outline" className="bg-gray-50 dark:bg-gray-900">
+                                  Pendente
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={projeto.npsScore ? "ghost" : "outline"}
+                              onClick={() => handleEditNps(projeto)}
+                              className="w-full"
+                              data-testid={`nps-button-${projeto.id}`}
+                            >
+                              <Star className="w-4 h-4 mr-2" />
+                              {projeto.npsScore
+                                ? "Editar NPS"
+                                : projeto.npsContact
+                                  ? "Adicionar Nota"
+                                  : "Cadastrar Contato"}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </div>
+            </motion.div>
           </div>
         </main>
       </div>
@@ -712,8 +738,8 @@ export default function Finalizados() {
               {npsProject?.npsScore ? "Editar NPS" : npsProject?.npsContact ? "Adicionar Nota NPS" : "Cadastrar Contato"}
             </DialogTitle>
             <DialogDescription>
-              {npsProject?.npsContact 
-                ? "Adicione ou atualize a nota de satisfação do cliente" 
+              {npsProject?.npsContact
+                ? "Adicione ou atualize a nota de satisfação do cliente"
                 : "Cadastre primeiro o contato do responsável, a nota pode ser adicionada depois"}
             </DialogDescription>
           </DialogHeader>
@@ -739,11 +765,10 @@ export default function Finalizados() {
                   <button
                     key={score}
                     onClick={() => setNpsScore(score)}
-                    className={`w-10 h-10 rounded-md border-2 transition-all ${
-                      npsScore === score
+                    className={`w-10 h-10 rounded-md border-2 transition-all ${npsScore === score
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border hover:border-primary/50"
-                    }`}
+                      }`}
                     data-testid={`nps-score-${score}`}
                   >
                     {score}

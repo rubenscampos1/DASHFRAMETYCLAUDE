@@ -8,17 +8,21 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit, Trash2, Database, Building2, Video } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Edit, Trash2, Database, Building2, Video, Mic, Music, Upload, Play, Pause, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertClienteSchema, insertTipoVideoSchema, insertEmpreendimentoSchema, type Cliente, type InsertCliente, type TipoVideo, type InsertTipoVideo, type Empreendimento, type InsertEmpreendimento, type EmpreendimentoWithRelations } from "@shared/schema";
+import { insertClienteSchema, insertTipoVideoSchema, insertEmpreendimentoSchema, insertLocutorSchema, type Cliente, type InsertCliente, type TipoVideo, type InsertTipoVideo, type Empreendimento, type InsertEmpreendimento, type EmpreendimentoWithRelations, type Locutor, type InsertLocutor, type LocutorWithRelations, type AmostraLocutor } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
 import { useAuth } from "@/hooks/use-auth";
+import { motion } from "framer-motion";
+import { containerVariants, itemVariants } from "@/components/motion-wrapper";
 
 export default function DatabasePage() {
   const { toast } = useToast();
@@ -26,18 +30,29 @@ export default function DatabasePage() {
   const { user } = useAuth();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
-  
+
   // Category modals
   const [createCategoryDialogOpen, setCreateCategoryDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<TipoVideo | null>(null);
-  
+
   // Empreendimento modals
   const [createEmpreendimentoDialogOpen, setCreateEmpreendimentoDialogOpen] = useState(false);
   const [editingEmpreendimento, setEditingEmpreendimento] = useState<EmpreendimentoWithRelations | null>(null);
 
+  // Locutor modals
+  const [createLocutorDialogOpen, setCreateLocutorDialogOpen] = useState(false);
+  const [editingLocutor, setEditingLocutor] = useState<Locutor | null>(null);
+
+  // Audio samples modal
+  const [audioSamplesDialogOpen, setAudioSamplesDialogOpen] = useState(false);
+  const [selectedLocutorForAudio, setSelectedLocutorForAudio] = useState<Locutor | null>(null);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+
   // Search states
   const [searchCliente, setSearchCliente] = useState("");
   const [searchEmpreendimento, setSearchEmpreendimento] = useState("");
+  const [searchLocutor, setSearchLocutor] = useState("");
 
   const { data: clientes = [], isLoading } = useQuery<Cliente[]>({
     queryKey: ["/api/clientes"],
@@ -50,6 +65,15 @@ export default function DatabasePage() {
 
   const { data: empreendimentos = [] } = useQuery<EmpreendimentoWithRelations[]>({
     queryKey: ["/api/empreendimentos"],
+  });
+
+  const { data: locutores = [] } = useQuery<LocutorWithRelations[]>({
+    queryKey: ["/api/locutores"],
+  });
+
+  const { data: audioSamples = [] } = useQuery<AmostraLocutor[]>({
+    queryKey: [`/api/locutores/${selectedLocutorForAudio?.id}/amostras`],
+    enabled: !!selectedLocutorForAudio,
   });
 
   // Filter clientes based on search
@@ -72,6 +96,18 @@ export default function DatabasePage() {
       emp.nome.toLowerCase().includes(searchLower) ||
       emp.descricao?.toLowerCase().includes(searchLower) ||
       emp.cliente?.nome?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Filter locutores based on search
+  const filteredLocutores = locutores.filter((locutor) => {
+    if (!searchLocutor) return true;
+    const searchLower = searchLocutor.toLowerCase();
+    return (
+      locutor.nome.toLowerCase().includes(searchLower) ||
+      locutor.email?.toLowerCase().includes(searchLower) ||
+      locutor.sotaque?.toLowerCase().includes(searchLower) ||
+      locutor.regiao?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -138,6 +174,39 @@ export default function DatabasePage() {
       clienteId: "",
       backgroundColor: "#3b82f6",
       textColor: "#ffffff",
+    },
+  });
+
+  // Locutores forms
+  const locutorForm = useForm<InsertLocutor>({
+    resolver: zodResolver(insertLocutorSchema),
+    defaultValues: {
+      nome: "",
+      biografia: "",
+      genero: "Masculino",
+      faixaEtaria: "Adulto",
+      regiao: "Sudeste",
+      sotaque: "Neutro",
+      email: "",
+      telefone: "",
+      disponivel: true,
+      ativo: true,
+    },
+  });
+
+  const editLocutorForm = useForm<InsertLocutor>({
+    resolver: zodResolver(insertLocutorSchema),
+    defaultValues: {
+      nome: "",
+      biografia: "",
+      genero: "Masculino",
+      faixaEtaria: "Adulto",
+      regiao: "Sudeste",
+      sotaque: "Neutro",
+      email: "",
+      telefone: "",
+      disponivel: true,
+      ativo: true,
     },
   });
 
@@ -342,6 +411,73 @@ export default function DatabasePage() {
     },
   });
 
+  // Locutores mutations
+  const createLocutorMutation = useMutation({
+    mutationFn: async (data: InsertLocutor) => {
+      const response = await apiRequest("POST", "/api/locutores", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/locutores"] });
+      setCreateLocutorDialogOpen(false);
+      locutorForm.reset();
+      toast({
+        title: "Locutor criado",
+        description: "Locutor adicionado ao banco de dados com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao criar locutor",
+        description: error.message || "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateLocutorMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: InsertLocutor }) => {
+      const response = await apiRequest("PUT", `/api/locutores/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/locutores"] });
+      setEditingLocutor(null);
+      editLocutorForm.reset();
+      toast({
+        title: "Locutor atualizado",
+        description: "Informações do locutor atualizadas com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao atualizar locutor",
+        description: error.message || "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLocutorMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/locutores/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/locutores"] });
+      toast({
+        title: "Locutor excluído",
+        description: "Locutor removido do banco de dados com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao excluir locutor",
+        description: error.message || "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onCreateSubmit = (data: InsertCliente) => {
     createMutation.mutate(data);
   };
@@ -418,6 +554,135 @@ export default function DatabasePage() {
     deleteEmpreendimentoMutation.mutate(id);
   };
 
+  // Locutores handlers
+  const handleEditLocutor = (locutor: Locutor) => {
+    setEditingLocutor(locutor);
+    editLocutorForm.reset({
+      nome: locutor.nome,
+      biografia: locutor.biografia || "",
+      fotoUrl: locutor.fotoUrl || "",
+      genero: locutor.genero,
+      faixaEtaria: locutor.faixaEtaria,
+      idadePorVoz: locutor.idadePorVoz || "",
+      regiao: locutor.regiao,
+      sotaque: locutor.sotaque,
+      idiomas: locutor.idiomas,
+      valorPorPalavra: locutor.valorPorPalavra,
+      valorMinimo: locutor.valorMinimo,
+      valorPorMinuto: locutor.valorPorMinuto,
+      email: locutor.email || "",
+      telefone: locutor.telefone || "",
+      instagram: locutor.instagram || "",
+      disponivel: locutor.disponivel,
+      ativo: locutor.ativo,
+    });
+  };
+
+  const onCreateLocutorSubmit = (data: InsertLocutor) => {
+    createLocutorMutation.mutate(data);
+  };
+
+  const onEditLocutorSubmit = (data: InsertLocutor) => {
+    if (editingLocutor) {
+      updateLocutorMutation.mutate({ id: editingLocutor.id, data });
+    }
+  };
+
+  const handleDeleteLocutor = (id: string) => {
+    deleteLocutorMutation.mutate(id);
+  };
+
+  // Audio samples handlers
+  const handleUploadAudio = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || !event.target.files[0] || !selectedLocutorForAudio) return;
+
+    const file = event.target.files[0];
+    const formData = new FormData();
+    formData.append('audio', file);
+    formData.append('titulo', file.name.replace(/\.[^/.]+$/, "")); // Remove extension
+    formData.append('destaque', 'false');
+
+    setUploadingAudio(true);
+    try {
+      const response = await fetch(`/api/locutores/${selectedLocutorForAudio.id}/amostras`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Erro ao enviar áudio');
+      }
+
+      queryClient.invalidateQueries({ queryKey: [`/api/locutores/${selectedLocutorForAudio.id}/amostras`] });
+
+      toast({
+        title: "Sucesso",
+        description: "Áudio enviado com sucesso",
+      });
+
+      // Reset the input
+      event.target.value = '';
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao enviar áudio",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingAudio(false);
+    }
+  };
+
+  const handleDeleteAudioSample = async (sampleId: string) => {
+    if (!selectedLocutorForAudio) return;
+
+    try {
+      await apiRequest('DELETE', `/api/amostras/${sampleId}`);
+
+      queryClient.invalidateQueries({ queryKey: [`/api/locutores/${selectedLocutorForAudio.id}/amostras`] });
+
+      toast({
+        title: "Sucesso",
+        description: "Amostra removida com sucesso",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao remover amostra",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePlayAudio = (audioId: string, audioUrl: string) => {
+    if (playingAudioId === audioId) {
+      // Stop the currently playing audio
+      const audio = document.getElementById(`audio-${audioId}`) as HTMLAudioElement;
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      setPlayingAudioId(null);
+    } else {
+      // Stop any currently playing audio
+      if (playingAudioId) {
+        const prevAudio = document.getElementById(`audio-${playingAudioId}`) as HTMLAudioElement;
+        if (prevAudio) {
+          prevAudio.pause();
+          prevAudio.currentTime = 0;
+        }
+      }
+      // Play the new audio
+      const audio = document.getElementById(`audio-${audioId}`) as HTMLAudioElement;
+      if (audio) {
+        audio.play();
+        setPlayingAudioId(audioId);
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen overflow-hidden">
@@ -437,10 +702,15 @@ export default function DatabasePage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      
+
       <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         {/* Header */}
-        <div className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm">
+        <motion.div
+          variants={itemVariants}
+          initial="hidden"
+          animate="visible"
+          className="relative z-10 flex-shrink-0 flex h-16 bg-card border-b border-border shadow-sm"
+        >
           <div className="flex-1 px-6 flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Database className="h-6 w-6 text-primary" />
@@ -448,13 +718,13 @@ export default function DatabasePage() {
                 Banco de Dados - Clientes
               </h1>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <Button data-testid="button-new-client" onClick={() => setCreateDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Cliente
               </Button>
-              
+
               {user?.papel === "Admin" && (
                 <>
                   <Button variant="outline" data-testid="button-new-category" onClick={() => setCreateCategoryDialogOpen(true)}>
@@ -465,19 +735,28 @@ export default function DatabasePage() {
                     <Building2 className="h-4 w-4 mr-2" />
                     Novo Empreendimento
                   </Button>
+                  <Button variant="outline" data-testid="button-new-locutor" onClick={() => setCreateLocutorDialogOpen(true)}>
+                    <Mic className="h-4 w-4 mr-2" />
+                    Novo Locutor
+                  </Button>
                 </>
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Main Content */}
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
-            <div className="max-w-7xl mx-auto px-6 space-y-6">
-              
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="max-w-7xl mx-auto px-6 space-y-6"
+            >
+
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
@@ -492,7 +771,7 @@ export default function DatabasePage() {
                     </p>
                   </CardContent>
                 </Card>
-                
+
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total de Empreendimentos</CardTitle>
@@ -507,347 +786,512 @@ export default function DatabasePage() {
                     </p>
                   </CardContent>
                 </Card>
-                
+
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Com Responsável</CardTitle>
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-medium">Total de Locutores</CardTitle>
+                    <Mic className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold" data-testid="clients-with-company">
-                      {clientes.filter(c => c.empresa).length}
+                    <div className="text-2xl font-bold" data-testid="total-locutores">
+                      {locutores.length}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Clientes corporativos
+                      {locutores.filter(l => l.disponivel).length} disponíveis
                     </p>
                   </CardContent>
                 </Card>
-              </div>
+              </motion.div>
 
-              {/* Clients Table */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Clientes Cadastrados</CardTitle>
-                  <CardDescription>
-                    Gerencie todos os clientes do sistema
-                  </CardDescription>
-                  <div className="pt-4">
-                    <Input
-                      type="text"
-                      placeholder="Pesquisar por nome, email, telefone ou empresa..."
-                      value={searchCliente}
-                      onChange={(e) => setSearchCliente(e.target.value)}
-                      className="max-w-md"
-                      data-testid="input-search-cliente"
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {filteredClientes.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Preview</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Telefone</TableHead>
-                          <TableHead>Nome do Responsável</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredClientes.map((cliente) => (
-                          <TableRow key={cliente.id} data-testid={`row-client-${cliente.id}`}>
-                            <TableCell className="font-medium" data-testid={`text-nome-${cliente.id}`}>
-                              {cliente.nome}
-                            </TableCell>
-                            <TableCell data-testid={`preview-client-${cliente.id}`}>
-                              <div 
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                style={{ 
-                                  backgroundColor: cliente.backgroundColor || "#3b82f6", 
-                                  color: cliente.textColor || "#ffffff" 
-                                }}
-                              >
-                                {cliente.nome}
-                              </div>
-                            </TableCell>
-                            <TableCell data-testid={`text-email-${cliente.id}`}>
-                              {cliente.email || "—"}
-                            </TableCell>
-                            <TableCell data-testid={`text-telefone-${cliente.id}`}>
-                              {cliente.telefone || "—"}
-                            </TableCell>
-                            <TableCell data-testid={`text-empresa-${cliente.id}`}>
-                              {cliente.empresa || "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEdit(cliente)}
-                                  data-testid={`button-edit-${cliente.id}`}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      data-testid={`button-delete-${cliente.id}`}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Tem certeza que deseja remover o cliente "{cliente.nome}"? 
-                                        Esta ação não pode ser desfeita.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDelete(cliente.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        data-testid={`confirm-delete-${cliente.id}`}
-                                      >
-                                        Remover
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="text-center py-8" data-testid="empty-clients">
-                      <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        Nenhum cliente cadastrado ainda.
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Clique em "Novo Cliente" para adicionar o primeiro cliente.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              {/* Accordion Sections */}
+              <motion.div variants={itemVariants}>
+                <Accordion type="multiple" className="space-y-4">
 
-              {/* Empreendimentos Table */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Empreendimentos Cadastrados</CardTitle>
-                  <CardDescription>
-                    Gerencie todos os empreendimentos do sistema
-                  </CardDescription>
-                  <div className="pt-4">
-                    <Input
-                      type="text"
-                      placeholder="Pesquisar por nome, descrição ou cliente..."
-                      value={searchEmpreendimento}
-                      onChange={(e) => setSearchEmpreendimento(e.target.value)}
-                      className="max-w-md"
-                      data-testid="input-search-empreendimento"
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {filteredEmpreendimentos.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Cliente</TableHead>
-                          <TableHead>Descrição</TableHead>
-                          <TableHead>Preview</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredEmpreendimentos.map((empreendimento) => (
-                          <TableRow key={empreendimento.id}>
-                            <TableCell className="font-medium">{empreendimento.nome}</TableCell>
-                            <TableCell>{empreendimento.cliente?.nome}</TableCell>
-                            <TableCell className="max-w-xs truncate">
-                              {empreendimento.descricao || "—"}
-                            </TableCell>
-                            <TableCell>
-                              <div 
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                style={{ 
-                                  backgroundColor: empreendimento.backgroundColor, 
-                                  color: empreendimento.textColor 
-                                }}
-                                data-testid={`empreendimento-preview-${empreendimento.id}`}
-                              >
-                                {empreendimento.nome}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end space-x-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditEmpreendimento(empreendimento)}
-                                  data-testid={`edit-empreendimento-${empreendimento.id}`}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      data-testid={`delete-empreendimento-${empreendimento.id}`}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Tem certeza de que deseja remover o empreendimento "{empreendimento.nome}"? 
-                                        Esta ação não pode ser desfeita.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDeleteEmpreendimento(empreendimento.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        data-testid={`confirm-delete-empreendimento-${empreendimento.id}`}
+                  {/* Clients Section */}
+                  <AccordionItem value="clients" className="border rounded-lg bg-card">
+                    <AccordionTrigger className="px-6 hover:no-underline">
+                      <div className="flex items-center space-x-2">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        <span className="text-lg font-semibold">Clientes Cadastrados</span>
+                        <span className="ml-2 text-sm text-muted-foreground">({clientes.length})</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Gerencie todos os clientes do sistema
+                          </p>
+                          <Input
+                            type="text"
+                            placeholder="Pesquisar por nome, email, telefone ou empresa..."
+                            value={searchCliente}
+                            onChange={(e) => setSearchCliente(e.target.value)}
+                            className="max-w-md"
+                            data-testid="input-search-cliente"
+                          />
+                        </div>
+                        <div>
+                          {filteredClientes.length > 0 ? (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Nome</TableHead>
+                                  <TableHead>Preview</TableHead>
+                                  <TableHead>Email</TableHead>
+                                  <TableHead>Telefone</TableHead>
+                                  <TableHead>Nome do Responsável</TableHead>
+                                  <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredClientes.map((cliente) => (
+                                  <TableRow key={cliente.id} data-testid={`row-client-${cliente.id}`}>
+                                    <TableCell className="font-medium" data-testid={`text-nome-${cliente.id}`}>
+                                      {cliente.nome}
+                                    </TableCell>
+                                    <TableCell data-testid={`preview-client-${cliente.id}`}>
+                                      <div
+                                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                        style={{
+                                          backgroundColor: cliente.backgroundColor || "#3b82f6",
+                                          color: cliente.textColor || "#ffffff"
+                                        }}
                                       >
-                                        Remover
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="text-center py-8" data-testid="empty-empreendimentos">
-                      <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        Nenhum empreendimento cadastrado ainda.
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Clique em "Novo Empreendimento" para adicionar o primeiro empreendimento.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                                        {cliente.nome}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell data-testid={`text-email-${cliente.id}`}>
+                                      {cliente.email || "—"}
+                                    </TableCell>
+                                    <TableCell data-testid={`text-telefone-${cliente.id}`}>
+                                      {cliente.telefone || "—"}
+                                    </TableCell>
+                                    <TableCell data-testid={`text-empresa-${cliente.id}`}>
+                                      {cliente.empresa || "—"}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex justify-end space-x-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleEdit(cliente)}
+                                          data-testid={`button-edit-${cliente.id}`}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
 
-              {/* Categories Table */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Categorias de Vídeo Cadastradas</CardTitle>
-                  <CardDescription>
-                    Gerencie todas as categorias de vídeo do sistema
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {categorias.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Preview</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {categorias.map((tipo) => (
-                          <TableRow key={tipo.id}>
-                            <TableCell className="font-medium">{tipo.nome}</TableCell>
-                            <TableCell>
-                              <div 
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                style={{ 
-                                  backgroundColor: tipo.backgroundColor, 
-                                  color: tipo.textColor 
-                                }}
-                                data-testid={`category-preview-${tipo.id}`}
-                              >
-                                {tipo.nome}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {user?.papel === "Admin" && (
-                                <div className="flex justify-end space-x-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEditCategory(tipo)}
-                                    data-testid={`button-edit-category-${tipo.id}`}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        data-testid={`delete-category-${tipo.id}`}
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="destructive"
+                                              size="sm"
+                                              data-testid={`button-delete-${cliente.id}`}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Tem certeza que deseja remover o cliente "{cliente.nome}"?
+                                                Esta ação não pode ser desfeita.
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction
+                                                onClick={() => handleDelete(cliente.id)}
+                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                data-testid={`confirm-delete-${cliente.id}`}
+                                              >
+                                                Remover
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          ) : (
+                            <div className="text-center py-8" data-testid="empty-clients">
+                              <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                              <p className="text-muted-foreground">
+                                Nenhum cliente cadastrado ainda.
+                              </p>
+                              <p className="text-sm text-muted-foreground mt-2">
+                                Clique em "Novo Cliente" para adicionar o primeiro cliente.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Empreendimentos Section */}
+                  <AccordionItem value="empreendimentos" className="border rounded-lg bg-card">
+                    <AccordionTrigger className="px-6 hover:no-underline">
+                      <div className="flex items-center space-x-2">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        <span className="text-lg font-semibold">Empreendimentos Cadastrados</span>
+                        <span className="ml-2 text-sm text-muted-foreground">({empreendimentos.length})</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Gerencie todos os empreendimentos do sistema
+                          </p>
+                          <Input
+                            type="text"
+                            placeholder="Pesquisar por nome, descrição ou cliente..."
+                            value={searchEmpreendimento}
+                            onChange={(e) => setSearchEmpreendimento(e.target.value)}
+                            className="max-w-md"
+                            data-testid="input-search-empreendimento"
+                          />
+                        </div>
+                        <div>
+                          {filteredEmpreendimentos.length > 0 ? (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Nome</TableHead>
+                                  <TableHead>Cliente</TableHead>
+                                  <TableHead>Descrição</TableHead>
+                                  <TableHead>Preview</TableHead>
+                                  <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredEmpreendimentos.map((empreendimento) => (
+                                  <TableRow key={empreendimento.id}>
+                                    <TableCell className="font-medium">{empreendimento.nome}</TableCell>
+                                    <TableCell>{empreendimento.cliente?.nome}</TableCell>
+                                    <TableCell className="max-w-xs truncate">
+                                      {empreendimento.descricao || "—"}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div
+                                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                        style={{
+                                          backgroundColor: empreendimento.backgroundColor,
+                                          color: empreendimento.textColor
+                                        }}
+                                        data-testid={`empreendimento-preview-${empreendimento.id}`}
                                       >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Tem certeza que deseja remover a categoria "{tipo.nome}"? Esta ação não pode ser desfeita.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDeleteCategory(tipo.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        data-testid={`confirm-delete-category-${tipo.id}`}
+                                        {empreendimento.nome}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex items-center justify-end space-x-2">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleEditEmpreendimento(empreendimento)}
+                                          data-testid={`edit-empreendimento-${empreendimento.id}`}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              data-testid={`delete-empreendimento-${empreendimento.id}`}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Tem certeza de que deseja remover o empreendimento "{empreendimento.nome}"?
+                                                Esta ação não pode ser desfeita.
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction
+                                                onClick={() => handleDeleteEmpreendimento(empreendimento.id)}
+                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                data-testid={`confirm-delete-empreendimento-${empreendimento.id}`}
+                                              >
+                                                Remover
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          ) : (
+                            <div className="text-center py-8" data-testid="empty-empreendimentos">
+                              <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                              <p className="text-muted-foreground">
+                                Nenhum empreendimento cadastrado ainda.
+                              </p>
+                              <p className="text-sm text-muted-foreground mt-2">
+                                Clique em "Novo Empreendimento" para adicionar o primeiro empreendimento.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Categories Section */}
+                  <AccordionItem value="categories" className="border rounded-lg bg-card">
+                    <AccordionTrigger className="px-6 hover:no-underline">
+                      <div className="flex items-center space-x-2">
+                        <Video className="h-5 w-5 text-primary" />
+                        <span className="text-lg font-semibold">Categorias de Vídeo Cadastradas</span>
+                        <span className="ml-2 text-sm text-muted-foreground">({categorias.length})</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Gerencie todas as categorias de vídeo do sistema
+                          </p>
+                        </div>
+                        <div>
+                          {categorias.length > 0 ? (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Nome</TableHead>
+                                  <TableHead>Preview</TableHead>
+                                  <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {categorias.map((tipo) => (
+                                  <TableRow key={tipo.id}>
+                                    <TableCell className="font-medium">{tipo.nome}</TableCell>
+                                    <TableCell>
+                                      <div
+                                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                        style={{
+                                          backgroundColor: tipo.backgroundColor,
+                                          color: tipo.textColor
+                                        }}
+                                        data-testid={`category-preview-${tipo.id}`}
                                       >
-                                        Remover
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                                </div>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="text-center py-8" data-testid="empty-categories">
-                      <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        Nenhuma categoria cadastrada ainda.
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Clique em "Nova Categoria" para adicionar a primeira categoria.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                                        {tipo.nome}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      {user?.papel === "Admin" && (
+                                        <div className="flex justify-end space-x-2">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleEditCategory(tipo)}
+                                            data-testid={`button-edit-category-${tipo.id}`}
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                data-testid={`delete-category-${tipo.id}`}
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  Tem certeza que deseja remover a categoria "{tipo.nome}"? Esta ação não pode ser desfeita.
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                  onClick={() => handleDeleteCategory(tipo.id)}
+                                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                  data-testid={`confirm-delete-category-${tipo.id}`}
+                                                >
+                                                  Remover
+                                                </AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          ) : (
+                            <div className="text-center py-8" data-testid="empty-categories">
+                              <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                              <p className="text-muted-foreground">
+                                Nenhuma categoria cadastrada ainda.
+                              </p>
+                              <p className="text-sm text-muted-foreground mt-2">
+                                Clique em "Nova Categoria" para adicionar a primeira categoria.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Locutores Section */}
+                  <AccordionItem value="locutores" className="border rounded-lg bg-card">
+                    <AccordionTrigger className="px-6 hover:no-underline">
+                      <div className="flex items-center space-x-2">
+                        <Mic className="h-5 w-5 text-primary" />
+                        <span className="text-lg font-semibold">Locutores Cadastrados</span>
+                        <span className="ml-2 text-sm text-muted-foreground">({locutores.length})</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Gerencie todos os locutores do sistema
+                          </p>
+                          <Input
+                            type="text"
+                            placeholder="Pesquisar por nome, email, sotaque ou região..."
+                            value={searchLocutor}
+                            onChange={(e) => setSearchLocutor(e.target.value)}
+                            className="max-w-md"
+                            data-testid="input-search-locutor"
+                          />
+                        </div>
+                        <div>
+                          {filteredLocutores.length > 0 ? (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Nome</TableHead>
+                                  <TableHead>Gênero</TableHead>
+                                  <TableHead>Idade</TableHead>
+                                  <TableHead>Região</TableHead>
+                                  <TableHead>Sotaque</TableHead>
+                                  <TableHead>Valor/min</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredLocutores.map((locutor) => (
+                                  <TableRow key={locutor.id} data-testid={`row-locutor-${locutor.id}`}>
+                                    <TableCell className="font-medium">{locutor.nome}</TableCell>
+                                    <TableCell>{locutor.genero}</TableCell>
+                                    <TableCell>{locutor.faixaEtaria}</TableCell>
+                                    <TableCell>{locutor.regiao}</TableCell>
+                                    <TableCell>{locutor.sotaque}</TableCell>
+                                    <TableCell>
+                                      {locutor.valorPorMinuto ? `R$ ${(locutor.valorPorMinuto / 100).toFixed(2)}` : "—"}
+                                    </TableCell>
+                                    <TableCell>
+                                      {locutor.disponivel ? (
+                                        <span className="text-green-600">Disponível</span>
+                                      ) : (
+                                        <span className="text-gray-400">Indisponível</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      {user?.papel === "Admin" && (
+                                        <div className="flex justify-end space-x-2">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                              setSelectedLocutorForAudio(locutor);
+                                              setAudioSamplesDialogOpen(true);
+                                            }}
+                                            data-testid={`button-audio-samples-${locutor.id}`}
+                                            title="Gerenciar amostras de áudio"
+                                          >
+                                            <Music className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleEditLocutor(locutor)}
+                                            data-testid={`button-edit-locutor-${locutor.id}`}
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                data-testid={`button-delete-locutor-${locutor.id}`}
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  Tem certeza que deseja remover o locutor "{locutor.nome}"? Esta ação não pode ser desfeita.
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                  onClick={() => handleDeleteLocutor(locutor.id)}
+                                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                  data-testid={`confirm-delete-locutor-${locutor.id}`}
+                                                >
+                                                  Remover
+                                                </AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          ) : (
+                            <div className="text-center py-8" data-testid="empty-locutores">
+                              <Mic className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                              <p className="text-muted-foreground">
+                                Nenhum locutor cadastrado ainda.
+                              </p>
+                              <p className="text-sm text-muted-foreground mt-2">
+                                Clique em "Novo Locutor" para adicionar o primeiro locutor.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                </Accordion>
+              </motion.div>
+            </motion.div>
           </div>
         </main>
       </div>
@@ -863,7 +1307,7 @@ export default function DatabasePage() {
                   Preencha as informações do novo cliente.
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="grid gap-4 py-4">
                 <FormField
                   control={createForm.control}
@@ -872,9 +1316,9 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Nome *</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Nome do cliente" 
-                          {...field} 
+                        <Input
+                          placeholder="Nome do cliente"
+                          {...field}
                           data-testid="input-create-nome"
                         />
                       </FormControl>
@@ -882,7 +1326,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={createForm.control}
                   name="email"
@@ -890,9 +1334,9 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input 
+                        <Input
                           type="email"
-                          placeholder="email@cliente.com" 
+                          placeholder="email@cliente.com"
                           {...field}
                           value={field.value || ""}
                           data-testid="input-create-email"
@@ -902,7 +1346,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={createForm.control}
                   name="telefone"
@@ -910,8 +1354,8 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Telefone</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="(11) 99999-9999" 
+                        <Input
+                          placeholder="(11) 99999-9999"
                           {...field}
                           value={field.value || ""}
                           data-testid="input-create-telefone"
@@ -921,7 +1365,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={createForm.control}
                   name="empresa"
@@ -929,8 +1373,8 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Nome do Responsável</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Nome do responsável" 
+                        <Input
+                          placeholder="Nome do responsável"
                           {...field}
                           value={field.value || ""}
                           data-testid="input-create-empresa"
@@ -940,7 +1384,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={createForm.control}
                   name="backgroundColor"
@@ -949,13 +1393,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor de Fundo</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-create-bg-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#3b82f6"
@@ -968,7 +1412,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={createForm.control}
                   name="textColor"
@@ -977,13 +1421,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor do Texto</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-create-text-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#ffffff"
@@ -1000,11 +1444,11 @@ export default function DatabasePage() {
                 {/* Preview */}
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium">Preview:</span>
-                  <div 
+                  <div
                     className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                    style={{ 
-                      backgroundColor: createForm.watch("backgroundColor") || "#3b82f6", 
-                      color: createForm.watch("textColor") || "#ffffff" 
+                    style={{
+                      backgroundColor: createForm.watch("backgroundColor") || "#3b82f6",
+                      color: createForm.watch("textColor") || "#ffffff"
                     }}
                     data-testid="client-preview"
                   >
@@ -1012,10 +1456,10 @@ export default function DatabasePage() {
                   </div>
                 </div>
               </div>
-              
+
               <DialogFooter>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={createMutation.isPending}
                   data-testid="button-create-submit"
                 >
@@ -1038,7 +1482,7 @@ export default function DatabasePage() {
                   Atualize as informações do cliente.
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="grid gap-4 py-4">
                 <FormField
                   control={editForm.control}
@@ -1047,9 +1491,9 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Nome *</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Nome do cliente" 
-                          {...field} 
+                        <Input
+                          placeholder="Nome do cliente"
+                          {...field}
                           data-testid="input-edit-nome"
                         />
                       </FormControl>
@@ -1057,7 +1501,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={editForm.control}
                   name="email"
@@ -1065,9 +1509,9 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input 
+                        <Input
                           type="email"
-                          placeholder="email@cliente.com" 
+                          placeholder="email@cliente.com"
                           {...field}
                           value={field.value || ""}
                           data-testid="input-edit-email"
@@ -1077,7 +1521,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={editForm.control}
                   name="telefone"
@@ -1085,8 +1529,8 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Telefone</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="(11) 99999-9999" 
+                        <Input
+                          placeholder="(11) 99999-9999"
                           {...field}
                           value={field.value || ""}
                           data-testid="input-edit-telefone"
@@ -1096,7 +1540,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={editForm.control}
                   name="empresa"
@@ -1104,8 +1548,8 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Nome do Responsável</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Nome do responsável" 
+                        <Input
+                          placeholder="Nome do responsável"
                           {...field}
                           value={field.value || ""}
                           data-testid="input-edit-empresa"
@@ -1115,7 +1559,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={editForm.control}
                   name="backgroundColor"
@@ -1124,13 +1568,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor de Fundo</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-edit-bg-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#3b82f6"
@@ -1143,7 +1587,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={editForm.control}
                   name="textColor"
@@ -1152,13 +1596,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor do Texto</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-edit-text-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#ffffff"
@@ -1175,11 +1619,11 @@ export default function DatabasePage() {
                 {/* Preview */}
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium">Preview:</span>
-                  <div 
+                  <div
                     className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                    style={{ 
-                      backgroundColor: editForm.watch("backgroundColor") || "#3b82f6", 
-                      color: editForm.watch("textColor") || "#ffffff" 
+                    style={{
+                      backgroundColor: editForm.watch("backgroundColor") || "#3b82f6",
+                      color: editForm.watch("textColor") || "#ffffff"
                     }}
                     data-testid="client-edit-preview"
                   >
@@ -1187,10 +1631,10 @@ export default function DatabasePage() {
                   </div>
                 </div>
               </div>
-              
+
               <DialogFooter>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={updateMutation.isPending}
                   data-testid="button-edit-submit"
                 >
@@ -1214,7 +1658,7 @@ export default function DatabasePage() {
                   Crie uma nova categoria de vídeo com cores personalizadas.
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="grid gap-4 py-4">
                 <FormField
                   control={categoryForm.control}
@@ -1223,9 +1667,9 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Nome da Categoria *</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Digite o nome da categoria" 
-                          {...field} 
+                        <Input
+                          placeholder="Digite o nome da categoria"
+                          {...field}
                           data-testid="input-category-name"
                         />
                       </FormControl>
@@ -1233,7 +1677,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={categoryForm.control}
                   name="backgroundColor"
@@ -1242,13 +1686,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor de Fundo</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-category-bg-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#FF0000"
@@ -1261,7 +1705,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={categoryForm.control}
                   name="textColor"
@@ -1270,13 +1714,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor do Texto</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-category-text-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#FFFFFF"
@@ -1293,11 +1737,11 @@ export default function DatabasePage() {
                 {/* Preview */}
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium">Preview:</span>
-                  <div 
+                  <div
                     className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                    style={{ 
-                      backgroundColor: categoryForm.watch("backgroundColor") || "#3b82f6", 
-                      color: categoryForm.watch("textColor") || "#ffffff" 
+                    style={{
+                      backgroundColor: categoryForm.watch("backgroundColor") || "#3b82f6",
+                      color: categoryForm.watch("textColor") || "#ffffff"
                     }}
                     data-testid="category-preview"
                   >
@@ -1305,10 +1749,10 @@ export default function DatabasePage() {
                   </div>
                 </div>
               </div>
-              
+
               <DialogFooter>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={createCategoryMutation.isPending}
                   data-testid="button-category-submit"
                 >
@@ -1331,7 +1775,7 @@ export default function DatabasePage() {
                   Atualize as informações da categoria com cores personalizadas.
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="grid gap-4 py-4">
                 <FormField
                   control={editCategoryForm.control}
@@ -1340,9 +1784,9 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Nome *</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Nome da categoria" 
-                          {...field} 
+                        <Input
+                          placeholder="Nome da categoria"
+                          {...field}
                           data-testid="input-edit-category-nome"
                         />
                       </FormControl>
@@ -1350,7 +1794,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={editCategoryForm.control}
                   name="backgroundColor"
@@ -1359,13 +1803,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor de Fundo</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-edit-category-bg-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#3b82f6"
@@ -1378,7 +1822,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={editCategoryForm.control}
                   name="textColor"
@@ -1387,13 +1831,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor do Texto</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-edit-category-text-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#ffffff"
@@ -1410,11 +1854,11 @@ export default function DatabasePage() {
                 {/* Preview */}
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium">Preview:</span>
-                  <div 
+                  <div
                     className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                    style={{ 
-                      backgroundColor: editCategoryForm.watch("backgroundColor") || "#3b82f6", 
-                      color: editCategoryForm.watch("textColor") || "#ffffff" 
+                    style={{
+                      backgroundColor: editCategoryForm.watch("backgroundColor") || "#3b82f6",
+                      color: editCategoryForm.watch("textColor") || "#ffffff"
                     }}
                     data-testid="category-edit-preview"
                   >
@@ -1422,10 +1866,10 @@ export default function DatabasePage() {
                   </div>
                 </div>
               </div>
-              
+
               <DialogFooter>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={updateCategoryMutation.isPending}
                   data-testid="button-edit-category-submit"
                 >
@@ -1446,7 +1890,7 @@ export default function DatabasePage() {
               Adicione um novo empreendimento ao banco de dados.
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...empreendimentoForm}>
             <form onSubmit={empreendimentoForm.handleSubmit(onCreateEmpreendimentoSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 gap-4">
@@ -1496,7 +1940,7 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Descrição (Opcional)</FormLabel>
                       <FormControl>
-                        <Textarea 
+                        <Textarea
                           placeholder="Digite uma descrição para o empreendimento"
                           {...field}
                           data-testid="input-empreendimento-descricao"
@@ -1515,13 +1959,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor de Fundo</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-empreendimento-bg-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#3b82f6"
@@ -1534,7 +1978,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={empreendimentoForm.control}
                   name="textColor"
@@ -1543,13 +1987,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor do Texto</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-empreendimento-text-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#ffffff"
@@ -1566,11 +2010,11 @@ export default function DatabasePage() {
                 {/* Preview */}
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium">Preview:</span>
-                  <div 
+                  <div
                     className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                    style={{ 
-                      backgroundColor: empreendimentoForm.watch("backgroundColor") || "#3b82f6", 
-                      color: empreendimentoForm.watch("textColor") || "#ffffff" 
+                    style={{
+                      backgroundColor: empreendimentoForm.watch("backgroundColor") || "#3b82f6",
+                      color: empreendimentoForm.watch("textColor") || "#ffffff"
                     }}
                     data-testid="empreendimento-preview"
                   >
@@ -1578,10 +2022,10 @@ export default function DatabasePage() {
                   </div>
                 </div>
               </div>
-              
+
               <DialogFooter>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={createEmpreendimentoMutation.isPending}
                   data-testid="button-create-empreendimento-submit"
                 >
@@ -1602,7 +2046,7 @@ export default function DatabasePage() {
               Atualize as informações do empreendimento.
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...editEmpreendimentoForm}>
             <form onSubmit={editEmpreendimentoForm.handleSubmit(onEditEmpreendimentoSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 gap-4">
@@ -1652,7 +2096,7 @@ export default function DatabasePage() {
                     <FormItem>
                       <FormLabel>Descrição (Opcional)</FormLabel>
                       <FormControl>
-                        <Textarea 
+                        <Textarea
                           placeholder="Digite uma descrição para o empreendimento"
                           {...field}
                           data-testid="input-edit-empreendimento-descricao"
@@ -1671,13 +2115,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor de Fundo</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-edit-empreendimento-bg-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#3b82f6"
@@ -1690,7 +2134,7 @@ export default function DatabasePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={editEmpreendimentoForm.control}
                   name="textColor"
@@ -1699,13 +2143,13 @@ export default function DatabasePage() {
                       <FormLabel>Cor do Texto</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
-                          <Input 
+                          <Input
                             type="color"
                             {...field}
                             className="w-16 h-10 p-1 border rounded"
                             data-testid="input-edit-empreendimento-text-color"
                           />
-                          <Input 
+                          <Input
                             type="text"
                             {...field}
                             placeholder="#ffffff"
@@ -1722,11 +2166,11 @@ export default function DatabasePage() {
                 {/* Preview */}
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium">Preview:</span>
-                  <div 
+                  <div
                     className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                    style={{ 
-                      backgroundColor: editEmpreendimentoForm.watch("backgroundColor") || "#3b82f6", 
-                      color: editEmpreendimentoForm.watch("textColor") || "#ffffff" 
+                    style={{
+                      backgroundColor: editEmpreendimentoForm.watch("backgroundColor") || "#3b82f6",
+                      color: editEmpreendimentoForm.watch("textColor") || "#ffffff"
                     }}
                     data-testid="empreendimento-edit-preview"
                   >
@@ -1734,10 +2178,10 @@ export default function DatabasePage() {
                   </div>
                 </div>
               </div>
-              
+
               <DialogFooter>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={updateEmpreendimentoMutation.isPending}
                   data-testid="button-edit-empreendimento-submit"
                 >
@@ -1746,6 +2190,937 @@ export default function DatabasePage() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Locutor Dialog */}
+      <Dialog open={createLocutorDialogOpen} onOpenChange={setCreateLocutorDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <Form {...locutorForm}>
+            <form onSubmit={locutorForm.handleSubmit(onCreateLocutorSubmit)}>
+              <DialogHeader>
+                <DialogTitle>Adicionar Locutor</DialogTitle>
+                <DialogDescription>
+                  Preencha as informações do novo locutor.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-4">
+                {/* Informações Básicas */}
+                <div className="space-y-4">
+                  <h3 className="font-medium text-sm">Informações Básicas</h3>
+
+                  <FormField
+                    control={locutorForm.control}
+                    name="nome"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome do locutor" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={locutorForm.control}
+                    name="biografia"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Biografia</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Breve biografia do locutor"
+                            {...field}
+                            value={field.value || ""}
+                            rows={3}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={locutorForm.control}
+                    name="fotoUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>URL da Foto</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="https://..."
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Características */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-medium text-sm">Características</h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={locutorForm.control}
+                      name="genero"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Gênero *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Masculino">Masculino</SelectItem>
+                              <SelectItem value="Feminino">Feminino</SelectItem>
+                              <SelectItem value="Outro">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={locutorForm.control}
+                      name="faixaEtaria"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Faixa Etária *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Jovem">Jovem</SelectItem>
+                              <SelectItem value="Adulto">Adulto</SelectItem>
+                              <SelectItem value="Idoso">Idoso</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={locutorForm.control}
+                    name="idadePorVoz"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Idade por Voz</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: 25-35 anos"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={locutorForm.control}
+                      name="regiao"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Região *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Sul">Sul</SelectItem>
+                              <SelectItem value="Sudeste">Sudeste</SelectItem>
+                              <SelectItem value="Norte">Norte</SelectItem>
+                              <SelectItem value="Nordeste">Nordeste</SelectItem>
+                              <SelectItem value="Centro-Oeste">Centro-Oeste</SelectItem>
+                              <SelectItem value="Nacional">Nacional</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={locutorForm.control}
+                      name="sotaque"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sotaque *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: Neutro, Carioca..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={locutorForm.control}
+                    name="idiomas"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Idiomas</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: Português, Inglês, Espanhol (separados por vírgula)"
+                            {...field}
+                            value={field.value?.join(", ") || ""}
+                            onChange={(e) => field.onChange(e.target.value.split(",").map(i => i.trim()))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Valores */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-medium text-sm">Valores (em Reais)</h3>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={locutorForm.control}
+                      name="valorPorPalavra"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Por Palavra</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={field.value ? (field.value / 100).toFixed(2) : ""}
+                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={locutorForm.control}
+                      name="valorMinimo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Valor Mínimo</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={field.value ? (field.value / 100).toFixed(2) : ""}
+                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={locutorForm.control}
+                      name="valorPorMinuto"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Por Minuto</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={field.value ? (field.value / 100).toFixed(2) : ""}
+                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Contato */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-medium text-sm">Contato</h3>
+
+                  <FormField
+                    control={locutorForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="email@exemplo.com"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={locutorForm.control}
+                      name="telefone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="(11) 99999-9999"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={locutorForm.control}
+                      name="instagram"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Instagram</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="@usuario"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-medium text-sm">Status</h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={locutorForm.control}
+                      name="disponivel"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>Disponível</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={locutorForm.control}
+                      name="ativo"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>Ativo</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="submit"
+                  disabled={createLocutorMutation.isPending}
+                >
+                  {createLocutorMutation.isPending ? "Criando..." : "Criar Locutor"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Locutor Dialog */}
+      <Dialog open={!!editingLocutor} onOpenChange={() => setEditingLocutor(null)}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <Form {...editLocutorForm}>
+            <form onSubmit={editLocutorForm.handleSubmit(onEditLocutorSubmit)}>
+              <DialogHeader>
+                <DialogTitle>Editar Locutor</DialogTitle>
+                <DialogDescription>
+                  Atualize as informações do locutor.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-4">
+                {/* Informações Básicas */}
+                <div className="space-y-4">
+                  <h3 className="font-medium text-sm">Informações Básicas</h3>
+
+                  <FormField
+                    control={editLocutorForm.control}
+                    name="nome"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome do locutor" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editLocutorForm.control}
+                    name="biografia"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Biografia</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Breve biografia do locutor"
+                            {...field}
+                            value={field.value || ""}
+                            rows={3}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editLocutorForm.control}
+                    name="fotoUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>URL da Foto</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="https://..."
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Características */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-medium text-sm">Características</h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="genero"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Gênero *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Masculino">Masculino</SelectItem>
+                              <SelectItem value="Feminino">Feminino</SelectItem>
+                              <SelectItem value="Outro">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="faixaEtaria"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Faixa Etária *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Jovem">Jovem</SelectItem>
+                              <SelectItem value="Adulto">Adulto</SelectItem>
+                              <SelectItem value="Idoso">Idoso</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={editLocutorForm.control}
+                    name="idadePorVoz"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Idade por Voz</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: 25-35 anos"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="regiao"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Região *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Sul">Sul</SelectItem>
+                              <SelectItem value="Sudeste">Sudeste</SelectItem>
+                              <SelectItem value="Norte">Norte</SelectItem>
+                              <SelectItem value="Nordeste">Nordeste</SelectItem>
+                              <SelectItem value="Centro-Oeste">Centro-Oeste</SelectItem>
+                              <SelectItem value="Nacional">Nacional</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="sotaque"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sotaque *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: Neutro, Carioca..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={editLocutorForm.control}
+                    name="idiomas"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Idiomas</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: Português, Inglês, Espanhol (separados por vírgula)"
+                            {...field}
+                            value={field.value?.join(", ") || ""}
+                            onChange={(e) => field.onChange(e.target.value.split(",").map(i => i.trim()))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Valores */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-medium text-sm">Valores (em Reais)</h3>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="valorPorPalavra"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Por Palavra</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={field.value ? (field.value / 100).toFixed(2) : ""}
+                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="valorMinimo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Valor Mínimo</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={field.value ? (field.value / 100).toFixed(2) : ""}
+                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="valorPorMinuto"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Por Minuto</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={field.value ? (field.value / 100).toFixed(2) : ""}
+                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Contato */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-medium text-sm">Contato</h3>
+
+                  <FormField
+                    control={editLocutorForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="email@exemplo.com"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="telefone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="(11) 99999-9999"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="instagram"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Instagram</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="@usuario"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-medium text-sm">Status</h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="disponivel"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>Disponível</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editLocutorForm.control}
+                      name="ativo"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>Ativo</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="submit"
+                  disabled={updateLocutorMutation.isPending}
+                >
+                  {updateLocutorMutation.isPending ? "Atualizando..." : "Atualizar Locutor"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Audio Samples Dialog */}
+      <Dialog open={audioSamplesDialogOpen} onOpenChange={(open) => {
+        setAudioSamplesDialogOpen(open);
+        if (!open) {
+          setSelectedLocutorForAudio(null);
+          setPlayingAudioId(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Amostras de Áudio - {selectedLocutorForAudio?.nome}</DialogTitle>
+            <DialogDescription>
+              Gerencie as amostras de áudio do locutor. Faça upload de novos arquivos ou ouça as amostras existentes.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Samples List */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium text-sm">Amostras Cadastradas</h3>
+                <span className="text-sm text-muted-foreground">
+                  {audioSamples.length} {audioSamples.length === 1 ? 'amostra' : 'amostras'}
+                </span>
+              </div>
+
+              {audioSamples.length > 0 ? (
+                <div className="space-y-3">
+                  {audioSamples.map((sample) => (
+                    <div key={sample.id} className="border rounded-lg p-4 bg-card hover:bg-accent/5 transition-colors">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Music className="h-4 w-4 text-primary" />
+                            <h4 className="font-semibold">{sample.titulo}</h4>
+                          </div>
+                          {sample.descricao && (
+                            <p className="text-sm text-muted-foreground mt-1 ml-6">{sample.descricao}</p>
+                          )}
+                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja remover esta amostra de áudio? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteAudioSample(sample.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Remover
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+
+                      <div className="flex items-center gap-3 bg-muted/50 p-3 rounded-md">
+                        <Button
+                          variant={playingAudioId === sample.id ? "default" : "secondary"}
+                          size="sm"
+                          onClick={() => handlePlayAudio(sample.id, sample.arquivoUrl)}
+                          className="flex items-center gap-2"
+                        >
+                          {playingAudioId === sample.id ? (
+                            <>
+                              <Pause className="h-4 w-4" />
+                              <span>Pausar</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4 ml-0.5" />
+                              <span>Reproduzir</span>
+                            </>
+                          )}
+                        </Button>
+                        <div className="flex-1 text-sm text-muted-foreground">
+                          {playingAudioId === sample.id ? "Reproduzindo..." : "Clique para ouvir"}
+                        </div>
+                        <audio
+                          id={`audio-${sample.id}`}
+                          src={sample.arquivoUrl}
+                          onEnded={() => setPlayingAudioId(null)}
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add More Button */}
+                  <div className="border-2 border-dashed rounded-lg p-4 hover:border-primary/50 hover:bg-accent/5 transition-all">
+                    <input
+                      type="file"
+                      accept="audio/mp3,audio/mpeg,audio/wav,audio/ogg,audio/webm"
+                      onChange={handleUploadAudio}
+                      disabled={uploadingAudio}
+                      className="hidden"
+                      id="audio-upload-more"
+                    />
+                    <label htmlFor="audio-upload-more" className="cursor-pointer">
+                      <div className="flex items-center justify-center gap-2 text-sm">
+                        <Plus className={`h-4 w-4 ${uploadingAudio ? 'text-muted-foreground' : 'text-primary'}`} />
+                        <span className="font-medium">
+                          {uploadingAudio ? 'Enviando...' : 'Adicionar outra amostra'}
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                  <input
+                    type="file"
+                    accept="audio/mp3,audio/mpeg,audio/wav,audio/ogg,audio/webm"
+                    onChange={handleUploadAudio}
+                    disabled={uploadingAudio}
+                    className="hidden"
+                    id="audio-upload"
+                  />
+                  <label htmlFor="audio-upload" className="cursor-pointer">
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="rounded-full bg-primary/10 p-4">
+                        <Upload className={`h-8 w-8 ${uploadingAudio ? 'text-muted-foreground' : 'text-primary'}`} />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-lg mb-1">
+                          {uploadingAudio ? 'Enviando...' : 'Adicionar primeira amostra'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Clique para selecionar um arquivo
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          MP3, WAV, OGG ou WEBM (máx. 50MB)
+                        </p>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

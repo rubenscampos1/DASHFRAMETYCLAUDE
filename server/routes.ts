@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
@@ -9,6 +10,9 @@ import { ObjectPermission } from "./objectAcl";
 import { z } from "zod";
 import PDFDocument from "pdfkit";
 import { log } from "./vite";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -25,6 +29,36 @@ function requireRole(roles: string[]) {
     next();
   };
 }
+
+// Configuração do Multer para upload de áudio
+const audioStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(process.cwd(), "uploads", "locutores");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const audioUpload = multer({
+  storage: audioStorage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo de arquivo não suportado. Use MP3, WAV, OGG ou WEBM.'));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -958,6 +992,472 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof ObjectNotFoundError) {
         return res.sendStatus(404);
       }
+      next(error);
+    }
+  });
+
+  // Locutores routes
+  app.get("/api/locutores", requireAuth, async (req, res, next) => {
+    try {
+      const { genero, faixaEtaria, regiao, disponivel } = req.query;
+      const filters: any = {};
+
+      if (genero) filters.genero = genero as string;
+      if (faixaEtaria) filters.faixaEtaria = faixaEtaria as string;
+      if (regiao) filters.regiao = regiao as string;
+      if (disponivel !== undefined) filters.disponivel = disponivel === 'true';
+
+      const locutores = await storage.getLocutores(filters);
+      res.json(locutores);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/locutores/:id", requireAuth, async (req, res, next) => {
+    try {
+      const locutor = await storage.getLocutor(req.params.id);
+      if (!locutor) {
+        return res.status(404).json({ message: "Locutor não encontrado" });
+      }
+      res.json(locutor);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/locutores", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const novoLocutor = await storage.createLocutor(req.body);
+      res.status(201).json(novoLocutor);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/locutores/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const locutor = await storage.updateLocutor(req.params.id, req.body);
+      res.json(locutor);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/locutores/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      await storage.deleteLocutor(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Estilos de Locução routes
+  app.get("/api/estilos-locucao", requireAuth, async (req, res, next) => {
+    try {
+      const estilos = await storage.getEstilosLocucao();
+      res.json(estilos);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/estilos-locucao", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const novoEstilo = await storage.createEstiloLocucao(req.body);
+      res.status(201).json(novoEstilo);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/estilos-locucao/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const estilo = await storage.updateEstiloLocucao(req.params.id, req.body);
+      res.json(estilo);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/estilos-locucao/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      await storage.deleteEstiloLocucao(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Amostras de Locutores routes
+  app.get("/api/locutores/:locutorId/amostras", requireAuth, async (req, res, next) => {
+    try {
+      const amostras = await storage.getAmostrasLocutor(req.params.locutorId);
+      res.json(amostras);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/locutores/:locutorId/amostras", requireAuth, requireRole(["Admin"]), audioUpload.single('audio'), async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Nenhum arquivo foi enviado" });
+      }
+
+      const { titulo, descricao, estiloId, destaque } = req.body;
+      const arquivoUrl = `/uploads/locutores/${req.file.filename}`;
+
+      const novaAmostra = await storage.createAmostraLocutor({
+        locutorId: req.params.locutorId,
+        titulo,
+        descricao: descricao || null,
+        estiloId: estiloId || null,
+        arquivoUrl,
+        duracao: null, // Pode ser calculado no frontend ou com uma lib
+        ordem: 0,
+        destaque: destaque === 'true' || destaque === true
+      });
+
+      res.status(201).json(novaAmostra);
+    } catch (error) {
+      // Se der erro, remove o arquivo que foi feito upload
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+      next(error);
+    }
+  });
+
+  app.put("/api/amostras/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const amostra = await storage.updateAmostraLocutor(req.params.id, req.body);
+      res.json(amostra);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/amostras/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const amostra = await storage.getAmostraLocutor(req.params.id);
+      if (amostra) {
+        // Remove o arquivo físico
+        const filePath = path.join(process.cwd(), amostra.arquivoUrl);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      await storage.deleteAmostraLocutor(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Servir arquivos estáticos de uploads
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+  // ==========================================
+  // MÚSICAS DO PROJETO
+  // ==========================================
+
+  app.get("/api/projetos/:projetoId/musicas", requireAuth, async (req, res, next) => {
+    try {
+      const musicas = await storage.getProjetoMusicas(req.params.projetoId);
+      res.json(musicas);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/projetos/:projetoId/musicas", requireAuth, async (req, res, next) => {
+    try {
+      console.log("[POST /api/projetos/:projetoId/musicas] projetoId:", req.params.projetoId);
+      console.log("[POST /api/projetos/:projetoId/musicas] body:", req.body);
+      const musica = await storage.createProjetoMusica({
+        ...req.body,
+        projetoId: req.params.projetoId,
+      });
+      console.log("[POST /api/projetos/:projetoId/musicas] created:", musica);
+      res.status(201).json(musica);
+    } catch (error) {
+      console.error("[POST /api/projetos/:projetoId/musicas] error:", error);
+      next(error);
+    }
+  });
+
+  app.put("/api/musicas/:id", requireAuth, async (req, res, next) => {
+    try {
+      const musica = await storage.updateProjetoMusica(req.params.id, req.body);
+      res.json(musica);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/musicas/:id", requireAuth, async (req, res, next) => {
+    try {
+      await storage.deleteProjetoMusica(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ==========================================
+  // LOCUTORES DO PROJETO
+  // ==========================================
+
+  app.get("/api/projetos/:projetoId/locutores", requireAuth, async (req, res, next) => {
+    try {
+      const locutores = await storage.getProjetoLocutores(req.params.projetoId);
+      res.json(locutores);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/projetos/:projetoId/locutores", requireAuth, async (req, res, next) => {
+    try {
+      console.log("[POST /api/projetos/:projetoId/locutores] projetoId:", req.params.projetoId);
+      console.log("[POST /api/projetos/:projetoId/locutores] body:", req.body);
+      const locutor = await storage.createProjetoLocutor({
+        ...req.body,
+        projetoId: req.params.projetoId,
+      });
+      console.log("[POST /api/projetos/:projetoId/locutores] created:", locutor);
+      res.status(201).json(locutor);
+    } catch (error) {
+      console.error("[POST /api/projetos/:projetoId/locutores] error:", error);
+      next(error);
+    }
+  });
+
+  app.put("/api/projeto-locutores/:id", requireAuth, async (req, res, next) => {
+    try {
+      const locutor = await storage.updateProjetoLocutor(req.params.id, req.body);
+      res.json(locutor);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/projeto-locutores/:id", requireAuth, async (req, res, next) => {
+    try {
+      await storage.deleteProjetoLocutor(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ==========================================
+  // ROTAS PÚBLICAS DO PORTAL DO CLIENTE
+  // ==========================================
+
+  // Buscar projeto por token (rota pública - sem autenticação)
+  app.get("/api/cliente/projeto/:token", async (req, res, next) => {
+    try {
+      const projeto = await storage.getProjetoByClientToken(req.params.token);
+
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado ou link inválido" });
+      }
+
+      // Buscar músicas e locutores do projeto
+      const musicas = await storage.getProjetoMusicas(projeto.id);
+      const locutores = await storage.getProjetoLocutores(projeto.id);
+
+      // Retornar apenas as informações necessárias para o cliente
+      const projetoCliente = {
+        id: projeto.id,
+        sequencialId: projeto.sequencialId,
+        titulo: projeto.titulo,
+        descricao: projeto.descricao,
+        status: projeto.status,
+        dataCriacao: projeto.dataCriacao,
+        dataPrevistaEntrega: projeto.dataPrevistaEntrega,
+        updatedAt: projeto.updatedAt,
+        tipoVideo: projeto.tipoVideo,
+        cliente: projeto.cliente,
+        empreendimento: projeto.empreendimento,
+        // Arrays de músicas e locutores para aprovação
+        musicas,
+        locutores,
+        // URLs antigas para aprovação (mantidas para compatibilidade)
+        musicaUrl: projeto.musicaUrl,
+        musicaAprovada: projeto.musicaAprovada,
+        musicaFeedback: projeto.musicaFeedback,
+        musicaDataAprovacao: projeto.musicaDataAprovacao,
+        locucaoUrl: projeto.locucaoUrl,
+        locucaoAprovada: projeto.locucaoAprovada,
+        locucaoFeedback: projeto.locucaoFeedback,
+        locucaoDataAprovacao: projeto.locucaoDataAprovacao,
+        videoFinalUrl: projeto.videoFinalUrl,
+        videoFinalAprovado: projeto.videoFinalAprovado,
+        videoFinalFeedback: projeto.videoFinalFeedback,
+        videoFinalDataAprovacao: projeto.videoFinalDataAprovacao,
+      };
+
+      res.json(projetoCliente);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Aprovar/Reprovar Música
+  app.post("/api/cliente/projeto/:token/aprovar-musica", async (req, res, next) => {
+    try {
+      const { aprovado, feedback } = req.body;
+
+      if (typeof aprovado !== 'boolean') {
+        return res.status(400).json({ message: "Campo 'aprovado' é obrigatório e deve ser boolean" });
+      }
+
+      const projeto = await storage.aprovarMusica(req.params.token, aprovado, feedback);
+
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      res.json({
+        message: aprovado ? "Música aprovada com sucesso!" : "Solicitação de alteração enviada",
+        musicaAprovada: projeto.musicaAprovada,
+        musicaFeedback: projeto.musicaFeedback
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Aprovar/Reprovar Locução
+  app.post("/api/cliente/projeto/:token/aprovar-locucao", async (req, res, next) => {
+    try {
+      const { aprovado, feedback } = req.body;
+
+      if (typeof aprovado !== 'boolean') {
+        return res.status(400).json({ message: "Campo 'aprovado' é obrigatório e deve ser boolean" });
+      }
+
+      const projeto = await storage.aprovarLocucao(req.params.token, aprovado, feedback);
+
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      res.json({
+        message: aprovado ? "Locução aprovada com sucesso!" : "Solicitação de alteração enviada",
+        locucaoAprovada: projeto.locucaoAprovada,
+        locucaoFeedback: projeto.locucaoFeedback
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Aprovar/Reprovar Vídeo Final
+  app.post("/api/cliente/projeto/:token/aprovar-video", async (req, res, next) => {
+    try {
+      const { aprovado, feedback } = req.body;
+
+      if (typeof aprovado !== 'boolean') {
+        return res.status(400).json({ message: "Campo 'aprovado' é obrigatório e deve ser boolean" });
+      }
+
+      const projeto = await storage.aprovarVideoFinal(req.params.token, aprovado, feedback);
+
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      res.json({
+        message: aprovado ? "Vídeo aprovado com sucesso!" : "Solicitação de alteração enviada",
+        videoFinalAprovado: projeto.videoFinalAprovado,
+        videoFinalFeedback: projeto.videoFinalFeedback
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Aprovar/Reprovar Música Individual (novo sistema com múltiplas músicas)
+  app.post("/api/cliente/projeto/:token/musicas/:musicaId/aprovar", async (req, res, next) => {
+    try {
+      const { aprovado, feedback } = req.body;
+
+      if (typeof aprovado !== 'boolean') {
+        return res.status(400).json({ message: "Campo 'aprovado' é obrigatório e deve ser boolean" });
+      }
+
+      // Verificar se o token é válido e pertence ao projeto da música
+      const projeto = await storage.getProjetoByClientToken(req.params.token);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado ou link inválido" });
+      }
+
+      const musica = await storage.getProjetoMusica(req.params.musicaId);
+      if (!musica || musica.projetoId !== projeto.id) {
+        return res.status(404).json({ message: "Música não encontrada" });
+      }
+
+      const musicaAtualizada = await storage.updateProjetoMusica(req.params.musicaId, {
+        aprovada: aprovado,
+        feedback: feedback || null,
+        dataAprovacao: new Date(),
+      });
+
+      res.json({
+        message: aprovado ? "Música aprovada com sucesso!" : "Solicitação de alteração enviada",
+        musica: musicaAtualizada,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Aprovar/Reprovar Locutor Individual (novo sistema com múltiplos locutores)
+  app.post("/api/cliente/projeto/:token/locutores/:locutorId/aprovar", async (req, res, next) => {
+    try {
+      const { aprovado, feedback } = req.body;
+
+      if (typeof aprovado !== 'boolean') {
+        return res.status(400).json({ message: "Campo 'aprovado' é obrigatório e deve ser boolean" });
+      }
+
+      // Verificar se o token é válido e pertence ao projeto do locutor
+      const projeto = await storage.getProjetoByClientToken(req.params.token);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado ou link inválido" });
+      }
+
+      const locutor = await storage.getProjetoLocutor(req.params.locutorId);
+      if (!locutor || locutor.projetoId !== projeto.id) {
+        return res.status(404).json({ message: "Locutor não encontrado" });
+      }
+
+      const locutorAtualizado = await storage.updateProjetoLocutor(req.params.locutorId, {
+        aprovado: aprovado,
+        feedback: feedback || null,
+        dataAprovacao: new Date(),
+      });
+
+      res.json({
+        message: aprovado ? "Locutor aprovado com sucesso!" : "Solicitação de alteração enviada",
+        locutor: locutorAtualizado,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Regenerar token do cliente (rota protegida para admin)
+  app.post("/api/projetos/:id/regenerar-token", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const novoToken = await storage.regenerarClientToken(req.params.id);
+      res.json({ clientToken: novoToken });
+    } catch (error) {
       next(error);
     }
   });

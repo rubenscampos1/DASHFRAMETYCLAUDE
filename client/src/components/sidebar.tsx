@@ -83,7 +83,7 @@ export function Sidebar() {
 
   return (
     <div className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 transition-all duration-300 ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}`}>
-      <div className="flex flex-col flex-grow bg-card border-r border-border pt-5 pb-4 overflow-y-auto">
+      <div className="flex flex-col flex-grow glass-sidebar border-r border-border pt-5 pb-4 overflow-y-auto">
         <div className={`flex-shrink-0 ${isCollapsed ? 'px-4' : 'px-6'}`}>
           {isCollapsed ? (
             <div className="flex justify-center">

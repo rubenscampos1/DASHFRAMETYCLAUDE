@@ -18,10 +18,15 @@ import Relatorios from "@/pages/relatorios";
 import DatabasePage from "@/pages/database";
 import NotasPage from "@/pages/notas";
 import TimelapsePage from "@/pages/timelapse";
+import ClientePortal from "@/pages/cliente-portal";
 
 function Router() {
   return (
     <Switch>
+      {/* Rota pública do cliente - sem autenticação */}
+      <Route path="/cliente/:token" component={ClientePortal} />
+
+      {/* Rotas protegidas */}
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/metricas" component={Metrics} />

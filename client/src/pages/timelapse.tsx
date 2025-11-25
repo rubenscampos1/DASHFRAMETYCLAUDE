@@ -35,6 +35,8 @@ import { format } from "date-fns";
 import { Sidebar } from "@/components/sidebar";
 import { MobileTopbar } from "@/components/mobile-topbar";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
+import { motion } from "framer-motion";
+import { containerVariants, itemVariants } from "@/components/motion-wrapper";
 
 type Cliente = {
   id: string;
@@ -273,8 +275,16 @@ export default function TimelapsePage() {
 
       <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
         <main className="flex-1 overflow-y-auto">
-          <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="p-6 md:p-8 max-w-7xl mx-auto space-y-6"
+          >
+      <motion.div
+        variants={itemVariants}
+        className="flex items-center justify-between"
+      >
         <div>
           <h1 className="text-3xl font-bold">Timelapses</h1>
           <p className="text-muted-foreground">
@@ -459,8 +469,9 @@ export default function TimelapsePage() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+      </motion.div>
 
+      <motion.div variants={itemVariants}>
       {isLoading ? (
         <div className="text-center py-12">Carregando...</div>
       ) : timelapses.length === 0 ? (
@@ -566,7 +577,8 @@ export default function TimelapsePage() {
           ))}
         </div>
       )}
-        </div>
+      </motion.div>
+        </motion.div>
       </main>
     </div>
   </div>

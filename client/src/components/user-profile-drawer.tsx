@@ -207,9 +207,9 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent 
-          side="left" 
-          className="w-[450px] sm:w-[600px] p-0 flex flex-col bg-background"
+        <SheetContent
+          side="left"
+          className="w-[450px] sm:w-[600px] p-0 flex flex-col glass-sidebar"
           style={{ left: isCollapsed ? "80px" : "256px", bottom: "20px", top: "auto", height: "calc(85vh - 20px)", maxHeight: "calc(100vh - 40px)" }}
         >
           <SheetHeader className="p-6 pb-4 border-b">
@@ -316,8 +316,8 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
                     >
                       Cancelar
                     </Button>
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={updateProfileMutation.isPending}
                       data-testid="button-profile-save"
                     >
@@ -348,19 +348,18 @@ export function UserProfileDrawer({ isCollapsed }: UserProfileDrawerProps) {
                               {u.nome.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          
+
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm text-foreground truncate leading-tight">{u.nome}</p>
                             <p className="text-xs text-muted-foreground truncate mt-0.5">{u.email}</p>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1 ${
-                              u.papel === "Admin" ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
-                              u.papel === "Gestor" ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" :
-                              "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-                            }`}>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1 ${u.papel === "Admin" ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
+                                u.papel === "Gestor" ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" :
+                                  "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                              }`}>
                               {u.papel}
                             </span>
                           </div>
-                          
+
                           <div className="flex items-center gap-1.5 flex-shrink-0">
                             <Button
                               variant="outline"
