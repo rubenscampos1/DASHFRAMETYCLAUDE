@@ -1,3 +1,12 @@
+// Debug: Log environment variables at startup (for Render deployment troubleshooting)
+console.log('=== Environment Variables at Startup ===');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('DATABASE_URL preview:', process.env.DATABASE_URL?.substring(0, 50) + '...');
+console.log('SESSION_SECRET exists:', !!process.env.SESSION_SECRET);
+console.log('========================================');
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
