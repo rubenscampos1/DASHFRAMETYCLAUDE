@@ -149,7 +149,7 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
         
         if (matchesFilter(filters)) {
           queryClient.setQueryData(key, (old: any) => {
-            return old ? [tempProjeto, ...old] : [tempProjeto];
+            return Array.isArray(old) ? [tempProjeto, ...old] : [tempProjeto];
           });
         }
       });
@@ -159,7 +159,7 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
     onSuccess: (data) => {
       queryClient.getQueriesData({ queryKey: ["/api/projetos"] }).forEach(([key]) => {
         queryClient.setQueryData(key, (old: any) => {
-          if (!old) return old;
+          if (!Array.isArray(old)) return old;
           const hasTemp = old.some((p: any) => p.id.toString().startsWith('temp-'));
           if (hasTemp) {
             return old.map((p: any) => p.id.toString().startsWith('temp-') ? data : p);

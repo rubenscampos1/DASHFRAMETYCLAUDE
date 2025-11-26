@@ -18,6 +18,9 @@ import {
   Loader2,
   Play,
   Pause,
+  MessageCircle,
+  Instagram,
+  Globe,
   ExternalLink,
   AlertTriangle,
 } from "lucide-react";
@@ -40,7 +43,7 @@ interface ProjetoCliente {
   status: string;
   dataCriacao: string;
   dataPrevistaEntrega: string | null;
-  updatedAt: string;
+  statusChangedAt: string;
   tipoVideo: {
     nome: string;
     backgroundColor: string;
@@ -257,8 +260,34 @@ export default function ClientePortal() {
     return colors[status] || "bg-gray-500";
   };
 
-  // Calcular dias desde a última atualização
-  const diasSemAtualizacao = differenceInDays(new Date(), new Date(projeto.updatedAt));
+  // Calcular dias no status atual (usa statusChangedAt, fallback para dataCriacao se não existir)
+  console.log('DEBUG - statusChangedAt:', projeto.statusChangedAt);
+  console.log('DEBUG - dataCriacao:', projeto.dataCriacao);
+  const statusDate = projeto.statusChangedAt && new Date(projeto.statusChangedAt).getTime() > 0
+    ? new Date(projeto.statusChangedAt)
+    : new Date(projeto.dataCriacao);
+  console.log('DEBUG - statusDate usado:', statusDate);
+  const diasNoStatusAtual = differenceInDays(new Date(), statusDate);
+  console.log('DEBUG - dias no status atual:', diasNoStatusAtual);
+
+  // Calcular dias desde a criação
+  const diasDesdeCriacao = differenceInDays(new Date(), new Date(projeto.dataCriacao));
+
+  // Timeline de status do projeto
+  const statusTimeline = [
+    { nome: "Briefing", cor: "bg-slate-500", ordem: 1 },
+    { nome: "Roteiro", cor: "bg-blue-500", ordem: 2 },
+    { nome: "Captação", cor: "bg-purple-500", ordem: 3 },
+    { nome: "Edição", cor: "bg-orange-500", ordem: 4 },
+    { nome: "Aguardando Aprovação", cor: "bg-yellow-500", ordem: 5 },
+    { nome: "Entrega", cor: "bg-green-500", ordem: 6 },
+  ];
+
+  // Encontrar posição atual na timeline
+  const statusAtualIndex = statusTimeline.findIndex(s => s.nome === projeto.status);
+  const progressoPercentual = statusAtualIndex >= 0
+    ? ((statusAtualIndex + 1) / statusTimeline.length) * 100
+    : 0;
 
   const ApprovalStatus = ({ approved }: { approved: boolean | null }) => {
     if (approved === null) {
@@ -286,85 +315,130 @@ export default function ClientePortal() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
-      <div className="container max-w-4xl mx-auto p-3 sm:p-4 space-y-3">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted overflow-x-hidden w-full">
+      <div className="container max-w-4xl mx-auto p-3 sm:p-4 space-y-3 overflow-x-hidden">
         {/* Header */}
         <Card className="border-none shadow bg-gradient-to-r from-primary/10 via-primary/5 to-background">
-          <CardHeader className="space-y-2 p-4">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="secondary" className="font-mono text-xs">
-                    #{projeto.sequencialId.toString().padStart(4, '0')}
-                  </Badge>
-                  <Badge
-                    className={`${getStatusColor(projeto.status)} text-white text-sm px-2 py-0.5`}
-                  >
-                    {projeto.status}
-                  </Badge>
+          <CardHeader className="p-3 sm:p-4">
+            {/* Empreendimento e Cliente em destaque */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              {projeto.empreendimento && (
+                <div className="flex items-center gap-2 text-primary">
+                  <Building2 className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
+                  <p className="font-bold text-base sm:text-xl">{projeto.empreendimento.nome}</p>
                 </div>
-                <CardTitle className="text-xl sm:text-2xl">{projeto.titulo}</CardTitle>
-                {projeto.descricao && (
-                  <CardDescription className="text-sm">{projeto.descricao}</CardDescription>
-                )}
+              )}
+
+              {projeto.cliente && (
+                <div className="flex items-center gap-2 text-primary">
+                  <User className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
+                  <p className="font-bold text-base sm:text-xl">{projeto.cliente.nome}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Descrição se existir */}
+            {projeto.descricao && (
+              <CardDescription className="text-xs sm:text-sm pt-1">{projeto.descricao}</CardDescription>
+            )}
+          </CardHeader>
+        </Card>
+
+        {/* Barra de Progresso do Projeto */}
+        <Card>
+          <CardHeader className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold">Progresso do Projeto</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Status atual: <strong>{projeto.status}</strong>
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-primary">{diasNoStatusAtual}</div>
+                <p className="text-xs text-muted-foreground">
+                  {diasNoStatusAtual === 1 ? 'dia' : 'dias'} neste status
+                </p>
               </div>
             </div>
 
-            {/* Alerta de dias sem atualização */}
-            {diasSemAtualizacao > 3 && (
-              <Alert className="bg-yellow-50 border-yellow-200 p-3">
-                <AlertTriangle className="h-3 w-3 text-yellow-600" />
-                <AlertTitle className="text-yellow-800 text-sm">Atenção</AlertTitle>
-                <AlertDescription className="text-yellow-700 text-xs">
-                  Este projeto está há <strong>{diasSemAtualizacao} dias</strong> sem atualização.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-2">
-              {projeto.cliente && (
-                <div className="flex items-center gap-1.5 text-xs">
-                  <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-medium truncate text-xs">{projeto.cliente.nome}</p>
-                    {projeto.cliente.empresa && (
-                      <p className="text-xs text-muted-foreground truncate">{projeto.cliente.empresa}</p>
-                    )}
-                  </div>
+            {/* Barra de progresso visual */}
+            <div className="space-y-2">
+              <div className="relative">
+                {/* Barra de fundo */}
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  {/* Barra de progresso */}
+                  <div
+                    className="h-full bg-gradient-to-r from-primary via-primary to-primary/80 transition-all duration-500 ease-out"
+                    style={{ width: `${progressoPercentual}%` }}
+                  />
                 </div>
-              )}
 
-              {projeto.empreendimento && (
-                <div className="flex items-center gap-1.5 text-xs">
-                  <Building2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-medium truncate text-xs">{projeto.empreendimento.nome}</p>
-                    <p className="text-xs text-muted-foreground">Empreendimento</p>
-                  </div>
-                </div>
-              )}
+                {/* Marcadores de status */}
+                <div className="flex justify-between mt-3">
+                  {statusTimeline.map((status, index) => {
+                    const isAtual = status.nome === projeto.status;
+                    const isConcluido = index < statusAtualIndex;
+                    const isProximo = index === statusAtualIndex + 1;
 
-              <div className="flex items-center gap-1.5 text-xs">
-                <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-medium text-xs">
-                    {format(new Date(projeto.dataCriacao), "dd/MM/yyyy", { locale: ptBR })}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Data de criação</p>
+                    return (
+                      <div
+                        key={status.nome}
+                        className="flex flex-col items-center flex-1"
+                      >
+                        {/* Círculo do status */}
+                        <div
+                          className={`
+                            w-6 h-6 rounded-full border-2 flex items-center justify-center mb-1 transition-all
+                            ${isAtual
+                              ? 'border-primary bg-primary scale-110 shadow-lg shadow-primary/50'
+                              : isConcluido
+                                ? 'border-primary bg-primary'
+                                : 'border-muted-foreground/30 bg-background'
+                            }
+                          `}
+                        >
+                          {isConcluido && (
+                            <CheckCircle2 className="h-3 w-3 text-white" />
+                          )}
+                          {isAtual && (
+                            <Clock className="h-3 w-3 text-white animate-pulse" />
+                          )}
+                        </div>
+
+                        {/* Nome do status */}
+                        <span
+                          className={`
+                            text-[10px] sm:text-xs text-center font-medium transition-all
+                            ${isAtual
+                              ? 'text-primary font-semibold'
+                              : isConcluido
+                                ? 'text-foreground'
+                                : 'text-muted-foreground'
+                            }
+                          `}
+                        >
+                          {status.nome}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {projeto.dataPrevistaEntrega && (
-                <div className="flex items-center gap-1.5 text-xs">
-                  <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-medium text-xs">
-                      {format(new Date(projeto.dataPrevistaEntrega), "dd/MM/yyyy", { locale: ptBR })}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Previsão de entrega</p>
-                  </div>
+              {/* Informações adicionais */}
+              <div className="pt-2 border-t border-dashed">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">
+                    Projeto criado há <strong>{diasDesdeCriacao} dias</strong>
+                  </span>
+                  {projeto.dataPrevistaEntrega && (
+                    <span className="text-muted-foreground">
+                      Previsão: <strong>{format(new Date(projeto.dataPrevistaEntrega), "dd/MM/yyyy", { locale: ptBR })}</strong>
+                    </span>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </CardHeader>
         </Card>
@@ -407,17 +481,6 @@ export default function ClientePortal() {
                             <ExternalLink className="h-3 w-3" />
                             Ouvir música
                           </a>
-                          {musica.artistaUrl && (
-                            <a
-                              href={musica.artistaUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-gray-600 hover:underline flex items-center gap-1"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              Ver artista
-                            </a>
-                          )}
                         </div>
 
                         {musica.aprovada === null ? (
@@ -970,29 +1033,62 @@ export default function ClientePortal() {
 
         {/* Mensagem se não houver itens para aprovação */}
         {!projeto.musicaUrl &&
-         !projeto.locucaoUrl &&
-         !projeto.videoFinalUrl &&
-         (!projeto.musicas || projeto.musicas.length === 0) &&
-         (!projeto.locutores || projeto.locutores.length === 0) && (
-          <Card>
-            <CardContent className="p-4">
-              <Alert className="p-3">
-                <AlertCircle className="h-3 w-3" />
-                <AlertTitle className="text-sm">Aguardando conteúdo</AlertTitle>
-                <AlertDescription className="text-xs">
-                  Ainda não há itens disponíveis para aprovação. Você receberá uma notificação quando houver novos materiais para revisar.
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
-        )}
+          !projeto.locucaoUrl &&
+          !projeto.videoFinalUrl &&
+          (!projeto.musicas || projeto.musicas.length === 0) &&
+          (!projeto.locutores || projeto.locutores.length === 0) && (
+            <Card>
+              <CardContent className="p-4">
+                <Alert className="p-3">
+                  <AlertCircle className="h-3 w-3" />
+                  <AlertTitle className="text-sm">Aguardando conteúdo</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    Ainda não há itens disponíveis para aprovação. Você receberá uma notificação quando houver novos materiais para revisar.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          )}
 
         {/* Footer */}
         <Card className="border-dashed">
-          <CardContent className="p-4 text-center space-y-1">
+          <CardContent className="p-4 text-center space-y-3">
             <p className="text-xs text-muted-foreground">
-              Dúvidas? Entre em contato conosco através dos canais oficiais
+              Dúvidas? Entre em contato:
             </p>
+
+            <div className="flex justify-center gap-2">
+              <a
+                href="https://wa.me/message/EB53ZVPWQAXWO1"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-green-600 border border-muted hover:border-green-600 rounded-md transition-colors"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                <span>WhatsApp</span>
+              </a>
+
+              <a
+                href="https://instagram.com/frametyfilmes"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-pink-600 border border-muted hover:border-pink-600 rounded-md transition-colors"
+              >
+                <Instagram className="h-3.5 w-3.5" />
+                <span>Instagram</span>
+              </a>
+
+              <a
+                href="https://framety.com.br"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-blue-600 border border-muted hover:border-blue-600 rounded-md transition-colors"
+              >
+                <Globe className="h-3.5 w-3.5" />
+                <span>Site</span>
+              </a>
+            </div>
+
             <p className="text-xs text-muted-foreground">
               Este link é exclusivo para você. Não compartilhe com terceiros.
             </p>

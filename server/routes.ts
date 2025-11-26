@@ -455,7 +455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = updateProjetoSchema.parse(req.body);
       
-      // If status is changing, log it
+      // If status is changing, log it and update statusChangedAt
       if (validatedData.status && validatedData.status !== projetoExistente.status) {
         await storage.createLogStatus({
           projetoId: req.params.id,
@@ -463,6 +463,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           statusNovo: validatedData.status,
           alteradoPorId: req.user!.id,
         });
+
+        // Update statusChangedAt whenever status changes
+        (validatedData as any).statusChangedAt = new Date();
 
         // If moving to Aprovado, set approval date
         if (validatedData.status === "Aprovado") {
@@ -1279,7 +1282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: projeto.status,
         dataCriacao: projeto.dataCriacao,
         dataPrevistaEntrega: projeto.dataPrevistaEntrega,
-        updatedAt: projeto.updatedAt,
+        statusChangedAt: projeto.statusChangedAt,
         tipoVideo: projeto.tipoVideo,
         cliente: projeto.cliente,
         empreendimento: projeto.empreendimento,

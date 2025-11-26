@@ -15,7 +15,7 @@ interface ProjetoMusicasProps {
 
 export function ProjetoMusicas({ projetoId }: ProjetoMusicasProps) {
   const { toast } = useToast();
-  const [novaMusica, setNovaMusica] = useState({ titulo: "", musicaUrl: "", artistaUrl: "" });
+  const [novaMusica, setNovaMusica] = useState({ titulo: "", musicaUrl: "" });
 
   // Query para buscar músicas do projeto
   const { data: musicas = [] } = useQuery<ProjetoMusica[]>({
@@ -25,12 +25,12 @@ export function ProjetoMusicas({ projetoId }: ProjetoMusicasProps) {
 
   // Mutation para adicionar música
   const adicionarMusicaMutation = useMutation({
-    mutationFn: async (musica: { titulo: string; musicaUrl: string; artistaUrl?: string }) => {
+    mutationFn: async (musica: { titulo: string; musicaUrl: string }) => {
       return await apiRequest("POST", `/api/projetos/${projetoId}/musicas`, musica);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projetos/${projetoId}/musicas`] });
-      setNovaMusica({ titulo: "", musicaUrl: "", artistaUrl: "" });
+      setNovaMusica({ titulo: "", musicaUrl: "" });
       toast({
         title: "Música adicionada!",
         description: "A música foi adicionada ao projeto com sucesso.",
@@ -100,11 +100,6 @@ export function ProjetoMusicas({ projetoId }: ProjetoMusicasProps) {
             value={novaMusica.musicaUrl}
             onChange={(e) => setNovaMusica({ ...novaMusica, musicaUrl: e.target.value })}
           />
-          <Input
-            placeholder="Link do artista (opcional)"
-            value={novaMusica.artistaUrl}
-            onChange={(e) => setNovaMusica({ ...novaMusica, artistaUrl: e.target.value })}
-          />
           <Button
             onClick={handleAdicionarMusica}
             disabled={adicionarMusicaMutation.isPending}
@@ -134,17 +129,6 @@ export function ProjetoMusicas({ projetoId }: ProjetoMusicasProps) {
                       <ExternalLink className="h-3 w-3" />
                       Ouvir música
                     </a>
-                    {musica.artistaUrl && (
-                      <a
-                        href={musica.artistaUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:underline flex items-center gap-1"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        Ver artista
-                      </a>
-                    )}
                   </div>
                   {musica.aprovada !== null && (
                     <div className="mt-2">

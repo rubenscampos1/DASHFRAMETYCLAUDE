@@ -81,6 +81,7 @@ export const projetos = pgTable("projetos", {
   tipoVideoId: varchar("tipo_video_id").references(() => tiposDeVideo.id).notNull(),
   tags: text("tags").array().default([]),
   status: projectStatusEnum("status").notNull().default("Briefing"),
+  statusChangedAt: timestamp("status_changed_at").defaultNow().notNull(), // Data da última mudança de status
   responsavelId: varchar("responsavel_id").references(() => users.id),
   dataCriacao: timestamp("data_criacao").defaultNow().notNull(),
   dataPrevistaEntrega: timestamp("data_prevista_entrega"),

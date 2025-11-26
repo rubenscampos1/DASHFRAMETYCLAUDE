@@ -11,17 +11,18 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Use standard PostgreSQL in production (Render), Neon in development (Replit)
-// For local development (localhost), use standard PostgreSQL
+// Use standard PostgreSQL for production (Render), Supabase, and local development
+// Only use Neon serverless for Replit environment
 const isProduction = process.env.NODE_ENV === 'production';
 const isLocalhost = process.env.DATABASE_URL.includes('localhost') ||
                      process.env.DATABASE_URL.includes('127.0.0.1');
+const isSupabase = process.env.DATABASE_URL.includes('supabase.com');
 
 let pool: any;
 let db: any;
 
-if (isLocalhost || isProduction) {
-  // Standard PostgreSQL connection for Render or Local Development
+if (isLocalhost || isProduction || isSupabase) {
+  // Standard PostgreSQL connection for Render, Supabase, or Local Development
   pool = new PgPool({
     connectionString: process.env.DATABASE_URL,
     ssl: isLocalhost ? false : { rejectUnauthorized: false }
