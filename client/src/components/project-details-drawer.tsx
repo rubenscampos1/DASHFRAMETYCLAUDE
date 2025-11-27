@@ -72,9 +72,12 @@ export function ProjectDetailsDrawer({
   const wasOpenRef = useRef(false);
 
   // Query para buscar o projeto completo (com todos os campos)
+  // IMPORTANTE: refetchOnMount='always' garante dados frescos ao abrir drawer
   const { data: projetoCompleto, refetch: refetchProjeto } = useQuery<ProjetoWithRelations>({
     queryKey: ["/api/projetos", projeto?.id],
     enabled: !!projeto?.id && isOpen,
+    refetchOnMount: 'always', // Sempre busca dados atualizados do servidor
+    staleTime: 0, // Considera dados sempre stale para forçar refetch
   });
 
   // Usa o projeto completo se disponível, senão usa o projeto do prop
