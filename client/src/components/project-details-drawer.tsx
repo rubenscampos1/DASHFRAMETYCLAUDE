@@ -141,36 +141,35 @@ export function ProjectDetailsDrawer({
           };
         });
 
-        // 2. Atualizar o projeto dentro da lista de projetos (CRÍTICO para update instantâneo)
-        console.log('🔔 [Badge Debug] Tentando atualizar lista de projetos...');
-        queryClient.setQueryData(['/api/projetos'], (old: any) => {
-          console.log('🔔 [Badge Debug] Cache da lista:', {
-            exists: !!old,
-            isArray: Array.isArray(old),
-            type: typeof old,
-            length: Array.isArray(old) ? old.length : 'N/A'
-          });
+        // 2. Atualizar TODAS as queries de projetos (incluindo com filtros)
+        console.log('🔔 [Badge Debug] Buscando todas as queries de projetos...');
+        const queries = queryClient.getQueriesData({ queryKey: ['/api/projetos'] });
+        console.log('🔔 [Badge Debug] Encontradas', queries.length, 'queries de projetos');
 
-          if (!old || !Array.isArray(old)) {
-            console.log('🔔 [Badge Debug] ❌ Lista não é array ou não existe, pulando atualização');
-            return old;
-          }
+        queries.forEach(([key, data]) => {
+          console.log('🔔 [Badge Debug] Processando query:', key);
 
-          console.log('🔔 [Badge Debug] ✅ Atualizando lista de projetos com', old.length, 'projetos');
-          const updated = old.map((projeto: any) => {
-            if (projeto.id === projetoAtual.id) {
-              console.log('🔔 [Badge Debug] ✅ Encontrou projeto na lista, atualizando...');
-              return {
-                ...projeto,
-                musicaVisualizadaEm: projeto.musicaAprovada ? now : projeto.musicaVisualizadaEm,
-                locucaoVisualizadaEm: projeto.locucaoAprovada ? now : projeto.locucaoVisualizadaEm,
-                videoFinalVisualizadoEm: projeto.videoFinalAprovado ? now : projeto.videoFinalVisualizadoEm,
-              };
+          queryClient.setQueryData(key, (old: any) => {
+            if (!old || !Array.isArray(old)) {
+              console.log('🔔 [Badge Debug] Query não é array, pulando');
+              return old;
             }
-            return projeto;
+
+            console.log('🔔 [Badge Debug] Atualizando query com', old.length, 'projetos');
+            const updated = old.map((projeto: any) => {
+              if (projeto.id === projetoAtual.id) {
+                console.log('🔔 [Badge Debug] ✅ Projeto encontrado e atualizado!');
+                return {
+                  ...projeto,
+                  musicaVisualizadaEm: projeto.musicaAprovada ? now : projeto.musicaVisualizadaEm,
+                  locucaoVisualizadaEm: projeto.locucaoAprovada ? now : projeto.locucaoVisualizadaEm,
+                  videoFinalVisualizadoEm: projeto.videoFinalAprovado ? now : projeto.videoFinalVisualizadoEm,
+                };
+              }
+              return projeto;
+            });
+            return updated;
           });
-          console.log('🔔 [Badge Debug] ✅ Lista atualizada com sucesso');
-          return updated;
         });
 
         console.log('🔔 [Badge Debug] Cache atualizado! Badge deve desaparecer agora.');
