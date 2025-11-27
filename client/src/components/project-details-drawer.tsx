@@ -114,6 +114,8 @@ export function ProjectDetailsDrawer({
       if (temAprovacoesNaoVisualizadas) {
         // Atualizar cache IMEDIATAMENTE (optimistic update)
         const now = new Date();
+
+        // 1. Atualizar cache do projeto individual
         queryClient.setQueryData(['/api/projetos', projetoAtual.id], (old: any) => {
           if (!old) return old;
           return {
@@ -124,10 +126,24 @@ export function ProjectDetailsDrawer({
           };
         });
 
-        // Atualizar lista de projetos também
-        queryClient.invalidateQueries({ queryKey: ['/api/projetos'], refetchType: 'active' });
+        // 2. Atualizar o projeto dentro da lista de projetos (CRÍTICO para update instantâneo)
+        queryClient.setQueryData(['/api/projetos'], (old: any) => {
+          if (!old || !Array.isArray(old)) return old;
 
-        // Fazer a requisição em background para sincronizar com servidor
+          return old.map((projeto: any) => {
+            if (projeto.id === projetoAtual.id) {
+              return {
+                ...projeto,
+                musicaVisualizadaEm: projeto.musicaAprovada ? now : projeto.musicaVisualizadaEm,
+                locucaoVisualizadaEm: projeto.locucaoAprovada ? now : projeto.locucaoVisualizadaEm,
+                videoFinalVisualizadoEm: projeto.videoFinalAprovado ? now : projeto.videoFinalVisualizadoEm,
+              };
+            }
+            return projeto;
+          });
+        });
+
+        // 3. Fazer a requisição em background para sincronizar com servidor
         fetch(`/api/projetos/${projetoAtual.id}/marcar-aprovacoes-visualizadas`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
