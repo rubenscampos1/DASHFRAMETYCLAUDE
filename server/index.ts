@@ -8,10 +8,20 @@ console.log('SESSION_SECRET exists:', !!process.env.SESSION_SECRET);
 console.log('========================================');
 
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Habilitar compressão gzip para todas as respostas (melhora performance em 70-80%)
+app.use(compression({
+  // Comprimir apenas respostas maiores que 1KB
+  threshold: 1024,
+  // Nível de compressão (6 é padrão, bom balanço entre velocidade e tamanho)
+  level: 6,
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 

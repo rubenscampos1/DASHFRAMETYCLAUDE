@@ -7,11 +7,12 @@ import { z } from "zod";
 export const userRoleEnum = pgEnum("user_role", ["Admin", "Gestor", "Membro"]);
 export const projectStatusEnum = pgEnum("project_status", [
   "Briefing",
-  "Roteiro", 
+  "Roteiro",
   "Captação",
   "Edição",
   "Entrega",
   "Outros",
+  "Revisão",
   "Aguardando Aprovação",
   "Aprovado",
   "Em Pausa",
@@ -443,7 +444,7 @@ export const insertProjetoSchema = createInsertSchema(projetos).omit({
     if (!val || val === "") return null;
     return val;
   }).nullable(),
-  
+
   // Converte strings de data para Date - usa meio-dia UTC para evitar problemas de timezone
   dataPrevistaEntrega: z.string().optional().or(z.literal("")).transform((val) => {
     if (!val || val === "" || typeof val !== 'string') return undefined;
@@ -500,18 +501,18 @@ export const updateProjetoSchema = z.object({
   captacao: z.boolean().optional(),
   roteiro: z.boolean().optional(),
   locucao: z.boolean().optional(),
-  
+
   // Campos de data com transformação - aceita tanto "YYYY-MM-DD" quanto ISO "YYYY-MM-DDTHH:MM:SS.SSSZ"
   dataPrevistaEntrega: z.union([z.string(), z.date()]).optional().transform((val) => {
     if (!val || val === "") return undefined;
     if (val instanceof Date) return val;
-    
+
     // Se já é uma string ISO completa, usa diretamente
     if (typeof val === 'string' && val.includes('T')) {
       const date = new Date(val);
       return isNaN(date.getTime()) ? undefined : date;
     }
-    
+
     // Se é formato simples YYYY-MM-DD
     if (typeof val === 'string') {
       const parts = val.split('-');
@@ -520,19 +521,19 @@ export const updateProjetoSchema = z.object({
       if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
       return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
     }
-    
+
     return undefined;
   }),
   dataInterna: z.union([z.string(), z.date()]).optional().transform((val) => {
     if (!val || val === "") return undefined;
     if (val instanceof Date) return val;
-    
+
     // Se já é uma string ISO completa, usa diretamente
     if (typeof val === 'string' && val.includes('T')) {
       const date = new Date(val);
       return isNaN(date.getTime()) ? undefined : date;
     }
-    
+
     // Se é formato simples YYYY-MM-DD
     if (typeof val === 'string') {
       const parts = val.split('-');
@@ -541,19 +542,19 @@ export const updateProjetoSchema = z.object({
       if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
       return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
     }
-    
+
     return undefined;
   }),
   dataMeeting: z.union([z.string(), z.date()]).optional().transform((val) => {
     if (!val || val === "") return undefined;
     if (val instanceof Date) return val;
-    
+
     // Se já é uma string ISO completa, usa diretamente
     if (typeof val === 'string' && val.includes('T')) {
       const date = new Date(val);
       return isNaN(date.getTime()) ? undefined : date;
     }
-    
+
     // Se é formato simples YYYY-MM-DD
     if (typeof val === 'string') {
       const parts = val.split('-');
@@ -562,10 +563,10 @@ export const updateProjetoSchema = z.object({
       if (isNaN(year) || isNaN(month) || isNaN(day)) return undefined;
       return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
     }
-    
+
     return undefined;
   }),
-  
+
   linkFrameIo: z.string().url().optional().or(z.literal("")),
   linkYoutube: z.string().url().optional().or(z.literal("")),
   caminho: z.string().optional().or(z.literal("")),
