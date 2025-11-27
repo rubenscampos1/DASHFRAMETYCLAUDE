@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "./hooks/use-auth";
 import { ThemeProvider } from "./components/ui/theme-provider";
 import { SidebarProvider } from "./contexts/sidebar-context";
+import { RealtimeProvider } from "./components/realtime-provider";
 import { ProtectedRoute } from "./lib/protected-route";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
@@ -48,12 +49,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="videoflow-theme">
         <AuthProvider>
-          <SidebarProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Router />
-            </TooltipProvider>
-          </SidebarProvider>
+          <RealtimeProvider>
+            <SidebarProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Router />
+              </TooltipProvider>
+            </SidebarProvider>
+          </RealtimeProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

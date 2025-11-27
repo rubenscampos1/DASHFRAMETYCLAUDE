@@ -68,6 +68,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Configuração do Supabase para realtime (apenas usuários autenticados)
+  app.get("/api/config/supabase", requireAuth, (req, res) => {
+    // Extrair informações da DATABASE_URL
+    const databaseUrl = process.env.DATABASE_URL || '';
+
+    // Formato: postgresql://postgres.PROJECT_ID:PASSWORD@HOST:PORT/postgres
+    // Exemplo: postgresql://postgres.wgfpvlzpuqjenqumuxkx:PASSWORD@aws-1-sa-east-1.pooler.supabase.com:6543/postgres
+    const match = databaseUrl.match(/postgres\.([^:]+):/);
+    const projectId = match ? match[1] : '';
+
+    const supabaseUrl = projectId ? `https://${projectId}.supabase.co` : '';
+
+    // A chave anônima do Supabase precisa ser configurada como variável de ambiente
+    // Por segurança, só enviamos para usuários autenticados
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+
+    res.json({
+      supabaseUrl,
+      supabaseAnonKey,
+    });
+  });
+
   // Initialize database with seed data
   app.post("/api/seed", async (req, res, next) => {
     try {

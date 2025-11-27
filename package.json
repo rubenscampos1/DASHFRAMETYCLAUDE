@@ -48,6 +48,7 @@
     "@replit/vite-plugin-cartographer": "^0.4.1",
     "@replit/vite-plugin-dev-banner": "^0.1.1",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
+    "@supabase/supabase-js": "^2.86.0",
     "@tailwindcss/typography": "^0.5.15",
     "@tanstack/react-query": "^5.60.5",
     "@types/compression": "^1.8.1",
