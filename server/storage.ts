@@ -52,7 +52,7 @@ import {
   type ProjetoLocutorWithRelations
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, desc, asc, sql, gte, lte, max } from "drizzle-orm";
+import { eq, and, or, like, desc, asc, sql, gte, lte, lt, max } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -273,6 +273,8 @@ export class DatabaseStorage implements IStorage {
     search?: string;
     dataInicioAprovacao?: string;
     dataFimAprovacao?: string;
+    limit?: number;
+    cursor?: string; // Data de criação do último projeto carregado
   }): Promise<ProjetoWithRelations[]> {
     const conditions = [];
 
@@ -314,6 +316,14 @@ export class DatabaseStorage implements IStorage {
       conditions.push(lte(projetos.dataAprovacao, endDate));
     }
 
+    // Paginação cursor-based: carregar projetos após o cursor
+    if (filters?.cursor) {
+      conditions.push(lt(projetos.dataCriacao, new Date(filters.cursor)));
+    }
+
+    // Limite de resultados (padrão 50, máximo 100)
+    const limit = filters?.limit ? Math.min(filters.limit, 100) : 50;
+
     let query = db
       .select()
       .from(projetos)
@@ -321,7 +331,8 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(projetos.responsavelId, users.id))
       .leftJoin(clientes, eq(projetos.clienteId, clientes.id))
       .leftJoin(empreendimentos, eq(projetos.empreendimentoId, empreendimentos.id))
-      .orderBy(desc(projetos.dataCriacao));
+      .orderBy(desc(projetos.dataCriacao))
+      .limit(limit);
 
     if (conditions.length > 0) {
       query = db
@@ -332,7 +343,8 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(clientes, eq(projetos.clienteId, clientes.id))
         .leftJoin(empreendimentos, eq(projetos.empreendimentoId, empreendimentos.id))
         .where(and(...conditions))
-        .orderBy(desc(projetos.dataCriacao));
+        .orderBy(desc(projetos.dataCriacao))
+        .limit(limit);
     }
 
     const startTime = performance.now();

@@ -189,18 +189,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         search: req.query.search as string,
         dataInicioAprovacao: req.query.dataInicioAprovacao as string,
         dataFimAprovacao: req.query.dataFimAprovacao as string,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        cursor: req.query.cursor as string,
       };
 
       // Remove undefined values and "all" values
       Object.keys(filters).forEach(key => {
         const value = filters[key as keyof typeof filters];
-        if (!value || value === "all") {
+        if (value === undefined || value === "all" || value === "") {
           delete filters[key as keyof typeof filters];
         }
       });
 
       const projetos = await storage.getProjetos(filters);
-      
+
       // Otimização: Remover campos pesados desnecessários para o dashboard
       // Campos como descricao, informacoesAdicionais, referencias, anotacoes são carregados apenas no drawer
       const projetosOtimizados = projetos.map(projeto => ({
@@ -210,8 +212,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         referencias: undefined,  // Não enviar referências para o dashboard
         caminho: undefined,  // Não enviar caminho para o dashboard
       }));
-      
-      res.json(projetosOtimizados);
+
+      // Paginação: retornar nextCursor e hasMore para scroll infinito
+      const limit = filters.limit || 50;
+      const hasMore = projetosOtimizados.length === limit;
+      const nextCursor = hasMore && projetosOtimizados.length > 0
+        ? projetosOtimizados[projetosOtimizados.length - 1].dataCriacao?.toISOString()
+        : null;
+
+      res.json({
+        projetos: projetosOtimizados,
+        nextCursor,
+        hasMore,
+      });
     } catch (error) {
       next(error);
     }

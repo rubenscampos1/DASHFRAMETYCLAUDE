@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, CheckCircle } from "lucide-react";
+import { Plus, CheckCircle, Loader2 } from "lucide-react";
 import { ProjectCard } from "./project-card";
 import { ProjectDetailsDrawer } from "./project-details-drawer";
 import { ProjetoWithRelations } from "@shared/schema";
@@ -35,17 +35,33 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
 
-  const { data: projetos = [], isLoading } = useQuery<ProjetoWithRelations[]>({
+  // Infinite Query para paginação otimizada
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
     queryKey: ["/api/projetos", filters],
-    queryFn: async () => {
+    queryFn: async ({ pageParam }) => {
       const startTime = performance.now();
-      console.log('⏱️ [Performance] Iniciando carga de projetos...', filters);
+      console.log('⏱️ [Performance] Carregando página de projetos...', { filters, cursor: pageParam });
 
       const params = new URLSearchParams();
 
+      // Adicionar filtros
       Object.entries(filters || {}).forEach(([key, value]) => {
         if (value && value !== "all" && value !== "") params.append(key, value);
       });
+
+      // Adicionar cursor para paginação
+      if (pageParam) {
+        params.append('cursor', pageParam);
+      }
+
+      // Limitar a 50 projetos por página para performance
+      params.append('limit', '50');
 
       const response = await fetch(`/api/projetos?${params}`, {
         credentials: "include",
@@ -54,14 +70,48 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       if (!response.ok) throw new Error("Erro ao carregar projetos");
       const data = await response.json();
 
-      const endTime = performance.now();
-      const duration = (endTime - startTime).toFixed(2);
-      console.log(`⏱️ [Performance] Projetos carregados em ${duration}ms (${data.length} projetos)`);
+      const duration = (performance.now() - startTime).toFixed(2);
+      console.log(`⏱️ [Performance] Página carregada em ${duration}ms (${data.projetos.length} projetos, hasMore: ${data.hasMore})`);
 
-      // Show all projects including approved ones
       return data;
     },
+    getNextPageParam: (lastPage) => {
+      // Retornar o cursor da próxima página, ou undefined se não houver mais
+      return lastPage.hasMore ? lastPage.nextCursor : undefined;
+    },
+    initialPageParam: undefined,
   });
+
+  // Achatar as páginas em um único array de projetos
+  const projetos = useMemo(() => {
+    if (!data?.pages) return [];
+    return data.pages.flatMap(page => page.projetos);
+  }, [data]);
+
+  // Intersection Observer para scroll infinito
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const target = observerTarget.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Quando o elemento observado aparecer na tela, carregar mais
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          console.log('⏱️ [Performance] Carregando próxima página...');
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 } // Trigger quando 10% do elemento estiver visível
+    );
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -74,33 +124,27 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       await queryClient.cancelQueries({ queryKey: ["/api/projetos", filters] });
 
       // Salvar estado anterior para rollback se necessário
-      const previousProjetos = queryClient.getQueryData(["/api/projetos", filters]);
+      const previousData = queryClient.getQueryData(["/api/projetos", filters]);
 
-      // Atualizar cache otimisticamente e reordenar para card movido aparecer no topo
-      queryClient.setQueryData(["/api/projetos", filters], (old: ProjetoWithRelations[] | undefined) => {
-        if (!old) return old;
+      // Atualizar cache otimisticamente para infinite queries
+      queryClient.setQueryData(["/api/projetos", filters], (old: any) => {
+        if (!old?.pages) return old;
 
-        // Encontrar o projeto que está sendo movido
-        const movedProject = old.find(p => p.id === id);
-        if (!movedProject) return old;
-
-        // Se o status mudou, reordenar para o card aparecer primeiro na nova coluna
-        if (movedProject.status !== newStatus) {
-          // Atualizar o status do projeto
-          const updatedProject = { ...movedProject, status: newStatus };
-
-          // Remover o projeto da lista antiga e adicionar no início
-          const withoutMoved = old.filter(p => p.id !== id);
-          return [updatedProject, ...withoutMoved];
-        }
-
-        // Se o status não mudou, apenas manter como está
-        return old.map(projeto =>
-          projeto.id === id ? { ...projeto, status: newStatus } : projeto
-        );
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            projetos: page.projetos.map((projeto: ProjetoWithRelations) => {
+              if (projeto.id === id) {
+                return { ...projeto, status: newStatus };
+              }
+              return projeto;
+            }),
+          })),
+        };
       });
 
-      return { previousProjetos };
+      return { previousData };
     },
     onSuccess: (updatedProject, { status }) => {
       // Invalidar queries para garantir sincronização com servidor
@@ -121,8 +165,8 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     },
     onError: (error: Error, variables, context) => {
       // Rollback: reverter para estado anterior em caso de erro
-      if (context?.previousProjetos) {
-        queryClient.setQueryData(["/api/projetos", filters], context.previousProjetos);
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/projetos", filters], context.previousData);
       }
 
       toast({
@@ -141,14 +185,21 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     onMutate: async (projetoId) => {
       await queryClient.cancelQueries({ queryKey: ["/api/projetos", filters] });
 
-      const previousProjetos = queryClient.getQueryData(["/api/projetos", filters]);
+      const previousData = queryClient.getQueryData(["/api/projetos", filters]);
 
       queryClient.setQueryData(["/api/projetos", filters], (old: any) => {
-        if (!old) return old;
-        return old.filter((p: any) => p.id !== projetoId);
+        if (!old?.pages) return old;
+
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            projetos: page.projetos.filter((p: ProjetoWithRelations) => p.id !== projetoId),
+          })),
+        };
       });
 
-      return { previousProjetos };
+      return { previousData };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
@@ -159,8 +210,8 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       });
     },
     onError: (error: Error, _projetoId, context) => {
-      if (context?.previousProjetos) {
-        queryClient.setQueryData(["/api/projetos", filters], context.previousProjetos);
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/projetos", filters], context.previousData);
       }
       toast({
         title: "Erro ao remover projeto",
@@ -178,7 +229,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     onMutate: async (projetoId) => {
       await queryClient.cancelQueries({ queryKey: ["/api/projetos", filters] });
 
-      const previousProjetos = queryClient.getQueryData(["/api/projetos", filters]);
+      const previousData = queryClient.getQueryData(["/api/projetos", filters]);
 
       const originalProject = projetos.find(p => p.id === projetoId);
       if (originalProject) {
@@ -189,18 +240,39 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
         };
 
         queryClient.setQueryData(["/api/projetos", filters], (old: any) => {
-          return old ? [tempDuplicate, ...old] : [tempDuplicate];
+          if (!old?.pages) return old;
+
+          // Adicionar o projeto temporário na primeira página
+          return {
+            ...old,
+            pages: old.pages.map((page: any, index: number) => {
+              if (index === 0) {
+                return {
+                  ...page,
+                  projetos: [tempDuplicate, ...page.projetos],
+                };
+              }
+              return page;
+            }),
+          };
         });
       }
 
-      return { previousProjetos };
+      return { previousData };
     },
     onSuccess: (newProject) => {
       queryClient.setQueryData(["/api/projetos", filters], (old: any) => {
-        if (!old) return [newProject];
-        return old.map((p: any) =>
-          p.id.toString().startsWith('temp-dup-') ? newProject : p
-        );
+        if (!old?.pages) return old;
+
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            projetos: page.projetos.map((p: any) =>
+              p.id.toString().startsWith('temp-dup-') ? newProject : p
+            ),
+          })),
+        };
       });
       queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
       toast({
@@ -209,8 +281,8 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       });
     },
     onError: (error: Error, _projetoId, context) => {
-      if (context?.previousProjetos) {
-        queryClient.setQueryData(["/api/projetos", filters], context.previousProjetos);
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/projetos", filters], context.previousData);
       }
       toast({
         title: "Erro ao duplicar projeto",
@@ -327,30 +399,44 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
                             </div>
                           </div>
                         ) : (
-                          columnProjects.map((projeto, index) => (
-                            <Draggable
-                              key={projeto.id}
-                              draggableId={projeto.id}
-                              index={index}
-                            >
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  style={provided.draggableProps.style}
-                                >
-                                  <ProjectCard
-                                    projeto={projeto}
-                                    isDragging={snapshot.isDragging || draggedItem === projeto.id}
-                                    onEdit={setSelectedProject}
-                                    onDelete={(projetoId) => deleteProjectMutation.mutate(projetoId)}
-                                    onDuplicate={(projetoId) => duplicateProjectMutation.mutate(projetoId)}
-                                  />
-                                </div>
-                              )}
-                            </Draggable>
-                          ))
+                          <>
+                            {columnProjects.map((projeto, index) => (
+                              <Draggable
+                                key={projeto.id}
+                                draggableId={projeto.id}
+                                index={index}
+                              >
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    style={provided.draggableProps.style}
+                                  >
+                                    <ProjectCard
+                                      projeto={projeto}
+                                      isDragging={snapshot.isDragging || draggedItem === projeto.id}
+                                      onEdit={setSelectedProject}
+                                      onDelete={(projetoId) => deleteProjectMutation.mutate(projetoId)}
+                                      onDuplicate={(projetoId) => duplicateProjectMutation.mutate(projetoId)}
+                                    />
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+
+                            {/* Observer target - só mostrar na primeira coluna para evitar múltiplos triggers */}
+                            {column.id === statusColumns[0].id && (
+                              <div ref={observerTarget} className="h-4" />
+                            )}
+
+                            {/* Loading indicator quando carregando próxima página */}
+                            {column.id === statusColumns[0].id && isFetchingNextPage && (
+                              <div className="flex justify-center py-4">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                              </div>
+                            )}
+                          </>
                         )}
                         {provided.placeholder}
                       </CardContent>
