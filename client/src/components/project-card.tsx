@@ -163,4 +163,5 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
 
 // Memoizar o componente para evitar re-renders desnecessários
 // Usando shallow comparison padrão do React.memo para segurança
-export const ProjectCard = memo(ProjectCardComponent);
+// TEMPORARIAMENTE DESABILITADO para debug do badge de aprovação
+export const ProjectCard = ProjectCardComponent; // memo(ProjectCardComponent);
