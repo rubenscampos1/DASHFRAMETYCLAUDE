@@ -335,7 +335,11 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(projetos.dataCriacao));
     }
 
+    const startTime = performance.now();
     const result = await query;
+    const duration = (performance.now() - startTime).toFixed(2);
+
+    console.log(`⏱️ [SQL Performance] getProjetos: ${duration}ms (${result.length} projetos, ${conditions.length} filtros)`);
 
     return result.map(row => ({
       ...row.projetos,
