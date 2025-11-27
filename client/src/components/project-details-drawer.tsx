@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getApprovalDetails } from "@/lib/approval-utils";
 import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2, Copy, ExternalLink } from "lucide-react";
 
 import {
@@ -567,6 +568,39 @@ export function ProjectDetailsDrawer({
                         </>
                       )}
                     </p>
+                  </div>
+                )}
+
+                {/* Aprovações do Cliente */}
+                {projetoAtual && getApprovalDetails(projetoAtual).length > 0 && (
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                    <label className="text-sm font-semibold text-green-900 dark:text-green-100 flex items-center gap-2 mb-3">
+                      🎉 Aprovações do Cliente
+                    </label>
+                    <div className="space-y-3">
+                      {getApprovalDetails(projetoAtual).map((approval, index) => (
+                        <div key={index} className="bg-white dark:bg-gray-800 rounded-md p-3 border border-green-100 dark:border-green-900">
+                          <div className="flex items-start gap-2">
+                            <span className="text-2xl">{approval.icon}</span>
+                            <div className="flex-1">
+                              <div className="font-medium text-sm text-green-900 dark:text-green-100">
+                                {approval.type} aprovado
+                              </div>
+                              {approval.date && (
+                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                  {format(new Date(approval.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                </div>
+                              )}
+                              {approval.feedback && (
+                                <div className="text-sm text-gray-700 dark:text-gray-300 mt-2 italic bg-gray-50 dark:bg-gray-900 p-2 rounded">
+                                  "{approval.feedback}"
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

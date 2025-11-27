@@ -8,6 +8,8 @@ import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { formatSequentialId } from "@/lib/utils";
+import { ClientApprovalBadge } from "./client-approval-badge";
+import { countClientApprovals } from "@/lib/approval-utils";
 
 interface ProjectCardProps {
   projeto: ProjetoWithRelations;
@@ -35,6 +37,9 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
     isBefore(startOfDay(new Date(projeto.dataPrevistaEntrega)), startOfDay(new Date())) &&
     !["Aprovado", "Cancelado"].includes(projeto.status);
 
+  // Contar aprovações do cliente
+  const approvalCount = countClientApprovals(projeto);
+
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -2 }}
@@ -54,12 +59,17 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
       >
         <CardHeader className="pb-2 pt-4 px-4 md:px-6 space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <Badge
-              className={`${statusColors[projeto.status] || "default"} text-xs md:text-xs px-2.5 py-1 rounded-lg`}
-              data-testid="project-type"
-            >
-              {projeto.tipoVideo?.nome}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge
+                className={`${statusColors[projeto.status] || "default"} text-xs md:text-xs px-2.5 py-1 rounded-lg`}
+                data-testid="project-type"
+              >
+                {projeto.tipoVideo?.nome}
+              </Badge>
+
+              {/* Badge de aprovação do cliente */}
+              <ClientApprovalBadge approvalCount={approvalCount} />
+            </div>
 
             <Badge
               variant="outline"
