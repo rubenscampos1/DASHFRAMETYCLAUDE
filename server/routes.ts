@@ -3,6 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
+import type { WebSocketServer } from "./websocket";
 import { insertProjetoSchema, updateProjetoSchema, insertLogStatusSchema, insertClienteSchema, insertEmpreendimentoSchema, insertTagSchema, insertTipoVideoSchema, insertComentarioSchema, insertNotaSchema } from "@shared/schema";
 import * as schema from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -496,6 +497,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const projeto = await storage.updateProjeto(req.params.id, validatedData);
+
+      // Emitir evento WebSocket para sincronização em tempo real
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('projeto:updated', { id: projeto.id, projeto });
+      }
+
       res.json(projeto);
     } catch (error) {
       next(error);

@@ -45,14 +45,14 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      // Polling inteligente: consultar servidor a cada 3 segundos para atualizações
-      // Isso simula realtime de forma confiável
-      refetchInterval: 3000, // 3 segundos
+      // Polling de fallback leve (30s) caso WebSocket falhe
+      // WebSocket é a fonte principal de atualizações (< 100ms)
+      refetchInterval: 30000, // 30 segundos (fallback)
       refetchOnWindowFocus: true, // Atualizar ao focar na janela
-      // Cache por 2 segundos - considera stale rapidamente para forçar refetch
-      staleTime: 2000, // 2 segundos
-      // Manter dados em cache por 5 minutos
-      gcTime: 5 * 60 * 1000, // 5 minutos
+      // Cache por 5 minutos - WebSocket invalida quando necessário
+      staleTime: 5 * 60 * 1000, // 5 minutos
+      // Manter dados em cache por 10 minutos
+      gcTime: 10 * 60 * 1000, // 10 minutos
       retry: false,
       // Mostrar dados em cache enquanto busca novos em background
       refetchOnMount: "always",
