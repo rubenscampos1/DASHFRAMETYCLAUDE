@@ -111,19 +111,21 @@ export function ProjectDetailsDrawer({
         (projetoAtual.videoFinalAprovado && !projetoAtual.videoFinalVisualizadoEm);
 
       if (temAprovacoesNaoVisualizadas) {
-        // Marcar como visualizado
+        // Invalidar queries IMEDIATAMENTE para atualização instantânea
+        const queryClient = (window as any).queryClient;
+        if (queryClient) {
+          queryClient.invalidateQueries({ queryKey: ['/api/projetos'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/projetos', projetoAtual.id] });
+        }
+
+        // Fazer a requisição em background (sem esperar)
         fetch(`/api/projetos/${projetoAtual.id}/marcar-aprovacoes-visualizadas`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-        })
-          .then(() => {
-            // Atualizar queries para refletir mudança
-            refetchProjeto();
-          })
-          .catch((error) => {
-            console.error('Erro ao marcar aprovações como visualizadas:', error);
-          });
+        }).catch((error) => {
+          console.error('Erro ao marcar aprovações como visualizadas:', error);
+        });
       }
     }
   }, [isOpen, projetoAtual?.id, projetoAtual?.musicaAprovada, projetoAtual?.locucaoAprovada, projetoAtual?.videoFinalAprovado]);

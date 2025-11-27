@@ -46,6 +46,11 @@ function Router() {
 }
 
 function App() {
+  // Expor queryClient globalmente para invalidação instantânea
+  if (typeof window !== 'undefined') {
+    (window as any).queryClient = queryClient;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="videoflow-theme">
