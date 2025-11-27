@@ -114,97 +114,57 @@ export function ProjectDetailsDrawer({
 
     if (justOpened && projetoAtual?.id) {
       console.log('🔔 [Badge Debug] Drawer ACABOU DE ABRIR para projeto:', projetoAtual.id);
+      console.log('🔔 [Badge Debug] SEMPRE marcando como visualizado (servidor decide se precisa)');
 
-      // Verificar se há aprovações não visualizadas
-      const temAprovacoesNaoVisualizadas =
-        (projetoAtual.musicaAprovada && !projetoAtual.musicaVisualizadaEm) ||
-        (projetoAtual.locucaoAprovada && !projetoAtual.locucaoVisualizadaEm) ||
-        (projetoAtual.videoFinalAprovado && !projetoAtual.videoFinalVisualizadoEm); // FIX: estava verificando videoFinalAprovado duas vezes
+      // NOVA ABORDAGEM: Sempre marcar como visualizado, sem verificar estado
+      // O servidor vai decidir se realmente precisa atualizar ou não
+      const now = new Date();
 
-      console.log('🔔 [Badge Debug] Estado das aprovações:', {
-        musicaAprovada: projetoAtual.musicaAprovada,
-        musicaVisualizadaEm: projetoAtual.musicaVisualizadaEm,
-        locucaoAprovada: projetoAtual.locucaoAprovada,
-        locucaoVisualizadaEm: projetoAtual.locucaoVisualizadaEm,
-        videoFinalAprovado: projetoAtual.videoFinalAprovado,
-        videoFinalVisualizadoEm: projetoAtual.videoFinalVisualizadoEm,
-        temAprovacoesNaoVisualizadas,
-      });
+      // 1. Atualizar TODAS as queries de projetos IMEDIATAMENTE
+      console.log('🔔 [Badge Debug] Atualizando cache instantaneamente...');
+      const queries = queryClient.getQueriesData({ queryKey: ['/api/projetos'] });
 
-      if (temAprovacoesNaoVisualizadas) {
-        console.log('🔔 [Badge Debug] Marcando aprovações como visualizadas AGORA!');
+      queries.forEach(([key, data]) => {
+        queryClient.setQueryData(key, (old: any) => {
+          if (!old || !Array.isArray(old)) return old;
 
-        // Atualizar cache IMEDIATAMENTE (optimistic update)
-        const now = new Date();
-
-        // 1. Atualizar cache do projeto individual IMEDIATAMENTE
-        const updatedFields = {
-          musicaVisualizadaEm: projetoAtual.musicaAprovada ? now : projetoAtual.musicaVisualizadaEm,
-          locucaoVisualizadaEm: projetoAtual.locucaoAprovada ? now : projetoAtual.locucaoVisualizadaEm,
-          videoFinalVisualizadoEm: projetoAtual.videoFinalAprovado ? now : projetoAtual.videoFinalVisualizadoEm,
-        };
-
-        console.log('🔔 [Badge Debug] Atualizando cache individual com:', updatedFields);
-        queryClient.setQueryData(['/api/projetos', projetoAtual.id], {
-          ...projetoAtual,
-          ...updatedFields,
-        });
-
-        // 2. Atualizar TODAS as queries de projetos (incluindo com filtros)
-        console.log('🔔 [Badge Debug] Buscando todas as queries de projetos...');
-        const queries = queryClient.getQueriesData({ queryKey: ['/api/projetos'] });
-        console.log('🔔 [Badge Debug] Encontradas', queries.length, 'queries de projetos');
-
-        queries.forEach(([key, data]) => {
-          console.log('🔔 [Badge Debug] Processando query:', key);
-
-          queryClient.setQueryData(key, (old: any) => {
-            if (!old || !Array.isArray(old)) {
-              console.log('🔔 [Badge Debug] Query não é array, pulando');
-              return old;
+          return old.map((projeto: any) => {
+            if (projeto.id === projetoAtual.id) {
+              return {
+                ...projeto,
+                musicaVisualizadaEm: projeto.musicaAprovada ? now : projeto.musicaVisualizadaEm,
+                locucaoVisualizadaEm: projeto.locucaoAprovada ? now : projeto.locucaoVisualizadaEm,
+                videoFinalVisualizadoEm: projeto.videoFinalAprovado ? now : projeto.videoFinalVisualizadoEm,
+              };
             }
-
-            console.log('🔔 [Badge Debug] Atualizando query com', old.length, 'projetos');
-            const updated = old.map((projeto: any) => {
-              if (projeto.id === projetoAtual.id) {
-                console.log('🔔 [Badge Debug] ✅ Projeto encontrado e atualizado!');
-                return {
-                  ...projeto,
-                  musicaVisualizadaEm: projeto.musicaAprovada ? now : projeto.musicaVisualizadaEm,
-                  locucaoVisualizadaEm: projeto.locucaoAprovada ? now : projeto.locucaoVisualizadaEm,
-                  videoFinalVisualizadoEm: projeto.videoFinalAprovado ? now : projeto.videoFinalVisualizadoEm,
-                };
-              }
-              return projeto;
-            });
-            return updated;
+            return projeto;
           });
         });
+      });
 
-        console.log('🔔 [Badge Debug] Cache atualizado! Badge deve desaparecer agora.');
+      // 2. Atualizar cache do projeto individual
+      queryClient.setQueryData(['/api/projetos', projetoAtual.id], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          musicaVisualizadaEm: old.musicaAprovada ? now : old.musicaVisualizadaEm,
+          locucaoVisualizadaEm: old.locucaoAprovada ? now : old.locucaoVisualizadaEm,
+          videoFinalVisualizadoEm: old.videoFinalAprovado ? now : old.videoFinalVisualizadoEm,
+        };
+      });
 
-        // 3. Fazer a requisição em background para sincronizar com servidor
-        fetch(`/api/projetos/${projetoAtual.id}/marcar-aprovacoes-visualizadas`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        }).then(() => {
-          console.log('🔔 [Badge Debug] Servidor sincronizado com sucesso');
-        }).catch((error) => {
-          console.error('🔔 [Badge Debug] Erro ao sincronizar com servidor:', error);
-        });
-      } else {
-        console.log('🔔 [Badge Debug] Nenhuma aprovação não visualizada encontrada');
-      }
+      console.log('🔔 [Badge Debug] ✅ Cache atualizado! Badge deve desaparecer AGORA.');
+
+      // 3. Sincronizar com servidor em background
+      fetch(`/api/projetos/${projetoAtual.id}/marcar-aprovacoes-visualizadas`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      }).catch((error) => {
+        console.error('🔔 [Badge Debug] Erro ao sincronizar:', error);
+      });
     }
-  }, [
-    isOpen,
-    projetoAtual?.id,
-    projetoAtual?.musicaVisualizadaEm,
-    projetoAtual?.locucaoVisualizadaEm,
-    projetoAtual?.videoFinalVisualizadoEm,
-    queryClient
-  ]);
+  }, [isOpen, projetoAtual?.id, queryClient]);
 
   // Form para edição
   const form = useForm({
