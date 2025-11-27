@@ -1469,6 +1469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateProjeto(projeto.id, {
           musicaAprovada: true,
           musicaDataAprovacao: new Date(),
+          musicaVisualizadaEm: null, // Resetar visualização para mostrar o sininho novamente
         });
       }
 
@@ -1518,6 +1519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateProjeto(projeto.id, {
           locucaoAprovada: true,
           locucaoDataAprovacao: new Date(),
+          locucaoVisualizadaEm: null, // Resetar visualização para mostrar o sininho novamente
         });
       }
 
