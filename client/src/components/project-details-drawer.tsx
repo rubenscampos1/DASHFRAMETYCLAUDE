@@ -105,19 +105,34 @@ export function ProjectDetailsDrawer({
   // Marcar aprovações como visualizadas ao abrir o drawer
   useEffect(() => {
     if (isOpen && projetoAtual?.id) {
+      console.log('🔔 [Badge Debug] Drawer abriu para projeto:', projetoAtual.id);
+
       // Verificar se há aprovações não visualizadas
       const temAprovacoesNaoVisualizadas =
         (projetoAtual.musicaAprovada && !projetoAtual.musicaVisualizadaEm) ||
         (projetoAtual.locucaoAprovada && !projetoAtual.locucaoVisualizadaEm) ||
-        (projetoAtual.videoFinalAprovado && !projetoAtual.videoFinalAprovado);
+        (projetoAtual.videoFinalAprovado && !projetoAtual.videoFinalVisualizadoEm); // FIX: estava verificando videoFinalAprovado duas vezes
+
+      console.log('🔔 [Badge Debug] Estado das aprovações:', {
+        musicaAprovada: projetoAtual.musicaAprovada,
+        musicaVisualizadaEm: projetoAtual.musicaVisualizadaEm,
+        locucaoAprovada: projetoAtual.locucaoAprovada,
+        locucaoVisualizadaEm: projetoAtual.locucaoVisualizadaEm,
+        videoFinalAprovado: projetoAtual.videoFinalAprovado,
+        videoFinalVisualizadoEm: projetoAtual.videoFinalVisualizadoEm,
+        temAprovacoesNaoVisualizadas,
+      });
 
       if (temAprovacoesNaoVisualizadas) {
+        console.log('🔔 [Badge Debug] Marcando aprovações como visualizadas AGORA!');
+
         // Atualizar cache IMEDIATAMENTE (optimistic update)
         const now = new Date();
 
         // 1. Atualizar cache do projeto individual
         queryClient.setQueryData(['/api/projetos', projetoAtual.id], (old: any) => {
           if (!old) return old;
+          console.log('🔔 [Badge Debug] Atualizando cache individual');
           return {
             ...old,
             musicaVisualizadaEm: old.musicaAprovada ? now : old.musicaVisualizadaEm,
@@ -130,6 +145,7 @@ export function ProjectDetailsDrawer({
         queryClient.setQueryData(['/api/projetos'], (old: any) => {
           if (!old || !Array.isArray(old)) return old;
 
+          console.log('🔔 [Badge Debug] Atualizando lista de projetos');
           return old.map((projeto: any) => {
             if (projeto.id === projetoAtual.id) {
               return {
@@ -143,14 +159,20 @@ export function ProjectDetailsDrawer({
           });
         });
 
+        console.log('🔔 [Badge Debug] Cache atualizado! Badge deve desaparecer agora.');
+
         // 3. Fazer a requisição em background para sincronizar com servidor
         fetch(`/api/projetos/${projetoAtual.id}/marcar-aprovacoes-visualizadas`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
+        }).then(() => {
+          console.log('🔔 [Badge Debug] Servidor sincronizado com sucesso');
         }).catch((error) => {
-          console.error('Erro ao marcar aprovações como visualizadas:', error);
+          console.error('🔔 [Badge Debug] Erro ao sincronizar com servidor:', error);
         });
+      } else {
+        console.log('🔔 [Badge Debug] Nenhuma aprovação não visualizada encontrada');
       }
     }
   }, [isOpen, projetoAtual?.id, queryClient]);
