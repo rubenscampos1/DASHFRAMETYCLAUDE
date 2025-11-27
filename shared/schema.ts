@@ -114,14 +114,17 @@ export const projetos = pgTable("projetos", {
   musicaAprovada: boolean("musica_aprovada"), // null = pendente, true = aprovado, false = reprovado
   musicaFeedback: text("musica_feedback"), // feedback do cliente sobre a música
   musicaDataAprovacao: timestamp("musica_data_aprovacao"), // data da aprovação/reprovação
+  musicaVisualizadaEm: timestamp("musica_visualizada_em"), // quando a aprovação foi visualizada pela equipe
   locucaoUrl: text("locucao_url"), // URL do arquivo de locução
   locucaoAprovada: boolean("locucao_aprovada"), // null = pendente, true = aprovado, false = reprovado
   locucaoFeedback: text("locucao_feedback"), // feedback do cliente sobre a locução
   locucaoDataAprovacao: timestamp("locucao_data_aprovacao"), // data da aprovação/reprovação
+  locucaoVisualizadaEm: timestamp("locucao_visualizada_em"), // quando a aprovação foi visualizada pela equipe
   videoFinalUrl: text("video_final_url"), // URL do vídeo final
   videoFinalAprovado: boolean("video_final_aprovado"), // null = pendente, true = aprovado, false = reprovado
   videoFinalFeedback: text("video_final_feedback"), // feedback do cliente sobre o vídeo
   videoFinalDataAprovacao: timestamp("video_final_data_aprovacao"), // data da aprovação/reprovação
+  videoFinalVisualizadoEm: timestamp("video_final_visualizado_em"), // quando a aprovação foi visualizada pela equipe
 });
 
 export const logsDeStatus = pgTable("logs_de_status", {

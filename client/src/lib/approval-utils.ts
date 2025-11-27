@@ -1,24 +1,24 @@
 import { ProjetoWithRelations } from '@shared/schema';
 
 /**
- * Conta quantas aprovações um projeto tem do cliente
- * Retorna número de itens aprovados (música, locução, vídeo final)
+ * Conta quantas aprovações um projeto tem do cliente que ainda não foram visualizadas
+ * Retorna número de itens aprovados (música, locução, vídeo final) não visualizados
  */
 export function countClientApprovals(projeto: ProjetoWithRelations): number {
   let count = 0;
 
-  // Música aprovada
-  if (projeto.musicaAprovada === true) {
+  // Música aprovada e não visualizada
+  if (projeto.musicaAprovada === true && !projeto.musicaVisualizadaEm) {
     count++;
   }
 
-  // Locução aprovada
-  if (projeto.locucaoAprovada === true) {
+  // Locução aprovada e não visualizada
+  if (projeto.locucaoAprovada === true && !projeto.locucaoVisualizadaEm) {
     count++;
   }
 
-  // Vídeo final aprovado
-  if (projeto.videoFinalAprovado === true) {
+  // Vídeo final aprovado e não visualizado
+  if (projeto.videoFinalAprovado === true && !projeto.videoFinalVisualizadoEm) {
     count++;
   }
 

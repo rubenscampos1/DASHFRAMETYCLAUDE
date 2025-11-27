@@ -541,7 +541,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         npsContact: validatedData.npsContact,
         npsResponsible: validatedData.npsResponsible,
       });
-      
+
+      res.json(projeto);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Marcar aprovações como visualizadas
+  app.put("/api/projetos/:id/marcar-aprovacoes-visualizadas", requireAuth, async (req, res, next) => {
+    try {
+      const now = new Date();
+
+      const projeto = await storage.updateProjeto(req.params.id, {
+        musicaVisualizadaEm: now,
+        locucaoVisualizadaEm: now,
+        videoFinalVisualizadoEm: now,
+      });
+
+      // Emitir evento WebSocket para atualização em tempo real
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('projeto:updated', { id: projeto.id, projeto });
+      }
+
       res.json(projeto);
     } catch (error) {
       next(error);

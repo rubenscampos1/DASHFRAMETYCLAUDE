@@ -101,6 +101,33 @@ export function ProjectDetailsDrawer({
     enabled: !!projeto?.id,
   });
 
+  // Marcar aprovações como visualizadas ao abrir o drawer
+  useEffect(() => {
+    if (isOpen && projetoAtual?.id) {
+      // Verificar se há aprovações não visualizadas
+      const temAprovacoesNaoVisualizadas =
+        (projetoAtual.musicaAprovada && !projetoAtual.musicaVisualizadaEm) ||
+        (projetoAtual.locucaoAprovada && !projetoAtual.locucaoVisualizadaEm) ||
+        (projetoAtual.videoFinalAprovado && !projetoAtual.videoFinalVisualizadoEm);
+
+      if (temAprovacoesNaoVisualizadas) {
+        // Marcar como visualizado
+        fetch(`/api/projetos/${projetoAtual.id}/marcar-aprovacoes-visualizadas`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        })
+          .then(() => {
+            // Atualizar queries para refletir mudança
+            refetchProjeto();
+          })
+          .catch((error) => {
+            console.error('Erro ao marcar aprovações como visualizadas:', error);
+          });
+      }
+    }
+  }, [isOpen, projetoAtual?.id, projetoAtual?.musicaAprovada, projetoAtual?.locucaoAprovada, projetoAtual?.videoFinalAprovado]);
+
   // Form para edição
   const form = useForm({
     resolver: zodResolver(formSchema),
