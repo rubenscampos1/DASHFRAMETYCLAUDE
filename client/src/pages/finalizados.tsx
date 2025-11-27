@@ -62,12 +62,20 @@ export default function Finalizados() {
   const { data: projetos = [], isLoading } = useQuery<ProjetoWithRelations[]>({
     queryKey: ["/api/projetos", { status: "Aprovado" }],
     queryFn: async () => {
+      const startTime = performance.now();
+      console.log('⏱️ [Performance] Carregando projetos finalizados...');
+
       const response = await fetch("/api/projetos?status=Aprovado", {
         credentials: "include",
       });
 
       if (!response.ok) throw new Error("Erro ao carregar projetos finalizados");
-      return response.json();
+      const data = await response.json();
+
+      const duration = (performance.now() - startTime).toFixed(2);
+      console.log(`⏱️ [Performance] Projetos finalizados carregados em ${duration}ms (${data.length} projetos)`);
+
+      return data;
     },
   });
 

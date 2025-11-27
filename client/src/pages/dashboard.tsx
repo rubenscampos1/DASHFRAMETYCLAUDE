@@ -28,10 +28,36 @@ export default function Dashboard() {
 
   const { data: users = [] } = useQuery<any[]>({
     queryKey: ["/api/users"],
+    queryFn: async () => {
+      const startTime = performance.now();
+      console.log('⏱️ [Performance] Carregando usuários...');
+
+      const response = await fetch('/api/users', { credentials: 'include' });
+      if (!response.ok) throw new Error('Erro ao carregar usuários');
+      const data = await response.json();
+
+      const duration = (performance.now() - startTime).toFixed(2);
+      console.log(`⏱️ [Performance] Usuários carregados em ${duration}ms (${data.length} usuários)`);
+
+      return data;
+    },
   });
 
   const { data: tiposVideo = [] } = useQuery<any[]>({
     queryKey: ["/api/tipos-video"],
+    queryFn: async () => {
+      const startTime = performance.now();
+      console.log('⏱️ [Performance] Carregando tipos de vídeo...');
+
+      const response = await fetch('/api/tipos-video', { credentials: 'include' });
+      if (!response.ok) throw new Error('Erro ao carregar tipos de vídeo');
+      const data = await response.json();
+
+      const duration = (performance.now() - startTime).toFixed(2);
+      console.log(`⏱️ [Performance] Tipos de vídeo carregados em ${duration}ms (${data.length} tipos)`);
+
+      return data;
+    },
   });
 
   return (

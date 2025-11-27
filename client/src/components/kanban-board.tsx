@@ -38,6 +38,9 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   const { data: projetos = [], isLoading } = useQuery<ProjetoWithRelations[]>({
     queryKey: ["/api/projetos", filters],
     queryFn: async () => {
+      const startTime = performance.now();
+      console.log('⏱️ [Performance] Iniciando carga de projetos...', filters);
+
       const params = new URLSearchParams();
 
       Object.entries(filters || {}).forEach(([key, value]) => {
@@ -50,6 +53,10 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
 
       if (!response.ok) throw new Error("Erro ao carregar projetos");
       const data = await response.json();
+
+      const endTime = performance.now();
+      const duration = (endTime - startTime).toFixed(2);
+      console.log(`⏱️ [Performance] Projetos carregados em ${duration}ms (${data.length} projetos)`);
 
       // Show all projects including approved ones
       return data;
