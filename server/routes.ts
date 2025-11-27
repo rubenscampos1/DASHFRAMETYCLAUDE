@@ -1441,6 +1441,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dataAprovacao: new Date(),
       });
 
+      // Atualizar também o campo musicaAprovada do projeto
+      if (aprovado) {
+        await storage.updateProjeto(projeto.id, {
+          musicaAprovada: true,
+          musicaDataAprovacao: new Date(),
+        });
+      }
+
+      // Emitir evento WebSocket para atualização em tempo real
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('projeto:updated', { id: projeto.id });
+      }
+
       res.json({
         message: aprovado ? "Música aprovada com sucesso!" : "Solicitação de alteração enviada",
         musica: musicaAtualizada,
@@ -1475,6 +1489,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         feedback: feedback || null,
         dataAprovacao: new Date(),
       });
+
+      // Atualizar também o campo locucaoAprovada do projeto
+      if (aprovado) {
+        await storage.updateProjeto(projeto.id, {
+          locucaoAprovada: true,
+          locucaoDataAprovacao: new Date(),
+        });
+      }
+
+      // Emitir evento WebSocket para atualização em tempo real
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('projeto:updated', { id: projeto.id });
+      }
 
       res.json({
         message: aprovado ? "Locutor aprovado com sucesso!" : "Solicitação de alteração enviada",
