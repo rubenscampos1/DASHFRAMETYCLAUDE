@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -69,6 +69,7 @@ export function ProjectDetailsDrawer({
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const wasOpenRef = useRef(false);
 
   // Query para buscar o projeto completo (com todos os campos)
   const { data: projetoCompleto, refetch: refetchProjeto } = useQuery<ProjetoWithRelations>({
@@ -104,8 +105,12 @@ export function ProjectDetailsDrawer({
 
   // Marcar aprovações como visualizadas ao abrir o drawer
   useEffect(() => {
-    if (isOpen && projetoAtual?.id) {
-      console.log('🔔 [Badge Debug] Drawer abriu para projeto:', projetoAtual.id);
+    // Detectar se o drawer ACABOU DE ABRIR (transição de fechado para aberto)
+    const justOpened = isOpen && !wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+
+    if (justOpened && projetoAtual?.id) {
+      console.log('🔔 [Badge Debug] Drawer ACABOU DE ABRIR para projeto:', projetoAtual.id);
 
       // Verificar se há aprovações não visualizadas
       const temAprovacoesNaoVisualizadas =
@@ -129,16 +134,17 @@ export function ProjectDetailsDrawer({
         // Atualizar cache IMEDIATAMENTE (optimistic update)
         const now = new Date();
 
-        // 1. Atualizar cache do projeto individual
-        queryClient.setQueryData(['/api/projetos', projetoAtual.id], (old: any) => {
-          if (!old) return old;
-          console.log('🔔 [Badge Debug] Atualizando cache individual');
-          return {
-            ...old,
-            musicaVisualizadaEm: old.musicaAprovada ? now : old.musicaVisualizadaEm,
-            locucaoVisualizadaEm: old.locucaoAprovada ? now : old.locucaoVisualizadaEm,
-            videoFinalVisualizadoEm: old.videoFinalAprovado ? now : old.videoFinalVisualizadoEm,
-          };
+        // 1. Atualizar cache do projeto individual IMEDIATAMENTE
+        const updatedFields = {
+          musicaVisualizadaEm: projetoAtual.musicaAprovada ? now : projetoAtual.musicaVisualizadaEm,
+          locucaoVisualizadaEm: projetoAtual.locucaoAprovada ? now : projetoAtual.locucaoVisualizadaEm,
+          videoFinalVisualizadoEm: projetoAtual.videoFinalAprovado ? now : projetoAtual.videoFinalVisualizadoEm,
+        };
+
+        console.log('🔔 [Badge Debug] Atualizando cache individual com:', updatedFields);
+        queryClient.setQueryData(['/api/projetos', projetoAtual.id], {
+          ...projetoAtual,
+          ...updatedFields,
         });
 
         // 2. Atualizar TODAS as queries de projetos (incluindo com filtros)
@@ -188,7 +194,14 @@ export function ProjectDetailsDrawer({
         console.log('🔔 [Badge Debug] Nenhuma aprovação não visualizada encontrada');
       }
     }
-  }, [isOpen, projetoAtual?.id, queryClient]);
+  }, [
+    isOpen,
+    projetoAtual?.id,
+    projetoAtual?.musicaVisualizadaEm,
+    projetoAtual?.locucaoVisualizadaEm,
+    projetoAtual?.videoFinalVisualizadoEm,
+    queryClient
+  ]);
 
   // Form para edição
   const form = useForm({
