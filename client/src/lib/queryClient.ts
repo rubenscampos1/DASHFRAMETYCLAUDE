@@ -45,12 +45,14 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      // Cache por 5 minutos - dados recentes mas não "estagnados"
-      staleTime: 5 * 60 * 1000, // 5 minutos
-      // Manter dados em cache por 10 minutos mesmo se não usados
-      gcTime: 10 * 60 * 1000, // 10 minutos (anteriormente cacheTime)
+      // Polling inteligente: consultar servidor a cada 3 segundos para atualizações
+      // Isso simula realtime de forma confiável
+      refetchInterval: 3000, // 3 segundos
+      refetchOnWindowFocus: true, // Atualizar ao focar na janela
+      // Cache por 2 segundos - considera stale rapidamente para forçar refetch
+      staleTime: 2000, // 2 segundos
+      // Manter dados em cache por 5 minutos
+      gcTime: 5 * 60 * 1000, // 5 minutos
       retry: false,
       // Mostrar dados em cache enquanto busca novos em background
       refetchOnMount: "always",
