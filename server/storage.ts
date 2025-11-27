@@ -62,7 +62,7 @@ const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   sessionStore: any;
-  
+
   // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -70,7 +70,7 @@ export interface IStorage {
   getUsers(): Promise<User[]>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User>;
   deleteUser(id: string): Promise<void>;
-  
+
   // Projetos
   getProjetos(filters?: {
     status?: string;
@@ -86,50 +86,50 @@ export interface IStorage {
   updateProjeto(id: string, projeto: Partial<InsertProjeto>): Promise<Projeto>;
   deleteProjeto(id: string): Promise<void>;
   duplicarProjeto(id: string): Promise<Projeto>;
-  
+
   // Tipos de Video
   getTiposDeVideo(): Promise<TipoVideo[]>;
   createTipoVideo(tipo: InsertTipoVideo): Promise<TipoVideo>;
   updateTipoVideo(id: string, tipo: Partial<InsertTipoVideo>): Promise<TipoVideo>;
   deleteTipoVideo(id: string): Promise<void>;
-  
+
   // Tags
   getTags(): Promise<Tag[]>;
   createTag(tag: InsertTag): Promise<Tag>;
   updateTag(id: string, tag: Partial<InsertTag>): Promise<Tag>;
   deleteTag(id: string): Promise<void>;
-  
+
   // Clientes
   getClientes(): Promise<Cliente[]>;
   getCliente(id: string): Promise<Cliente | undefined>;
   createCliente(cliente: InsertCliente): Promise<Cliente>;
   updateCliente(id: string, cliente: Partial<InsertCliente>): Promise<Cliente>;
   deleteCliente(id: string): Promise<void>;
-  
+
   // Empreendimentos
   getEmpreendimentos(): Promise<EmpreendimentoWithRelations[]>;
   getEmpreendimento(id: string): Promise<EmpreendimentoWithRelations | undefined>;
   createEmpreendimento(empreendimento: InsertEmpreendimento): Promise<Empreendimento>;
   updateEmpreendimento(id: string, empreendimento: Partial<InsertEmpreendimento>): Promise<Empreendimento>;
   deleteEmpreendimento(id: string): Promise<void>;
-  
+
   // Logs de Status
   createLogStatus(log: InsertLogStatus): Promise<LogStatus>;
   getLogsByProjeto(projetoId: string): Promise<LogStatus[]>;
-  
+
   // Comentários
   getComentariosByProjeto(projetoId: string): Promise<ComentarioWithRelations[]>;
   createComentario(comentario: InsertComentario): Promise<Comentario>;
   updateComentario(id: string, comentario: Partial<InsertComentario>): Promise<Comentario>;
   deleteComentario(id: string): Promise<void>;
-  
+
   // Notas
   getNotas(usuarioId: string, filters?: { tipo?: string; categoria?: string; favorito?: boolean }): Promise<Nota[]>;
   getNota(id: string): Promise<Nota | undefined>;
   createNota(nota: InsertNota): Promise<Nota>;
   updateNota(id: string, nota: Partial<InsertNota>): Promise<Nota>;
   deleteNota(id: string): Promise<void>;
-  
+
   // Métricas
   getMetricas(): Promise<{
     totalProjetos: number;
@@ -237,11 +237,11 @@ export class DatabaseStorage implements IStorage {
       .set(updates)
       .where(eq(users.id, id))
       .returning();
-    
+
     if (!user) {
       throw new Error("Usuário não encontrado");
     }
-    
+
     return user;
   }
 
@@ -251,7 +251,7 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)` })
       .from(projetos)
       .where(eq(projetos.responsavelId, id));
-    
+
     const projectCount = Number(userProjects[0]?.count) || 0;
     if (projectCount > 0) {
       throw new Error(`Não é possível excluir este usuário pois ele é responsável por ${projectCount} projeto(s). Reatribua os projetos primeiro.`);
@@ -294,14 +294,14 @@ export class DatabaseStorage implements IStorage {
         like(projetos.descricao, `%${filters.search}%`),
         like(clientes.nome, `%${filters.search}%`)
       ];
-      
+
       // Extract numeric value from search (supports #SKY42, SKY42, or 42)
       const numericMatch = filters.search.match(/\d+/);
       if (numericMatch) {
         const searchNumber = parseInt(numericMatch[0], 10);
         searchConditions.push(eq(projetos.sequencialId, searchNumber));
       }
-      
+
       conditions.push(or(...searchConditions));
     }
     if (filters?.dataInicioAprovacao) {
@@ -336,7 +336,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const result = await query;
-    
+
     return result.map(row => ({
       ...row.projetos,
       tipoVideo: row.tipos_de_video!,
@@ -405,10 +405,10 @@ export class DatabaseStorage implements IStorage {
     await db.transaction(async (tx) => {
       // First delete all related comments
       await tx.delete(comentarios).where(eq(comentarios.projetoId, id));
-      
+
       // Then delete all related status logs
       await tx.delete(logsDeStatus).where(eq(logsDeStatus.projetoId, id));
-      
+
       // Finally delete the project
       await tx.delete(projetos).where(eq(projetos.id, id));
     });
@@ -492,12 +492,12 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)` })
       .from(projetos)
       .where(eq(projetos.tipoVideoId, id));
-    
+
     const count = projetosDoTipo[0]?.count || 0;
     if (count > 0) {
       throw new Error(`Não é possível excluir este tipo de vídeo pois ele possui ${count} projeto(s) associado(s). Remova os projetos primeiro.`);
     }
-    
+
     await db.delete(tiposDeVideo).where(eq(tiposDeVideo.id, id));
   }
 
@@ -558,23 +558,23 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)` })
       .from(projetos)
       .where(eq(projetos.clienteId, id));
-    
+
     const count = projetosDoCliente[0]?.count || 0;
     if (count > 0) {
       throw new Error(`Não é possível excluir este cliente pois ele possui ${count} projeto(s) associado(s). Remova os projetos primeiro.`);
     }
-    
+
     // Verificar se há empreendimentos associados a este cliente
     const empreendimentosDoCliente = await db
       .select({ count: sql<number>`count(*)` })
       .from(empreendimentos)
       .where(eq(empreendimentos.clienteId, id));
-    
+
     const countEmpreendimentos = empreendimentosDoCliente[0]?.count || 0;
     if (countEmpreendimentos > 0) {
       throw new Error(`Não é possível excluir este cliente pois ele possui ${countEmpreendimentos} empreendimento(s) associado(s). Remova os empreendimentos primeiro.`);
     }
-    
+
     await db.delete(clientes).where(eq(clientes.id, id));
   }
 
@@ -584,7 +584,7 @@ export class DatabaseStorage implements IStorage {
       .from(empreendimentos)
       .leftJoin(clientes, eq(empreendimentos.clienteId, clientes.id))
       .orderBy(asc(empreendimentos.nome));
-    
+
     return result.map(row => ({
       ...row.empreendimentos,
       cliente: row.clientes!,

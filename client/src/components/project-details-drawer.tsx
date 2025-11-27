@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getApprovalDetails } from "@/lib/approval-utils";
@@ -68,6 +68,7 @@ export function ProjectDetailsDrawer({
   const [newComment, setNewComment] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Query para buscar o projeto completo (com todos os campos)
   const { data: projetoCompleto, refetch: refetchProjeto } = useQuery<ProjetoWithRelations>({
@@ -108,17 +109,25 @@ export function ProjectDetailsDrawer({
       const temAprovacoesNaoVisualizadas =
         (projetoAtual.musicaAprovada && !projetoAtual.musicaVisualizadaEm) ||
         (projetoAtual.locucaoAprovada && !projetoAtual.locucaoVisualizadaEm) ||
-        (projetoAtual.videoFinalAprovado && !projetoAtual.videoFinalVisualizadoEm);
+        (projetoAtual.videoFinalAprovado && !projetoAtual.videoFinalAprovado);
 
       if (temAprovacoesNaoVisualizadas) {
-        // Invalidar queries IMEDIATAMENTE para atualização instantânea
-        const queryClient = (window as any).queryClient;
-        if (queryClient) {
-          queryClient.invalidateQueries({ queryKey: ['/api/projetos'] });
-          queryClient.invalidateQueries({ queryKey: ['/api/projetos', projetoAtual.id] });
-        }
+        // Atualizar cache IMEDIATAMENTE (optimistic update)
+        const now = new Date();
+        queryClient.setQueryData(['/api/projetos', projetoAtual.id], (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            musicaVisualizadaEm: old.musicaAprovada ? now : old.musicaVisualizadaEm,
+            locucaoVisualizadaEm: old.locucaoAprovada ? now : old.locucaoVisualizadaEm,
+            videoFinalVisualizadoEm: old.videoFinalAprovado ? now : old.videoFinalVisualizadoEm,
+          };
+        });
 
-        // Fazer a requisição em background (sem esperar)
+        // Atualizar lista de projetos também
+        queryClient.invalidateQueries({ queryKey: ['/api/projetos'], refetchType: 'active' });
+
+        // Fazer a requisição em background para sincronizar com servidor
         fetch(`/api/projetos/${projetoAtual.id}/marcar-aprovacoes-visualizadas`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -128,7 +137,7 @@ export function ProjectDetailsDrawer({
         });
       }
     }
-  }, [isOpen, projetoAtual?.id, projetoAtual?.musicaAprovada, projetoAtual?.locucaoAprovada, projetoAtual?.videoFinalAprovado]);
+  }, [isOpen, projetoAtual?.id, queryClient]);
 
   // Form para edição
   const form = useForm({
