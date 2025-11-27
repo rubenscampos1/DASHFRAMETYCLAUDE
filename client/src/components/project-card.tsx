@@ -161,7 +161,41 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
   );
 };
 
-// Memoizar o componente para evitar re-renders desnecessários
-// Usando shallow comparison padrão do React.memo para segurança
-// TEMPORARIAMENTE DESABILITADO para debug do badge de aprovação
-export const ProjectCard = ProjectCardComponent; // memo(ProjectCardComponent);
+// Função de comparação customizada para React.memo
+// Detecta mudanças nos campos de aprovação para garantir que o badge funcione
+const arePropsEqual = (
+  prevProps: ProjectCardProps,
+  nextProps: ProjectCardProps
+): boolean => {
+  // Se IDs diferentes, sempre re-renderizar
+  if (prevProps.projeto.id !== nextProps.projeto.id) return false;
+
+  // Verificar campos críticos de aprovação (para o badge funcionar)
+  if (
+    prevProps.projeto.musicaVisualizadaEm !== nextProps.projeto.musicaVisualizadaEm ||
+    prevProps.projeto.locucaoVisualizadaEm !== nextProps.projeto.locucaoVisualizadaEm ||
+    prevProps.projeto.videoFinalVisualizadoEm !== nextProps.projeto.videoFinalVisualizadoEm ||
+    prevProps.projeto.musicaAprovada !== nextProps.projeto.musicaAprovada ||
+    prevProps.projeto.locucaoAprovada !== nextProps.projeto.locucaoAprovada ||
+    prevProps.projeto.videoFinalAprovado !== nextProps.projeto.videoFinalAprovado
+  ) {
+    return false;
+  }
+
+  // Verificar outros campos importantes
+  if (
+    prevProps.projeto.status !== nextProps.projeto.status ||
+    prevProps.projeto.titulo !== nextProps.projeto.titulo ||
+    prevProps.projeto.sequencialId !== nextProps.projeto.sequencialId ||
+    prevProps.projeto.dataPrevistaEntrega !== nextProps.projeto.dataPrevistaEntrega ||
+    prevProps.isDragging !== nextProps.isDragging
+  ) {
+    return false;
+  }
+
+  // Props são iguais, não precisa re-renderizar
+  return true;
+};
+
+// Memoizar o componente com comparação customizada para performance
+export const ProjectCard = memo(ProjectCardComponent, arePropsEqual);
