@@ -45,17 +45,18 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      // Polling de fallback leve (30s) caso WebSocket falhe
-      // WebSocket é a fonte principal de atualizações (< 100ms)
-      refetchInterval: 30000, // 30 segundos (fallback)
-      refetchOnWindowFocus: true, // Atualizar ao focar na janela
-      // Cache por 5 minutos - WebSocket invalida quando necessário
-      staleTime: 5 * 60 * 1000, // 5 minutos
-      // Manter dados em cache por 10 minutos
-      gcTime: 10 * 60 * 1000, // 10 minutos
+      // OTIMIZAÇÃO: Usar cache agressivamente para performance
+      // WebSocket atualiza dados em tempo real quando mudam
+      refetchInterval: false, // Desabilitado - WebSocket faz updates
+      refetchOnWindowFocus: false, // Desabilitado - usa cache local
+      refetchOnReconnect: false, // Desabilitado - WebSocket reconecta
+      // Cache por 10 minutos - dados raramente mudam
+      staleTime: 10 * 60 * 1000, // 10 minutos
+      // Manter dados em cache por 30 minutos
+      gcTime: 30 * 60 * 1000, // 30 minutos
       retry: false,
-      // Mostrar dados em cache enquanto busca novos em background
-      refetchOnMount: "always",
+      // USA CACHE quando disponível (não refaz request)
+      refetchOnMount: false, // ← MUDANÇA CRÍTICA para performance
     },
     mutations: {
       retry: false,
