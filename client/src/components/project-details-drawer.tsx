@@ -142,12 +142,24 @@ export function ProjectDetailsDrawer({
         });
 
         // 2. Atualizar o projeto dentro da lista de projetos (CRÍTICO para update instantâneo)
+        console.log('🔔 [Badge Debug] Tentando atualizar lista de projetos...');
         queryClient.setQueryData(['/api/projetos'], (old: any) => {
-          if (!old || !Array.isArray(old)) return old;
+          console.log('🔔 [Badge Debug] Cache da lista:', {
+            exists: !!old,
+            isArray: Array.isArray(old),
+            type: typeof old,
+            length: Array.isArray(old) ? old.length : 'N/A'
+          });
 
-          console.log('🔔 [Badge Debug] Atualizando lista de projetos');
-          return old.map((projeto: any) => {
+          if (!old || !Array.isArray(old)) {
+            console.log('🔔 [Badge Debug] ❌ Lista não é array ou não existe, pulando atualização');
+            return old;
+          }
+
+          console.log('🔔 [Badge Debug] ✅ Atualizando lista de projetos com', old.length, 'projetos');
+          const updated = old.map((projeto: any) => {
             if (projeto.id === projetoAtual.id) {
+              console.log('🔔 [Badge Debug] ✅ Encontrou projeto na lista, atualizando...');
               return {
                 ...projeto,
                 musicaVisualizadaEm: projeto.musicaAprovada ? now : projeto.musicaVisualizadaEm,
@@ -157,6 +169,8 @@ export function ProjectDetailsDrawer({
             }
             return projeto;
           });
+          console.log('🔔 [Badge Debug] ✅ Lista atualizada com sucesso');
+          return updated;
         });
 
         console.log('🔔 [Badge Debug] Cache atualizado! Badge deve desaparecer agora.');
