@@ -189,8 +189,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         search: req.query.search as string,
         dataInicioAprovacao: req.query.dataInicioAprovacao as string,
         dataFimAprovacao: req.query.dataFimAprovacao as string,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
-        cursor: req.query.cursor as string,
       };
 
       // Remove undefined values and "all" values
@@ -213,18 +211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         caminho: undefined,  // Não enviar caminho para o dashboard
       }));
 
-      // Paginação: retornar nextCursor e hasMore para scroll infinito
-      const limit = filters.limit || 50;
-      const hasMore = projetosOtimizados.length === limit;
-      const nextCursor = hasMore && projetosOtimizados.length > 0
-        ? projetosOtimizados[projetosOtimizados.length - 1].dataCriacao?.toISOString()
-        : null;
-
-      res.json({
-        projetos: projetosOtimizados,
-        nextCursor,
-        hasMore,
-      });
+      res.json(projetosOtimizados);
     } catch (error) {
       next(error);
     }

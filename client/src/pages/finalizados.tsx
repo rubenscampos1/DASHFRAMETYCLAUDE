@@ -5,8 +5,8 @@
  * - Visualização em tabela com colunas principais
  * - Paginação e estado vazio para filtros
  */
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Sidebar } from "@/components/sidebar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ExternalLink, Calendar, Youtube, Edit, LayoutGrid, List as ListIcon, X, Filter, Star, Loader2 } from "lucide-react";
+import { ExternalLink, Calendar, Youtube, Edit, LayoutGrid, List as ListIcon, X, Filter, Star } from "lucide-react";
 import { ProjetoWithRelations } from "@shared/schema";
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -59,29 +59,13 @@ export default function Finalizados() {
     localStorage.setItem("finalizados_view_mode", viewMode);
   }, [viewMode]);
 
-  // Infinite Query para paginação otimizada
-  const {
-    data,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-  } = useInfiniteQuery({
+  const { data: projetos = [], isLoading } = useQuery<ProjetoWithRelations[]>({
     queryKey: ["/api/projetos", { status: "Aprovado" }],
-    queryFn: async ({ pageParam }) => {
+    queryFn: async () => {
       const startTime = performance.now();
-      console.log('⏱️ [Performance] Carregando página de projetos finalizados...', { cursor: pageParam });
+      console.log('⏱️ [Performance] Carregando projetos finalizados...');
 
-      const params = new URLSearchParams();
-      params.append('status', 'Aprovado');
-
-      if (pageParam) {
-        params.append('cursor', pageParam);
-      }
-
-      params.append('limit', '50');
-
-      const response = await fetch(`/api/projetos?${params}`, {
+      const response = await fetch("/api/projetos?status=Aprovado", {
         credentials: "include",
       });
 
@@ -89,45 +73,11 @@ export default function Finalizados() {
       const data = await response.json();
 
       const duration = (performance.now() - startTime).toFixed(2);
-      console.log(`⏱️ [Performance] Página carregada em ${duration}ms (${data.projetos.length} projetos, hasMore: ${data.hasMore})`);
+      console.log(`⏱️ [Performance] Projetos finalizados carregados em ${duration}ms (${data.length} projetos)`);
 
       return data;
     },
-    getNextPageParam: (lastPage) => {
-      return lastPage.hasMore ? lastPage.nextCursor : undefined;
-    },
-    initialPageParam: undefined,
   });
-
-  // Achatar as páginas em um único array de projetos
-  const projetos = useMemo(() => {
-    if (!data?.pages) return [];
-    return data.pages.flatMap(page => page.projetos);
-  }, [data]);
-
-  // Intersection Observer para scroll infinito
-  const observerTarget = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const target = observerTarget.current;
-    if (!target) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          console.log('⏱️ [Performance] Carregando próxima página (Finalizados)...');
-          fetchNextPage();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(target);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Responsáveis únicos dos projetos finalizados
   const responsaveis = useMemo(() => {
@@ -582,14 +532,6 @@ export default function Finalizados() {
                       ))}
                     </TableBody>
                   </Table>
-
-                  {/* Observer target e loading indicator para tabela */}
-                  <div ref={observerTarget} className="h-4" />
-                  {isFetchingNextPage && (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
                 </motion.div>
               ) : (
                 /* Visualização em Card (padrão) */
@@ -750,14 +692,6 @@ export default function Finalizados() {
                       </Card>
                     </motion.div>
                   ))}
-
-                  {/* Observer target e loading indicator para grid */}
-                  <div ref={observerTarget} className="h-4 col-span-full" />
-                  {isFetchingNextPage && (
-                    <div className="flex justify-center py-8 col-span-full">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
                 </div>
               )}
             </motion.div>
