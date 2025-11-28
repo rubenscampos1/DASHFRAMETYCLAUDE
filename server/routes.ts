@@ -1339,6 +1339,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tipoVideo: projeto.tipoVideo,
         cliente: projeto.cliente,
         empreendimento: projeto.empreendimento,
+        // Link do Frame.io para o cliente visualizar o vídeo
+        linkFrameIo: projeto.linkFrameIo,
         // Arrays de músicas e locutores para aprovação
         musicas,
         locutores,
