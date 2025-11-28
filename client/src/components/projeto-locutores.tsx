@@ -26,10 +26,16 @@ export function ProjetoLocutores({ projetoId }: ProjetoLocutoresProps) {
   });
 
   // Query para buscar locutores do projeto
-  const { data: locutoresProjeto = [] } = useQuery<ProjetoLocutorWithRelations[]>({
+  const { data: locutoresProjeto = [], refetch } = useQuery<ProjetoLocutorWithRelations[]>({
     queryKey: [`/api/projetos/${projetoId}/locutores`],
     enabled: !!projetoId,
+    staleTime: 0, // Sempre refetch para garantir dados frescos
+    refetchOnMount: true, // Refetch quando componente montar
   });
+
+  // Debug: verificar se locutores estão sendo carregados
+  console.log('🎤 [ProjetoLocutores Debug] projetoId:', projetoId);
+  console.log('🎤 [ProjetoLocutores Debug] locutores carregados:', locutoresProjeto);
 
   // Mutation para adicionar locutor
   const adicionarLocutorMutation = useMutation({

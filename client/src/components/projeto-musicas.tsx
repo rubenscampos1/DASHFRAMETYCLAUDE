@@ -18,10 +18,16 @@ export function ProjetoMusicas({ projetoId }: ProjetoMusicasProps) {
   const [novaMusica, setNovaMusica] = useState({ titulo: "", musicaUrl: "" });
 
   // Query para buscar músicas do projeto
-  const { data: musicas = [] } = useQuery<ProjetoMusica[]>({
+  const { data: musicas = [], refetch } = useQuery<ProjetoMusica[]>({
     queryKey: [`/api/projetos/${projetoId}/musicas`],
     enabled: !!projetoId,
+    staleTime: 0, // Sempre refetch para garantir dados frescos
+    refetchOnMount: true, // Refetch quando componente montar
   });
+
+  // Debug: verificar se músicas estão sendo carregadas
+  console.log('🎵 [ProjetoMusicas Debug] projetoId:', projetoId);
+  console.log('🎵 [ProjetoMusicas Debug] músicas carregadas:', musicas);
 
   // Mutation para adicionar música
   const adicionarMusicaMutation = useMutation({
