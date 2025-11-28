@@ -472,26 +472,16 @@ export default function ClientePortal() {
         {/* Botão para visualizar vídeo no Frame.io */}
         {projeto.linkFrameIo && (
           <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <div className="p-3 rounded-full bg-primary/20 shrink-0">
-                  <Video className="h-8 w-8 text-primary" />
-                </div>
-                <div className="flex-1 text-center sm:text-left">
-                  <h3 className="font-semibold text-lg mb-1">Seu Vídeo Está Pronto!</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Clique no botão ao lado para visualizar seu vídeo no Frame.io
-                  </p>
-                </div>
-                <Button
-                  size="lg"
-                  className="min-w-[200px] gap-2 shadow-lg"
-                  onClick={() => window.open(projeto.linkFrameIo!, '_blank')}
-                >
-                  <ExternalLink className="h-5 w-5" />
-                  Clique e veja seu vídeo
-                </Button>
-              </div>
+            <CardContent className="p-4">
+              <Button
+                size="default"
+                className="w-full gap-2 shadow-lg sm:text-base text-sm"
+                onClick={() => window.open(projeto.linkFrameIo!, '_blank')}
+              >
+                <Video className="h-4 w-4" />
+                Clique e veja seu vídeo
+                <ExternalLink className="h-4 w-4" />
+              </Button>
             </CardContent>
           </Card>
         )}
