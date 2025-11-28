@@ -79,16 +79,38 @@ export default function ClientePortal() {
   const { toast } = useToast();
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
 
-  // Estados para feedback de músicas individuais
-  const [musicasFeedback, setMusicasFeedback] = useState<{ [key: string]: string }>({});
+  // Novo sistema de seleção única (radio buttons)
+  const [musicaSelecionada, setMusicaSelecionada] = useState<string | null>(null);
+  const [locutorSelecionado, setLocutorSelecionado] = useState<string | null>(null);
+  const [feedbackGeral, setFeedbackGeral] = useState("");
 
-  // Estados para feedback de locutores individuais
-  const [locutoresFeedback, setLocutoresFeedback] = useState<{ [key: string]: string }>({});
-
-  // Estados para feedback dos itens antigos
+  // Estados para feedback dos itens antigos (sistema legado)
   const [musicaFeedback, setMusicaFeedback] = useState("");
   const [locucaoFeedback, setLocucaoFeedback] = useState("");
   const [videoFeedback, setVideoFeedback] = useState("");
+
+  // Função para abrir música em popup (desktop) ou nova aba (mobile)
+  const abrirMusicaPopup = (url: string) => {
+    // Detectar se é mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      // No mobile, abre em nova aba normal
+      window.open(url, '_blank');
+    } else {
+      // No desktop, abre popup estilizada
+      const width = 800;
+      const height = 600;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+
+      window.open(
+        url,
+        'MusicaPopup',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no`
+      );
+    }
+  };
 
   // Query para buscar dados do projeto
   const { data: projeto, isLoading, error } = useQuery<ProjetoCliente>({
@@ -96,44 +118,46 @@ export default function ClientePortal() {
     retry: false,
   });
 
-  // Mutations para aprovar músicas individuais
-  const aprovarMusicaIndividualMutation = useMutation({
-    mutationFn: async ({ musicaId, aprovado, feedback }: { musicaId: string; aprovado: boolean; feedback?: string }) => {
-      const response = await fetch(`/api/cliente/projeto/${token}/musicas/${musicaId}/aprovar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aprovado, feedback }),
-      });
-      if (!response.ok) throw new Error("Erro ao processar aprovação");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/cliente/projeto/${token}`] });
-      setMusicasFeedback({});
-      toast({
-        title: "Sucesso!",
-        description: "Sua resposta foi registrada",
-      });
-    },
-  });
+  // Mutation para enviar seleções (música + locutor de uma vez)
+  const enviarSelecoesMutation = useMutation({
+    mutationFn: async () => {
+      if (!musicaSelecionada || !locutorSelecionado) {
+        throw new Error("Selecione uma música e um locutor");
+      }
 
-  // Mutations para aprovar locutores individuais
-  const aprovarLocutorIndividualMutation = useMutation({
-    mutationFn: async ({ locutorId, aprovado, feedback }: { locutorId: string; aprovado: boolean; feedback?: string }) => {
-      const response = await fetch(`/api/cliente/projeto/${token}/locutores/${locutorId}/aprovar`, {
+      // Aprovar a música selecionada
+      const musicaResponse = await fetch(`/api/cliente/projeto/${token}/musicas/${musicaSelecionada}/aprovar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aprovado, feedback }),
+        body: JSON.stringify({ aprovado: true, feedback: feedbackGeral }),
       });
-      if (!response.ok) throw new Error("Erro ao processar aprovação");
-      return response.json();
+      if (!musicaResponse.ok) throw new Error("Erro ao aprovar música");
+
+      // Aprovar o locutor selecionado
+      const locutorResponse = await fetch(`/api/cliente/projeto/${token}/locutores/${locutorSelecionado}/aprovar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aprovado: true, feedback: feedbackGeral }),
+      });
+      if (!locutorResponse.ok) throw new Error("Erro ao aprovar locutor");
+
+      return { success: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/cliente/projeto/${token}`] });
-      setLocutoresFeedback({});
+      setMusicaSelecionada(null);
+      setLocutorSelecionado(null);
+      setFeedbackGeral("");
       toast({
-        title: "Sucesso!",
-        description: "Sua resposta foi registrada",
+        title: "Resposta enviada!",
+        description: "Suas escolhas foram registradas com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao enviar resposta",
+        description: error.message,
+        variant: "destructive",
       });
     },
   });
@@ -460,9 +484,33 @@ export default function ClientePortal() {
             <CardContent className="p-4 pt-0">
               <Accordion type="single" collapsible className="w-full space-y-2">
                 {projeto.musicas.map((musica, index) => (
-                  <AccordionItem key={musica.id} value={`musica-${index}`} className="border rounded-lg px-4">
+                  <AccordionItem
+                    key={musica.id}
+                    value={`musica-${index}`}
+                    className={`border rounded-lg px-4 transition-all ${musicaSelecionada === musica.id ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20' : ''}`}
+                  >
                     <AccordionTrigger className="hover:no-underline py-3">
-                      <div className="flex items-center gap-2 flex-1 text-left">
+                      <div className="flex items-center gap-3 flex-1 text-left">
+                        {/* Checkbox visual para seleção */}
+                        {musica.aprovada === null && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMusicaSelecionada(musica.id);
+                            }}
+                            className={`
+                              w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all
+                              ${musicaSelecionada === musica.id
+                                ? 'border-green-500 bg-green-500'
+                                : 'border-gray-300 hover:border-green-400'
+                              }
+                            `}
+                          >
+                            {musicaSelecionada === musica.id && (
+                              <CheckCircle2 className="h-4 w-4 text-white" />
+                            )}
+                          </div>
+                        )}
                         <Music className="h-4 w-4 text-primary flex-shrink-0" />
                         <span className="font-medium text-sm">{musica.titulo}</span>
                         <ApprovalStatus approved={musica.aprovada} />
@@ -470,72 +518,18 @@ export default function ClientePortal() {
                     </AccordionTrigger>
                     <AccordionContent className="pb-4 pt-2">
                       <div className="space-y-3">
-                        {/* Links da música */}
+                        {/* Link da música */}
                         <div className="bg-muted/50 rounded-lg p-2 space-y-1">
-                          <a
-                            href={musica.musicaUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            onClick={() => abrirMusicaPopup(musica.musicaUrl)}
                             className="text-xs text-blue-600 hover:underline flex items-center gap-1"
                           >
-                            <ExternalLink className="h-3 w-3" />
+                            <Music className="h-3 w-3" />
                             Ouvir música
-                          </a>
+                          </button>
                         </div>
 
-                        {musica.aprovada === null ? (
-                          <div className="space-y-2">
-                            <Textarea
-                              placeholder="Comentários ou sugestões sobre esta música (opcional)"
-                              value={musicasFeedback[musica.id] || ""}
-                              onChange={(e) => setMusicasFeedback({ ...musicasFeedback, [musica.id]: e.target.value })}
-                              rows={2}
-                              className="resize-none text-sm"
-                            />
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <Button
-                                onClick={() => aprovarMusicaIndividualMutation.mutate({
-                                  musicaId: musica.id,
-                                  aprovado: true,
-                                  feedback: musicasFeedback[musica.id]
-                                })}
-                                disabled={aprovarMusicaIndividualMutation.isPending}
-                                size="sm"
-                                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                {aprovarMusicaIndividualMutation.isPending ? (
-                                  <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                                ) : (
-                                  <CheckCircle2 className="h-3 w-3 mr-2" />
-                                )}
-                                Aprovar
-                              </Button>
-                              <Button
-                                onClick={() => aprovarMusicaIndividualMutation.mutate({
-                                  musicaId: musica.id,
-                                  aprovado: false,
-                                  feedback: musicasFeedback[musica.id]
-                                })}
-                                disabled={aprovarMusicaIndividualMutation.isPending || !musicasFeedback[musica.id]?.trim()}
-                                variant="destructive"
-                                size="sm"
-                                className="flex-1"
-                              >
-                                {aprovarMusicaIndividualMutation.isPending ? (
-                                  <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                                ) : (
-                                  <XCircle className="h-3 w-3 mr-2" />
-                                )}
-                                Solicitar Alteração
-                              </Button>
-                            </div>
-                            {!musicasFeedback[musica.id]?.trim() && (
-                              <p className="text-xs text-muted-foreground text-center">
-                                Para solicitar alteração, é necessário deixar um comentário
-                              </p>
-                            )}
-                          </div>
-                        ) : (
+                        {musica.aprovada !== null && (
                           <div className="space-y-2">
                             {musica.feedback && (
                               <Alert className="p-3">
@@ -581,9 +575,33 @@ export default function ClientePortal() {
                   const amostraDestaque = locutor.amostras?.find(a => a.destaque) || locutor.amostras?.[0];
 
                   return (
-                    <AccordionItem key={projetoLocutor.id} value={`locutor-${index}`} className="border rounded-lg px-4">
+                    <AccordionItem
+                      key={projetoLocutor.id}
+                      value={`locutor-${index}`}
+                      className={`border rounded-lg px-4 transition-all ${locutorSelecionado === projetoLocutor.id ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20' : ''}`}
+                    >
                       <AccordionTrigger className="hover:no-underline py-3">
-                        <div className="flex items-center gap-2 flex-1 text-left flex-wrap">
+                        <div className="flex items-center gap-3 flex-1 text-left flex-wrap">
+                          {/* Checkbox visual para seleção */}
+                          {projetoLocutor.aprovado === null && (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLocutorSelecionado(projetoLocutor.id);
+                              }}
+                              className={`
+                                w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0
+                                ${locutorSelecionado === projetoLocutor.id
+                                  ? 'border-green-500 bg-green-500'
+                                  : 'border-gray-300 hover:border-green-400'
+                                }
+                              `}
+                            >
+                              {locutorSelecionado === projetoLocutor.id && (
+                                <CheckCircle2 className="h-4 w-4 text-white" />
+                              )}
+                            </div>
+                          )}
                           <Mic className="h-4 w-4 text-primary flex-shrink-0" />
                           <span className="font-medium text-sm">{locutor.nome}</span>
                           <Badge variant="outline" className="text-xs">{locutor.genero}</Badge>
@@ -623,59 +641,7 @@ export default function ClientePortal() {
                             </div>
                           )}
 
-                          {projetoLocutor.aprovado === null ? (
-                            <div className="space-y-2">
-                              <Textarea
-                                placeholder="Comentários ou sugestões sobre este locutor (opcional)"
-                                value={locutoresFeedback[projetoLocutor.id] || ""}
-                                onChange={(e) => setLocutoresFeedback({ ...locutoresFeedback, [projetoLocutor.id]: e.target.value })}
-                                rows={2}
-                                className="resize-none text-sm"
-                              />
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <Button
-                                  onClick={() => aprovarLocutorIndividualMutation.mutate({
-                                    locutorId: projetoLocutor.id,
-                                    aprovado: true,
-                                    feedback: locutoresFeedback[projetoLocutor.id]
-                                  })}
-                                  disabled={aprovarLocutorIndividualMutation.isPending}
-                                  size="sm"
-                                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                                >
-                                  {aprovarLocutorIndividualMutation.isPending ? (
-                                    <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                                  ) : (
-                                    <CheckCircle2 className="h-3 w-3 mr-2" />
-                                  )}
-                                  Aprovar
-                                </Button>
-                                <Button
-                                  onClick={() => aprovarLocutorIndividualMutation.mutate({
-                                    locutorId: projetoLocutor.id,
-                                    aprovado: false,
-                                    feedback: locutoresFeedback[projetoLocutor.id]
-                                  })}
-                                  disabled={aprovarLocutorIndividualMutation.isPending || !locutoresFeedback[projetoLocutor.id]?.trim()}
-                                  variant="destructive"
-                                  size="sm"
-                                  className="flex-1"
-                                >
-                                  {aprovarLocutorIndividualMutation.isPending ? (
-                                    <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                                  ) : (
-                                    <XCircle className="h-3 w-3 mr-2" />
-                                  )}
-                                  Solicitar Alteração
-                                </Button>
-                              </div>
-                              {!locutoresFeedback[projetoLocutor.id]?.trim() && (
-                                <p className="text-xs text-muted-foreground text-center">
-                                  Para solicitar alteração, é necessário deixar um comentário
-                                </p>
-                              )}
-                            </div>
-                          ) : (
+                          {projetoLocutor.aprovado !== null && (
                             <div className="space-y-2">
                               {projetoLocutor.feedback && (
                                 <Alert className="p-3">
@@ -697,6 +663,65 @@ export default function ClientePortal() {
                   );
                 })}
               </Accordion>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Botão de envio de respostas (novo sistema) */}
+        {/* Só mostra o botão se: */}
+        {/* 1. Existem músicas E locutores */}
+        {/* 2. Ainda não foi aprovado nada (nenhuma música E nenhum locutor aprovados) */}
+        {/* 3. Existem itens pendentes (não aprovados) */}
+        {projeto.musicas && projeto.musicas.length > 0 && projeto.locutores && projeto.locutores.length > 0 && (
+          // Verifica se NENHUMA música foi aprovada ainda E NENHUM locutor foi aprovado ainda
+          !projeto.musicas.some(m => m.aprovada !== null) && !projeto.locutores.some(l => l.aprovado !== null)
+        ) && (
+          <Card className="border-primary/20">
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Comentário ou sugestões (opcional)
+                  </label>
+                  <Textarea
+                    placeholder="Deixe um comentário geral sobre suas escolhas..."
+                    value={feedbackGeral}
+                    onChange={(e) => setFeedbackGeral(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {(!musicaSelecionada || !locutorSelecionado) && (
+                    <Alert className="p-3">
+                      <AlertCircle className="h-3 w-3" />
+                      <AlertDescription className="text-xs">
+                        Selecione uma música e um locutor antes de enviar sua resposta
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button
+                    onClick={() => enviarSelecoesMutation.mutate()}
+                    disabled={!musicaSelecionada || !locutorSelecionado || enviarSelecoesMutation.isPending}
+                    size="lg"
+                    className="w-full bg-primary hover:bg-primary/90 text-white font-semibold"
+                  >
+                    {enviarSelecoesMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Enviar Resposta
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -744,7 +769,7 @@ export default function ClientePortal() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => window.open(projeto.musicaUrl!, '_blank')}
+                    onClick={() => abrirMusicaPopup(projeto.musicaUrl!)}
                     className="flex-shrink-0"
                   >
                     <ExternalLink className="h-3 w-3" />

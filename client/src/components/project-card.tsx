@@ -1,7 +1,17 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Calendar, AlertTriangle, Trash2, Copy } from "lucide-react";
 import { ProjetoWithRelations } from "@shared/schema";
 import { format, isBefore, startOfDay } from "date-fns";
@@ -33,6 +43,8 @@ const statusColors = {
 };
 
 const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplicate }: ProjectCardProps) => {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
   const isOverdue = projeto.dataPrevistaEntrega &&
     isBefore(startOfDay(new Date(projeto.dataPrevistaEntrega)), startOfDay(new Date())) &&
     !["Aprovado", "Cancelado"].includes(projeto.status);
@@ -142,7 +154,7 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
                   className="h-9 w-9 md:h-7 md:w-7 p-0 rounded-lg hover:bg-destructive hover:text-destructive-foreground active:scale-95 transition-transform"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDelete(projeto.id);
+                    setShowDeleteDialog(true);
                   }}
                   data-testid={`delete-project-${projeto.id}`}
                 >
@@ -157,6 +169,30 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog de confirmação para deletar */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este projeto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O projeto "{projeto.titulo}" será permanentemente removido do sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onDelete?.(projeto.id);
+                setShowDeleteDialog(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 };
