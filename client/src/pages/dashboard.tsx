@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   Search,
@@ -22,6 +22,7 @@ import { motion } from "framer-motion";
 
 export default function Dashboard() {
   const { mainContentClass } = useSidebarLayout();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [responsavelId, setResponsavelId] = useState<string>("all");
   const [tipoVideoId, setTipoVideoId] = useState<string>("all");
@@ -59,6 +60,79 @@ export default function Dashboard() {
       return data;
     },
   });
+
+  // 🚀 Prefetch inteligente: Carregar outras páginas em background após dashboard pronto
+  useEffect(() => {
+    // Só fazer prefetch depois que o dashboard já carregou (users e tiposVideo prontos)
+    if (users.length > 0 && tiposVideo.length > 0) {
+      console.log('🚀 [Prefetch] Dashboard pronto! Iniciando prefetch de outras páginas em 2 segundos...');
+
+      // Aguardar 2 segundos para não competir com carregamento inicial
+      const timer = setTimeout(async () => {
+        const startTime = performance.now();
+        console.log('🚀 [Prefetch] Carregando dados em background...');
+
+        try {
+          // Prefetch das rotas mais acessadas
+          await Promise.all([
+            queryClient.prefetchQuery({
+              queryKey: ['/api/metricas'],
+              queryFn: async () => {
+                console.log('  📊 [Prefetch] Carregando métricas...');
+                const res = await fetch('/api/metricas', { credentials: 'include' });
+                if (!res.ok) throw new Error('Erro ao carregar métricas');
+                return res.json();
+              },
+            }),
+            queryClient.prefetchQuery({
+              queryKey: ['/api/clientes'],
+              queryFn: async () => {
+                console.log('  👥 [Prefetch] Carregando clientes...');
+                const res = await fetch('/api/clientes', { credentials: 'include' });
+                if (!res.ok) throw new Error('Erro ao carregar clientes');
+                return res.json();
+              },
+            }),
+            queryClient.prefetchQuery({
+              queryKey: ['/api/empreendimentos'],
+              queryFn: async () => {
+                console.log('  🏢 [Prefetch] Carregando empreendimentos...');
+                const res = await fetch('/api/empreendimentos', { credentials: 'include' });
+                if (!res.ok) throw new Error('Erro ao carregar empreendimentos');
+                return res.json();
+              },
+            }),
+            queryClient.prefetchQuery({
+              queryKey: ['/api/projetos', { status: 'Aprovado' }],
+              queryFn: async () => {
+                console.log('  ✅ [Prefetch] Carregando projetos finalizados...');
+                const params = new URLSearchParams({ status: 'Aprovado' });
+                const res = await fetch(`/api/projetos?${params}`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Erro ao carregar projetos finalizados');
+                return res.json();
+              },
+            }),
+            queryClient.prefetchQuery({
+              queryKey: ['/api/projetos', {}],
+              queryFn: async () => {
+                console.log('  📈 [Prefetch] Carregando dados para relatórios...');
+                const res = await fetch('/api/projetos', { credentials: 'include' });
+                if (!res.ok) throw new Error('Erro ao carregar projetos para relatórios');
+                return res.json();
+              },
+            }),
+          ]);
+
+          const duration = (performance.now() - startTime).toFixed(2);
+          console.log(`🚀 [Prefetch] ✅ Todas as páginas pré-carregadas em ${duration}ms! Navegação será instantânea.`);
+        } catch (error) {
+          console.error('❌ [Prefetch] Erro ao pré-carregar páginas:', error);
+        }
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [users, tiposVideo, queryClient]);
 
   return (
     <div className="flex h-screen overflow-hidden">
