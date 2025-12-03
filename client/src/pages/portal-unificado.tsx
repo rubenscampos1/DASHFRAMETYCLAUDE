@@ -117,6 +117,9 @@ export default function PortalUnificado() {
     }
   }, [clienteData, projetoIdFromUrl]);
 
+  // Projeto atualmente selecionado (precisa estar antes do useEffect do NPS)
+  const projeto = clienteData?.projetos.find(p => p.id === projetoSelecionadoId);
+
   // Verificar se deve abrir questionário NPS automaticamente
   useEffect(() => {
     const verificarNPS = async () => {
@@ -153,9 +156,6 @@ export default function PortalUnificado() {
     const newUrl = `/portal/cliente/${clientToken}?projeto=${projetoId}`;
     window.history.pushState({}, '', newUrl);
   };
-
-  // Projeto atualmente selecionado
-  const projeto = clienteData?.projetos.find(p => p.id === projetoSelecionadoId);
 
   // Estados para seleção de música e locutor (novo sistema)
   const [musicaSelecionada, setMusicaSelecionada] = useState<string | null>(null);
