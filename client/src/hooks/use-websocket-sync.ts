@@ -41,12 +41,24 @@ export function useWebSocketSync() {
       });
     });
 
+    // Escutar criação de resposta NPS
+    socket.on('nps:created', (data) => {
+      console.log('[WebSocket] NPS respondido para projeto:', data.projetoId, 'Categoria:', data.categoria);
+
+      // Invalidar todas as queries de projetos para atualizar badges e informações
+      queryClient.invalidateQueries({ queryKey: ['/api/projetos'] });
+
+      // Invalidar projeto específico
+      queryClient.invalidateQueries({ queryKey: ['/api/projetos', data.projetoId] });
+    });
+
     // Cleanup: remover listeners quando componente desmontar
     return () => {
       console.log('[WebSocket] Limpando listeners');
       socket.off('projeto:updated');
       socket.off('comentario:created');
       socket.off('comentario:deleted');
+      socket.off('nps:created');
     };
   }, []);
 }

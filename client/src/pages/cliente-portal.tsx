@@ -137,11 +137,9 @@ export default function ClientePortal() {
           const response = await fetch(`/api/cliente/projeto/${token}/nps/verificar`);
           const data = await response.json();
 
-          // Se não existe resposta NPS, abrir o questionário após 2 segundos
+          // Se não existe resposta NPS, abrir o questionário imediatamente
           if (!data.jaRespondeu) {
-            setTimeout(() => {
-              setMostrarQuestionarioNps(true);
-            }, 2000);
+            setMostrarQuestionarioNps(true);
           }
         } catch (error) {
           console.error("Erro ao verificar NPS:", error);
