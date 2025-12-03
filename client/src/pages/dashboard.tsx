@@ -102,18 +102,24 @@ export default function Dashboard() {
                 return res.json();
               },
             }),
-            queryClient.prefetchQuery({
-              queryKey: ['/api/projetos', { status: 'Aprovado' }],
-              queryFn: async () => {
+            queryClient.prefetchInfiniteQuery({
+              queryKey: ['/api/projetos', { status: 'Aprovado', dateFilter: 'all', responsavelFilter: 'all', customDateStart: '', customDateEnd: '' }],
+              queryFn: async ({ pageParam = 0 }) => {
                 console.log('  ✅ [Prefetch] Carregando projetos finalizados...');
-                const params = new URLSearchParams({ status: 'Aprovado' });
-                const res = await fetch(`/api/projetos?${params}`, { credentials: 'include' });
+                const res = await fetch(`/api/projetos?status=Aprovado&limit=20&offset=${pageParam}`, { credentials: 'include' });
                 if (!res.ok) throw new Error('Erro ao carregar projetos finalizados');
                 return res.json();
               },
+              initialPageParam: 0,
+              getNextPageParam: (lastPage: any) => {
+                if (lastPage.hasMore) {
+                  return lastPage.offset + lastPage.limit;
+                }
+                return undefined;
+              },
             }),
             queryClient.prefetchQuery({
-              queryKey: ['/api/projetos', {}],
+              queryKey: ['/api/projetos', { status: 'all', responsavelId: 'all', tipoVideoId: 'all', cliente: '', search: '', dataInicioAprovacao: undefined, dataFimAprovacao: undefined }],
               queryFn: async () => {
                 console.log('  📈 [Prefetch] Carregando dados para relatórios...');
                 const res = await fetch('/api/projetos', { credentials: 'include' });
