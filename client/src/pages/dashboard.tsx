@@ -127,6 +127,24 @@ export default function Dashboard() {
                 return res.json();
               },
             }),
+            queryClient.prefetchQuery({
+              queryKey: ['/api/notas', 'todos', 'todos'],
+              queryFn: async () => {
+                console.log('  📝 [Prefetch] Carregando notas...');
+                const res = await fetch('/api/notas', { credentials: 'include' });
+                if (!res.ok) throw new Error('Erro ao carregar notas');
+                return res.json();
+              },
+            }),
+            queryClient.prefetchQuery({
+              queryKey: ['/api/timelapses'],
+              queryFn: async () => {
+                console.log('  ⏱️ [Prefetch] Carregando timelapses...');
+                const res = await fetch('/api/timelapses', { credentials: 'include' });
+                if (!res.ok) throw new Error('Erro ao carregar timelapses');
+                return res.json();
+              },
+            }),
           ]);
 
           const duration = (performance.now() - startTime).toFixed(2);
