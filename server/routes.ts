@@ -862,8 +862,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (tipo) filters.tipo = tipo;
       if (categoria) filters.categoria = categoria;
       if (favorito !== undefined) filters.favorito = favorito === 'true';
-      
-      const notas = await storage.getNotas(req.user!.id, filters);
+
+      // Buscar todas as notas (compartilhadas entre todos os usuários)
+      const notas = await storage.getNotas(undefined, filters);
       res.json(notas);
     } catch (error) {
       next(error);
@@ -876,10 +877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!nota) {
         return res.status(404).json({ message: "Nota não encontrada" });
       }
-      // Verificar se a nota pertence ao usuário
-      if (nota.usuarioId !== req.user!.id) {
-        return res.status(403).json({ message: "Acesso negado" });
-      }
+      // Notas são compartilhadas entre todos os usuários
       res.json(nota);
     } catch (error) {
       next(error);
@@ -893,7 +891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         usuarioId: req.user!.id
       });
       const nota = await storage.createNota(notaData);
-      
+
       // If this is a file nota, set ACL policy for the uploaded object
       if (nota.fileKey && nota.tipo === "Arquivo") {
         try {
@@ -909,7 +907,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Don't fail the nota creation if ACL setting fails
         }
       }
-      
+
+      // Emitir evento WebSocket para sincronização em tempo real
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('nota:created', { notaId: nota.id });
+      }
+
       res.status(201).json(nota);
     } catch (error) {
       next(error);
@@ -922,12 +926,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!nota) {
         return res.status(404).json({ message: "Nota não encontrada" });
       }
-      if (nota.usuarioId !== req.user!.id) {
-        return res.status(403).json({ message: "Acesso negado" });
-      }
-      
+      // Notas são compartilhadas - qualquer usuário pode editar
+
       const notaData = insertNotaSchema.partial().parse(req.body);
       const updatedNota = await storage.updateNota(req.params.id, notaData);
+
+      // Emitir evento WebSocket para sincronização em tempo real
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('nota:updated', { notaId: updatedNota.id });
+      }
+
       res.json(updatedNota);
     } catch (error) {
       next(error);
@@ -940,11 +949,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!nota) {
         return res.status(404).json({ message: "Nota não encontrada" });
       }
-      if (nota.usuarioId !== req.user!.id) {
-        return res.status(403).json({ message: "Acesso negado" });
-      }
+      // Notas são compartilhadas - qualquer usuário pode deletar
 
       await storage.deleteNota(req.params.id);
+
+      // Emitir evento WebSocket para sincronização em tempo real
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('nota:deleted', { notaId: req.params.id });
+      }
+
       res.sendStatus(204);
     } catch (error) {
       next(error);

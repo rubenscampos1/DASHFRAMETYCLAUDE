@@ -127,7 +127,7 @@ export interface IStorage {
   deleteComentario(id: string): Promise<void>;
 
   // Notas
-  getNotas(usuarioId: string, filters?: { tipo?: string; categoria?: string; favorito?: boolean }): Promise<Nota[]>;
+  getNotas(usuarioId?: string, filters?: { tipo?: string; categoria?: string; favorito?: boolean }): Promise<Nota[]>;
   getNota(id: string): Promise<Nota | undefined>;
   createNota(nota: InsertNota): Promise<Nota>;
   updateNota(id: string, nota: Partial<InsertNota>): Promise<Nota>;
@@ -691,10 +691,13 @@ export class DatabaseStorage implements IStorage {
     await db.delete(comentarios).where(eq(comentarios.id, id));
   }
 
-  async getNotas(usuarioId: string, filters?: { tipo?: string; categoria?: string; favorito?: boolean }): Promise<Nota[]> {
-    let query = db.select().from(notas).where(eq(notas.usuarioId, usuarioId));
+  async getNotas(usuarioId?: string, filters?: { tipo?: string; categoria?: string; favorito?: boolean }): Promise<Nota[]> {
+    const conditions = [];
 
-    const conditions = [eq(notas.usuarioId, usuarioId)];
+    // Se usuarioId for passado, filtrar por ele (não usado mais, mas mantemos compatibilidade)
+    if (usuarioId) {
+      conditions.push(eq(notas.usuarioId, usuarioId));
+    }
 
     if (filters?.tipo) {
       conditions.push(eq(notas.tipo, filters.tipo as any));
@@ -706,11 +709,10 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(notas.favorito, filters.favorito));
     }
 
-    const results = await db
-      .select()
-      .from(notas)
-      .where(and(...conditions))
-      .orderBy(desc(notas.updatedAt));
+    const query = db.select().from(notas);
+    const results = conditions.length > 0
+      ? await query.where(and(...conditions)).orderBy(desc(notas.updatedAt))
+      : await query.orderBy(desc(notas.updatedAt));
 
     return results;
   }

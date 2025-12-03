@@ -52,6 +52,23 @@ export function useWebSocketSync() {
       queryClient.invalidateQueries({ queryKey: ['/api/projetos', data.projetoId] });
     });
 
+    // Escutar mudanças em notas
+    socket.on('nota:created', (data) => {
+      console.log('[WebSocket] Nova nota criada:', data.notaId);
+      queryClient.invalidateQueries({ queryKey: ['/api/notas'] });
+    });
+
+    socket.on('nota:updated', (data) => {
+      console.log('[WebSocket] Nota atualizada:', data.notaId);
+      queryClient.invalidateQueries({ queryKey: ['/api/notas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notas', data.notaId] });
+    });
+
+    socket.on('nota:deleted', (data) => {
+      console.log('[WebSocket] Nota deletada:', data.notaId);
+      queryClient.invalidateQueries({ queryKey: ['/api/notas'] });
+    });
+
     // Cleanup: remover listeners quando componente desmontar
     return () => {
       console.log('[WebSocket] Limpando listeners');
@@ -59,6 +76,9 @@ export function useWebSocketSync() {
       socket.off('comentario:created');
       socket.off('comentario:deleted');
       socket.off('nps:created');
+      socket.off('nota:created');
+      socket.off('nota:updated');
+      socket.off('nota:deleted');
     };
   }, []);
 }
