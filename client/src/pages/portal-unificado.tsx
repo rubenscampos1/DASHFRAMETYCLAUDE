@@ -461,16 +461,9 @@ export default function PortalUnificado() {
                           {projetoAtual.titulo}
                         </p>
                       </div>
-                      {projetoAtual.status === "Aprovado" ? (
-                        <Badge variant="default" className="bg-green-600 shrink-0">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Concluído
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="shrink-0">
-                          {projetoAtual.status}
-                        </Badge>
-                      )}
+                      <Badge variant="outline" className="shrink-0">
+                        {projetoAtual.tipoVideo.nome}
+                      </Badge>
                     </div>
                   </div>
                 )}
@@ -497,7 +490,7 @@ export default function PortalUnificado() {
                                 {proj.titulo}
                               </span>
                               <Badge variant="outline" className="text-xs shrink-0">
-                                {proj.status}
+                                {proj.tipoVideo.nome}
                               </Badge>
                             </div>
                           </SelectItem>
@@ -528,10 +521,9 @@ export default function PortalUnificado() {
                               <span className="flex-1 text-sm">
                                 {proj.titulo}
                               </span>
-                              <span className="text-xs font-medium text-green-600 dark:text-green-400 flex items-center gap-1 shrink-0">
-                                <CheckCircle2 className="h-3 w-3" />
-                                Finalizado
-                              </span>
+                              <Badge variant="outline" className="text-xs shrink-0">
+                                {proj.tipoVideo.nome}
+                              </Badge>
                             </div>
                           </SelectItem>
                         ))}
@@ -554,12 +546,14 @@ export default function PortalUnificado() {
                   Status atual: <strong>{projeto.status}</strong>
                 </p>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-primary">{diasNoStatusAtual}</div>
-                <p className="text-xs text-muted-foreground">
-                  {diasNoStatusAtual === 1 ? 'dia' : 'dias'} neste status
-                </p>
-              </div>
+              {projeto.status !== "Aprovado" && (
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-primary">{diasNoStatusAtual}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {diasNoStatusAtual === 1 ? 'dia' : 'dias'} neste status
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Barra de progresso visual */}

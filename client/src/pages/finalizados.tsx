@@ -509,7 +509,6 @@ export default function Finalizados() {
                         <TableHead>Cliente</TableHead>
                         <TableHead>Responsável</TableHead>
                         <TableHead>Tipo</TableHead>
-                        <TableHead>Prioridade</TableHead>
                         <TableHead>Data de Aprovação</TableHead>
                         <TableHead className="text-right">YouTube</TableHead>
                       </TableRow>
@@ -534,11 +533,6 @@ export default function Finalizados() {
                           <TableCell>{projeto.responsavel?.nome || "-"}</TableCell>
                           <TableCell>
                             <Badge variant="outline">{projeto.tipoVideo?.nome}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={projeto.prioridade === "Alta" ? "destructive" : "secondary"}>
-                              {projeto.prioridade}
-                            </Badge>
                           </TableCell>
                           <TableCell>
                             {projeto.dataAprovacao
@@ -634,11 +628,6 @@ export default function Finalizados() {
                             <Badge variant="outline" data-testid="project-type">
                               {projeto.tipoVideo?.nome}
                             </Badge>
-                            {projeto.prioridade && (
-                              <Badge variant={projeto.prioridade === "Alta" ? "destructive" : "secondary"} data-testid="project-priority">
-                                {projeto.prioridade}
-                              </Badge>
-                            )}
                           </div>
 
                           {projeto.tags && projeto.tags.length > 0 && (

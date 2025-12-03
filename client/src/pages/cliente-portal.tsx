@@ -400,6 +400,11 @@ export default function ClientePortal() {
                   <p className="font-bold text-base sm:text-xl">{projeto.cliente.nome}</p>
                 </div>
               )}
+
+              {/* Categoria do vídeo */}
+              <Badge variant="outline" className="text-xs sm:text-sm px-3 py-1">
+                {projeto.tipoVideo.nome}
+              </Badge>
             </div>
 
             {/* Descrição se existir */}
@@ -419,12 +424,14 @@ export default function ClientePortal() {
                   Status atual: <strong>{projeto.status}</strong>
                 </p>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-primary">{diasNoStatusAtual}</div>
-                <p className="text-xs text-muted-foreground">
-                  {diasNoStatusAtual === 1 ? 'dia' : 'dias'} neste status
-                </p>
-              </div>
+              {projeto.status !== "Aprovado" && (
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-primary">{diasNoStatusAtual}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {diasNoStatusAtual === 1 ? 'dia' : 'dias'} neste status
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Barra de progresso visual */}
