@@ -204,6 +204,60 @@ export default function Finalizados() {
     },
   });
 
+  // Mutation para atualizar checkbox de "enviado" com update otimista
+  const updateEnviadoMutation = useMutation({
+    mutationFn: async ({ id, enviado }: { id: string; enviado: boolean }) => {
+      const response = await fetch(`/api/projetos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ enviadoCliente: enviado })
+      });
+      if (!response.ok) throw new Error('Erro ao atualizar');
+      return response.json();
+    },
+    onMutate: async ({ id, enviado }) => {
+      // Cancela queries em andamento
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos", { status: "Aprovado", dateFilter, responsavelFilter, customDateStart, customDateEnd }] });
+
+      // Salva o estado anterior
+      const previousData = queryClient.getQueryData(["/api/projetos", { status: "Aprovado", dateFilter, responsavelFilter, customDateStart, customDateEnd }]);
+
+      // Atualiza otimisticamente o cache
+      queryClient.setQueryData(
+        ["/api/projetos", { status: "Aprovado", dateFilter, responsavelFilter, customDateStart, customDateEnd }],
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              projetos: page.projetos.map((p: ProjetoWithRelations) =>
+                p.id === id ? { ...p, enviadoCliente: enviado } : p
+              ),
+            })),
+          };
+        }
+      );
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Se der erro, reverte para o estado anterior
+      if (context?.previousData) {
+        queryClient.setQueryData(
+          ["/api/projetos", { status: "Aprovado", dateFilter, responsavelFilter, customDateStart, customDateEnd }],
+          context.previousData
+        );
+      }
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar o status",
+        variant: "destructive",
+      });
+    },
+  });
+
 
   const handleEditYoutubeLink = (projeto: ProjetoWithRelations) => {
     setEditingProject(projeto);
@@ -467,22 +521,10 @@ export default function Finalizados() {
                             <Checkbox
                               checked={projeto.enviadoCliente || false}
                               onCheckedChange={(checked) => {
-                                console.log('Atualizando enviado (tabela):', checked);
-                                fetch(`/api/projetos/${projeto.id}`, {
-                                  method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  credentials: 'include',
-                                  body: JSON.stringify({ enviadoCliente: checked })
-                                })
-                                .then(res => {
-                                  console.log('Resposta (tabela):', res.status);
-                                  return res.json();
-                                })
-                                .then(data => {
-                                  console.log('Dados (tabela):', data);
-                                  queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
-                                })
-                                .catch(err => console.error('Erro (tabela):', err));
+                                updateEnviadoMutation.mutate({
+                                  id: projeto.id,
+                                  enviado: checked as boolean
+                                });
                               }}
                               className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                             />
@@ -564,22 +606,10 @@ export default function Finalizados() {
                                 <Checkbox
                                   checked={projeto.enviadoCliente || false}
                                   onCheckedChange={(checked) => {
-                                    console.log('Atualizando enviado:', checked);
-                                    fetch(`/api/projetos/${projeto.id}`, {
-                                      method: 'PATCH',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      credentials: 'include',
-                                      body: JSON.stringify({ enviadoCliente: checked })
-                                    })
-                                    .then(res => {
-                                      console.log('Resposta:', res.status);
-                                      return res.json();
-                                    })
-                                    .then(data => {
-                                      console.log('Dados:', data);
-                                      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
-                                    })
-                                    .catch(err => console.error('Erro:', err));
+                                    updateEnviadoMutation.mutate({
+                                      id: projeto.id,
+                                      enviado: checked as boolean
+                                    });
                                   }}
                                   onClick={(e) => e.stopPropagation()}
                                   className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
