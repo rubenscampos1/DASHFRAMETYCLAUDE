@@ -21,11 +21,15 @@ import DatabasePage from "@/pages/database";
 import NotasPage from "@/pages/notas";
 import TimelapsePage from "@/pages/timelapse";
 import ClientePortal from "@/pages/cliente-portal";
+import PortalUnificado from "@/pages/portal-unificado";
+import TestePortal from "@/pages/teste-portal";
 
 function Router() {
   return (
     <Switch>
-      {/* Rota pública do cliente - sem autenticação */}
+      {/* Rotas públicas do cliente - sem autenticação */}
+      <Route path="/teste/:token" component={TestePortal} />
+      <Route path="/portal/cliente/:clientToken" component={PortalUnificado} />
       <Route path="/cliente/:token" component={ClientePortal} />
 
       {/* Rotas protegidas */}

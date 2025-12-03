@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, AlertTriangle, Trash2, Copy } from "lucide-react";
+import { Calendar, AlertTriangle, Trash2, Copy, Star } from "lucide-react";
 import { ProjetoWithRelations } from "@shared/schema";
 import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";

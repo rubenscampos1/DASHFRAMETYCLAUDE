@@ -191,6 +191,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dataFimAprovacao: req.query.dataFimAprovacao as string,
       };
 
+      // Parâmetros de paginação
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
+
       // Remove undefined values and "all" values
       Object.keys(filters).forEach(key => {
         const value = filters[key as keyof typeof filters];
@@ -203,7 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Otimização: Remover campos pesados desnecessários para o dashboard
       // Campos como descricao, informacoesAdicionais, referencias, anotacoes são carregados apenas no drawer
-      const projetosOtimizados = projetos.map(projeto => ({
+      let projetosOtimizados = projetos.map(projeto => ({
         ...projeto,
         descricao: undefined,  // Não enviar descrição completa para o dashboard
         informacoesAdicionais: undefined,  // Não enviar informações adicionais para o dashboard
@@ -211,6 +215,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         caminho: undefined,  // Não enviar caminho para o dashboard
       }));
 
+      // Se paginação foi solicitada, aplicar limit e offset
+      if (limit !== undefined && offset !== undefined) {
+        const total = projetosOtimizados.length;
+        const paginatedProjetos = projetosOtimizados.slice(offset, offset + limit);
+
+        // Retornar com metadata de paginação
+        return res.json({
+          projetos: paginatedProjetos,
+          total,
+          offset,
+          limit,
+          hasMore: offset + limit < total,
+        });
+      }
+
+      // Sem paginação, retorna todos os projetos (compatibilidade)
       res.json(projetosOtimizados);
     } catch (error) {
       next(error);
@@ -1365,6 +1385,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==========================================
+  // PORTAL UNIFICADO DO CLIENTE
+  // ==========================================
+
+  // Buscar todos os projetos de um cliente por portal token (rota pública - sem autenticação)
+  app.get("/api/portal/cliente/:clientToken", async (req, res, next) => {
+    try {
+      const result = await storage.getClienteByPortalToken(req.params.clientToken);
+
+      if (!result) {
+        return res.status(404).json({ message: "Cliente não encontrado ou link inválido" });
+      }
+
+      const { cliente, projetos } = result;
+
+      // Para cada projeto, buscar músicas e locutores
+      const projetosComDetalhes = await Promise.all(
+        projetos.map(async (projeto) => {
+          const musicas = await storage.getProjetoMusicas(projeto.id);
+          const locutores = await storage.getProjetoLocutores(projeto.id);
+
+          return {
+            id: projeto.id,
+            sequencialId: projeto.sequencialId,
+            titulo: projeto.titulo,
+            descricao: projeto.descricao,
+            status: projeto.status,
+            dataCriacao: projeto.dataCriacao,
+            dataPrevistaEntrega: projeto.dataPrevistaEntrega,
+            statusChangedAt: projeto.statusChangedAt,
+            tipoVideo: projeto.tipoVideo,
+            empreendimento: projeto.empreendimento,
+            linkFrameIo: projeto.linkFrameIo,
+            clientToken: projeto.clientToken, // Token individual do projeto (para compatibilidade)
+            // Arrays de músicas e locutores para aprovação
+            musicas,
+            locutores,
+            // URLs antigas para aprovação (mantidas para compatibilidade)
+            musicaUrl: projeto.musicaUrl,
+            musicaAprovada: projeto.musicaAprovada,
+            musicaFeedback: projeto.musicaFeedback,
+            musicaDataAprovacao: projeto.musicaDataAprovacao,
+            locucaoUrl: projeto.locucaoUrl,
+            locucaoAprovada: projeto.locucaoAprovada,
+            locucaoFeedback: projeto.locucaoFeedback,
+            locucaoDataAprovacao: projeto.locucaoDataAprovacao,
+            videoFinalUrl: projeto.videoFinalUrl,
+            videoFinalAprovado: projeto.videoFinalAprovado,
+            videoFinalFeedback: projeto.videoFinalFeedback,
+            videoFinalDataAprovacao: projeto.videoFinalDataAprovacao,
+          };
+        })
+      );
+
+      res.json({
+        cliente: {
+          nome: cliente.nome,
+          empresa: cliente.empresa,
+          backgroundColor: cliente.backgroundColor,
+          textColor: cliente.textColor,
+        },
+        projetos: projetosComDetalhes,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Aprovar/Reprovar Música
   app.post("/api/cliente/projeto/:token/aprovar-musica", async (req, res, next) => {
     try {
@@ -1534,6 +1622,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         message: aprovado ? "Locutor aprovado com sucesso!" : "Solicitação de alteração enviada",
         locutor: locutorAtualizado,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Rota para verificar se já respondeu NPS
+  app.get("/api/cliente/projeto/:token/nps/verificar", async (req, res, next) => {
+    try {
+      // Verificar se o token é válido
+      const projeto = await storage.getProjetoByClientToken(req.params.token);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado ou link inválido" });
+      }
+
+      // Verificar se já existe resposta NPS para este projeto
+      const respostaExistente = await storage.getRespostaNpsByProjeto(projeto.id);
+
+      res.json({
+        jaRespondeu: !!respostaExistente,
+        resposta: respostaExistente || null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Rota para salvar resposta NPS do cliente
+  app.post("/api/cliente/projeto/:token/nps", async (req, res, next) => {
+    try {
+      const { notaServicos, notaAtendimento, notaIndicacao, comentario } = req.body;
+
+      // Validações
+      if (typeof notaServicos !== 'number' || notaServicos < 0 || notaServicos > 10) {
+        return res.status(400).json({ message: "Nota de serviços inválida (deve ser 0-10)" });
+      }
+      if (typeof notaAtendimento !== 'number' || notaAtendimento < 0 || notaAtendimento > 10) {
+        return res.status(400).json({ message: "Nota de atendimento inválida (deve ser 0-10)" });
+      }
+      if (typeof notaIndicacao !== 'number' || notaIndicacao < 0 || notaIndicacao > 10) {
+        return res.status(400).json({ message: "Nota de indicação inválida (deve ser 0-10)" });
+      }
+
+      // Verificar se o token é válido
+      const projeto = await storage.getProjetoByClientToken(req.params.token);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado ou link inválido" });
+      }
+
+      // Verificar se já existe resposta NPS para este projeto
+      const respostaExistente = await storage.getRespostaNpsByProjeto(projeto.id);
+      if (respostaExistente) {
+        return res.status(400).json({ message: "Você já respondeu o questionário para este projeto" });
+      }
+
+      // Calcular média das notas
+      const notaMedia = Math.round((notaServicos + notaAtendimento + notaIndicacao) / 3);
+
+      // Determinar categoria baseada na nota de indicação (NPS tradicional)
+      let categoria: string;
+      if (notaIndicacao >= 0 && notaIndicacao <= 6) {
+        categoria = "detrator";
+      } else if (notaIndicacao >= 7 && notaIndicacao <= 8) {
+        categoria = "neutro";
+      } else {
+        categoria = "promotor";
+      }
+
+      // Capturar IP e User Agent
+      const ipOrigem = req.ip || req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || null;
+      const userAgent = req.headers['user-agent'] || null;
+
+      // Salvar resposta
+      const resposta = await storage.createRespostaNps({
+        projetoId: projeto.id,
+        clienteId: projeto.clienteId,
+        notaServicos,
+        notaAtendimento,
+        notaIndicacao,
+        notaMedia,
+        categoria,
+        ipOrigem,
+        userAgent,
+        comentario: comentario || null,
+      });
+
+      // Emitir evento WebSocket para atualização em tempo real
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('nps:created', { projetoId: projeto.id, categoria });
+      }
+
+      res.json({
+        message: "Obrigado pelo seu feedback!",
+        resposta,
       });
     } catch (error) {
       next(error);

@@ -3,20 +3,21 @@
  * - Toggle Card/Lista com persistência em localStorage
  * - Filtros por data (mês/ano) e responsável
  * - Visualização em tabela com colunas principais
- * - Paginação e estado vazio para filtros
+ * - Paginação com scroll infinito para carregamento rápido
  */
-import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { Sidebar } from "@/components/sidebar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ExternalLink, Calendar, Youtube, Edit, LayoutGrid, List as ListIcon, X, Filter, Star } from "lucide-react";
+import { ExternalLink, Calendar, Youtube, Edit, LayoutGrid, List as ListIcon, X, Filter, Star, MessageSquare, Send } from "lucide-react";
 import { ProjetoWithRelations } from "@shared/schema";
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -29,18 +30,15 @@ import { motion } from "framer-motion";
 
 type ViewMode = "card" | "list";
 
+const PROJETOS_POR_PAGINA = 20; // Carregar 20 projetos por vez para performance
+
 export default function Finalizados() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { mainContentClass } = useSidebarLayout();
   const [editingProject, setEditingProject] = useState<ProjetoWithRelations | null>(null);
   const [youtubeLink, setYoutubeLink] = useState("");
-
-  // NPS State
-  const [npsProject, setNpsProject] = useState<ProjetoWithRelations | null>(null);
-  const [npsScore, setNpsScore] = useState<number | null>(null);
-  const [npsContact, setNpsContact] = useState("");
-  const [npsResponsible, setNpsResponsible] = useState("");
+  const [viewingNpsProject, setViewingNpsProject] = useState<ProjetoWithRelations | null>(null);
 
   // View mode com persistência
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -59,25 +57,69 @@ export default function Finalizados() {
     localStorage.setItem("finalizados_view_mode", viewMode);
   }, [viewMode]);
 
-  const { data: projetos = [], isLoading } = useQuery<ProjetoWithRelations[]>({
-    queryKey: ["/api/projetos", { status: "Aprovado" }],
-    queryFn: async () => {
+  // Usar infinite query para scroll infinito
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["/api/projetos", { status: "Aprovado", dateFilter, responsavelFilter, customDateStart, customDateEnd }],
+    queryFn: async ({ pageParam = 0 }) => {
       const startTime = performance.now();
-      console.log('⏱️ [Performance] Carregando projetos finalizados...');
+      console.log(`⏱️ [Performance] Carregando página ${pageParam / PROJETOS_POR_PAGINA + 1} de projetos finalizados...`);
 
-      const response = await fetch("/api/projetos?status=Aprovado", {
-        credentials: "include",
-      });
+      const response = await fetch(
+        `/api/projetos?status=Aprovado&limit=${PROJETOS_POR_PAGINA}&offset=${pageParam}`,
+        { credentials: "include" }
+      );
 
       if (!response.ok) throw new Error("Erro ao carregar projetos finalizados");
-      const data = await response.json();
+      const result = await response.json();
 
       const duration = (performance.now() - startTime).toFixed(2);
-      console.log(`⏱️ [Performance] Projetos finalizados carregados em ${duration}ms (${data.length} projetos)`);
+      console.log(`⏱️ [Performance] Página carregada em ${duration}ms (${result.projetos.length} projetos, total: ${result.total})`);
 
-      return data;
+      return result;
     },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.hasMore) {
+        return lastPage.offset + lastPage.limit;
+      }
+      return undefined;
+    },
+    initialPageParam: 0,
   });
+
+  // Combinar todos os projetos de todas as páginas
+  const projetos = useMemo(() => {
+    return data?.pages.flatMap((page) => page.projetos) || [];
+  }, [data]);
+
+  // Total de projetos (do primeiro page)
+  const totalProjetos = data?.pages[0]?.total || 0;
+
+  // Observer para detectar quando chegar ao final da página
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          console.log('📜 [Scroll] Carregando mais projetos...');
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Responsáveis únicos dos projetos finalizados
   const responsaveis = useMemo(() => {
@@ -162,39 +204,6 @@ export default function Finalizados() {
     },
   });
 
-  const updateNpsMutation = useMutation({
-    mutationFn: async ({ id, npsScore, npsContact, npsResponsible }: {
-      id: string;
-      npsScore: number | null;
-      npsContact: string;
-      npsResponsible: string;
-    }) => {
-      const response = await apiRequest("PUT", `/api/projetos/${id}/nps`, {
-        npsScore,
-        npsContact,
-        npsResponsible
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
-      toast({
-        title: "NPS salvo com sucesso!",
-        description: "A avaliação do projeto foi registrada.",
-      });
-      setNpsProject(null);
-      setNpsScore(null);
-      setNpsContact("");
-      setNpsResponsible("");
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao salvar NPS",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   const handleEditYoutubeLink = (projeto: ProjetoWithRelations) => {
     setEditingProject(projeto);
@@ -220,41 +229,6 @@ export default function Finalizados() {
     });
   };
 
-  const handleEditNps = (projeto: ProjetoWithRelations) => {
-    setNpsProject(projeto);
-    setNpsScore(projeto.npsScore ?? null);
-    setNpsContact(projeto.npsContact || "");
-    setNpsResponsible(projeto.npsResponsible || "");
-  };
-
-  const handleSaveNps = () => {
-    if (!npsProject) return;
-
-    if (!npsContact.trim()) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha o número de contato.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!npsResponsible.trim()) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha o nome do responsável.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    updateNpsMutation.mutate({
-      id: npsProject.id,
-      npsScore,
-      npsContact: npsContact.trim(),
-      npsResponsible: npsResponsible.trim(),
-    });
-  };
 
   const canEdit = (projeto: ProjetoWithRelations) => {
     if (user?.papel === "Admin" || user?.papel === "Gestor") return true;
@@ -300,7 +274,7 @@ export default function Finalizados() {
                 Projetos Finalizados
               </h1>
               <Badge className="bg-chart-4 text-white" data-testid="finalizados-count">
-                {projetosFiltrados.length} projetos
+                {totalProjetos} projetos
               </Badge>
             </div>
 
@@ -476,6 +450,7 @@ export default function Finalizados() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">Enviado</TableHead>
                         <TableHead>Título</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Responsável</TableHead>
@@ -488,6 +463,30 @@ export default function Finalizados() {
                     <TableBody>
                       {projetosFiltrados.map((projeto) => (
                         <TableRow key={projeto.id} data-testid={`table-row-${projeto.id}`}>
+                          <TableCell>
+                            <Checkbox
+                              checked={projeto.enviadoCliente || false}
+                              onCheckedChange={(checked) => {
+                                console.log('Atualizando enviado (tabela):', checked);
+                                fetch(`/api/projetos/${projeto.id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  credentials: 'include',
+                                  body: JSON.stringify({ enviadoCliente: checked })
+                                })
+                                .then(res => {
+                                  console.log('Resposta (tabela):', res.status);
+                                  return res.json();
+                                })
+                                .then(data => {
+                                  console.log('Dados (tabela):', data);
+                                  queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+                                })
+                                .catch(err => console.error('Erro (tabela):', err));
+                              }}
+                              className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">{projeto.titulo}</TableCell>
                           <TableCell>{projeto.cliente?.nome || "-"}</TableCell>
                           <TableCell>{projeto.responsavel?.nome || "-"}</TableCell>
@@ -532,9 +531,18 @@ export default function Finalizados() {
                       ))}
                     </TableBody>
                   </Table>
+
+                  {/* Indicador de carregamento e observer para scroll infinito */}
+                  {isFetchingNextPage && (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  )}
+                  <div ref={observerTarget} className="h-4" />
                 </motion.div>
               ) : (
                 /* Visualização em Card (padrão) */
+                <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   {projetosFiltrados.map((projeto, index) => (
                     <motion.div
@@ -544,13 +552,44 @@ export default function Finalizados() {
                     >
                       <Card className="hover:shadow-lg transition-shadow" data-testid={`finalized-project-${projeto.id}`}>
                         <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
-                            <h3 className="text-lg font-semibold text-foreground line-clamp-2" data-testid="project-title">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="text-lg font-semibold text-foreground line-clamp-2 flex-1" data-testid="project-title">
                               {projeto.titulo}
                             </h3>
-                            <Badge className="bg-chart-4 text-white">
-                              Finalizado
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="flex items-center gap-1.5 px-2 py-1"
+                                title={projeto.enviadoCliente ? "Enviado ao cliente" : "Não enviado"}
+                              >
+                                <Checkbox
+                                  checked={projeto.enviadoCliente || false}
+                                  onCheckedChange={(checked) => {
+                                    console.log('Atualizando enviado:', checked);
+                                    fetch(`/api/projetos/${projeto.id}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      credentials: 'include',
+                                      body: JSON.stringify({ enviadoCliente: checked })
+                                    })
+                                    .then(res => {
+                                      console.log('Resposta:', res.status);
+                                      return res.json();
+                                    })
+                                    .then(data => {
+                                      console.log('Dados:', data);
+                                      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+                                    })
+                                    .catch(err => console.error('Erro:', err));
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                                />
+                                <Send className="h-3.5 w-3.5 text-muted-foreground" />
+                              </div>
+                              <Badge className="bg-chart-4 text-white">
+                                Finalizado
+                              </Badge>
+                            </div>
                           </div>
                         </CardHeader>
 
@@ -658,46 +697,178 @@ export default function Finalizados() {
                             )}
                           </div>
 
-                          {/* NPS Section */}
-                          <div className="border-t pt-4 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">Avaliação NPS:</span>
-                              {projeto.npsScore ? (
-                                <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950">
-                                  <Star className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-400" />
-                                  {projeto.npsScore}/10
+                          {/* NPS Section - Botão para ver pesquisa */}
+                          {projeto.respostaNps && (
+                            <div className="border-t pt-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium">Avaliação NPS:</span>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs ${
+                                    projeto.respostaNps.categoria === 'promotor' ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700' :
+                                    projeto.respostaNps.categoria === 'neutro' ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700' :
+                                    'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700'
+                                  }`}
+                                >
+                                  <Star className="h-3 w-3 mr-1 fill-current" />
+                                  {projeto.respostaNps.notaMedia}/10
                                 </Badge>
-                              ) : projeto.npsContact ? (
-                                <Badge variant="outline" className="bg-gray-50 dark:bg-gray-900">
-                                  Pendente
-                                </Badge>
-                              ) : null}
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewingNpsProject(projeto);
+                                }}
+                                className="w-full"
+                                data-testid={`view-nps-${projeto.id}`}
+                              >
+                                <Star className="w-4 h-4 mr-2" />
+                                Ver Avaliação Completa
+                              </Button>
                             </div>
-                            <Button
-                              size="sm"
-                              variant={projeto.npsScore ? "ghost" : "outline"}
-                              onClick={() => handleEditNps(projeto)}
-                              className="w-full"
-                              data-testid={`nps-button-${projeto.id}`}
-                            >
-                              <Star className="w-4 h-4 mr-2" />
-                              {projeto.npsScore
-                                ? "Editar NPS"
-                                : projeto.npsContact
-                                  ? "Adicionar Nota"
-                                  : "Cadastrar Contato"}
-                            </Button>
-                          </div>
+                          )}
                         </CardContent>
                       </Card>
                     </motion.div>
                   ))}
+                </div>
+
+                {/* Indicador de carregamento e observer para scroll infinito */}
+                {isFetchingNextPage && (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                )}
+                <div ref={observerTarget} className="h-4" />
                 </div>
               )}
             </motion.div>
           </div>
         </main>
       </div>
+
+      {/* NPS Details Dialog */}
+      <Dialog open={!!viewingNpsProject} onOpenChange={() => setViewingNpsProject(null)}>
+        <DialogContent className="max-w-2xl" data-testid="nps-details-dialog">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-yellow-600 dark:text-yellow-500 fill-yellow-600 dark:fill-yellow-500" />
+              Avaliação NPS do Cliente
+            </DialogTitle>
+            <DialogDescription>
+              Resultados da pesquisa de satisfação para o projeto: <strong>{viewingNpsProject?.titulo}</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewingNpsProject?.respostaNps && (
+            <div className="space-y-6">
+              {/* Categoria */}
+              <div className="flex items-center justify-center">
+                <Badge
+                  className={`text-base px-4 py-2 ${
+                    viewingNpsProject.respostaNps.categoria === 'promotor' ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700' :
+                    viewingNpsProject.respostaNps.categoria === 'neutro' ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700' :
+                    'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700'
+                  }`}
+                >
+                  {viewingNpsProject.respostaNps.categoria === 'promotor' ? '😊 Cliente Promotor' :
+                   viewingNpsProject.respostaNps.categoria === 'neutro' ? '😐 Cliente Neutro' :
+                   '😞 Cliente Detrator'}
+                </Badge>
+              </div>
+
+              {/* Perguntas e Respostas */}
+              <div className="space-y-4">
+                {/* Pergunta 1 */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <p className="text-sm font-medium text-foreground">
+                    1. Em uma escala de 0 a 10, como você avalia nossos serviços prestados?
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="text-3xl font-bold text-primary">{viewingNpsProject.respostaNps.notaServicos}</div>
+                      <span className="text-sm text-muted-foreground">/ 10</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">Serviços</Badge>
+                  </div>
+                </div>
+
+                {/* Pergunta 2 */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <p className="text-sm font-medium text-foreground">
+                    2. Em uma escala de 0 a 10, como você avalia nosso atendimento?
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="text-3xl font-bold text-primary">{viewingNpsProject.respostaNps.notaAtendimento}</div>
+                      <span className="text-sm text-muted-foreground">/ 10</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">Atendimento</Badge>
+                  </div>
+                </div>
+
+                {/* Pergunta 3 */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <p className="text-sm font-medium text-foreground">
+                    3. Em uma escala de 0 a 10, qual a probabilidade de indicar o Grupo Skyline a um parceiro?
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="text-3xl font-bold text-primary">{viewingNpsProject.respostaNps.notaIndicacao}</div>
+                      <span className="text-sm text-muted-foreground">/ 10</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">Indicação</Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Média Final */}
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-6">
+                <div className="text-center space-y-2">
+                  <p className="text-sm text-muted-foreground">Média Geral</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <Star className="h-8 w-8 text-yellow-600 dark:text-yellow-500 fill-yellow-600 dark:fill-yellow-500" />
+                    <span className="text-5xl font-bold text-primary">{viewingNpsProject.respostaNps.notaMedia}</span>
+                    <span className="text-2xl text-muted-foreground">/ 10</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Comentário do Cliente */}
+              {viewingNpsProject?.respostaNps?.comentario && (
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-semibold">Comentário do Cliente:</span>
+                  </div>
+                  <p className="text-sm text-foreground italic leading-relaxed">
+                    "{viewingNpsProject?.respostaNps?.comentario}"
+                  </p>
+                </div>
+              )}
+
+              {/* Data da resposta */}
+              {viewingNpsProject.respostaNps.dataResposta && (
+                <div className="text-center text-xs text-muted-foreground">
+                  Respondido em {format(new Date(viewingNpsProject.respostaNps.dataResposta), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setViewingNpsProject(null)}
+              data-testid="close-nps-details"
+            >
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* YouTube Link Edit Dialog */}
       <Dialog open={!!editingProject} onOpenChange={() => setEditingProject(null)}>
@@ -738,89 +909,6 @@ export default function Finalizados() {
         </DialogContent>
       </Dialog>
 
-      {/* NPS Dialog */}
-      <Dialog open={!!npsProject} onOpenChange={() => setNpsProject(null)}>
-        <DialogContent data-testid="nps-dialog">
-          <DialogHeader>
-            <DialogTitle>
-              {npsProject?.npsScore ? "Editar NPS" : npsProject?.npsContact ? "Adicionar Nota NPS" : "Cadastrar Contato"}
-            </DialogTitle>
-            <DialogDescription>
-              {npsProject?.npsContact
-                ? "Adicione ou atualize a nota de satisfação do cliente"
-                : "Cadastre primeiro o contato do responsável, a nota pode ser adicionada depois"}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium">
-                  Nota (1 a 10) {!npsProject?.npsContact && <span className="text-muted-foreground">(opcional)</span>}
-                </label>
-                {npsScore && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setNpsScore(null)}
-                    className="h-6 text-xs"
-                  >
-                    Limpar
-                  </Button>
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
-                  <button
-                    key={score}
-                    onClick={() => setNpsScore(score)}
-                    className={`w-10 h-10 rounded-md border-2 transition-all ${npsScore === score
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border hover:border-primary/50"
-                      }`}
-                    data-testid={`nps-score-${score}`}
-                  >
-                    {score}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Número de Contato *</label>
-              <Input
-                value={npsContact}
-                onChange={(e) => setNpsContact(e.target.value)}
-                placeholder="(11) 99999-9999"
-                data-testid="nps-contact-input"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Nome do Responsável *</label>
-              <Input
-                value={npsResponsible}
-                onChange={(e) => setNpsResponsible(e.target.value)}
-                placeholder="Nome completo"
-                data-testid="nps-responsible-input"
-              />
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => setNpsProject(null)}
-                data-testid="cancel-nps"
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleSaveNps}
-                disabled={updateNpsMutation.isPending}
-                data-testid="save-nps"
-              >
-                {updateNpsMutation.isPending ? "Salvando..." : "Salvar NPS"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

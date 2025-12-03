@@ -14,6 +14,7 @@ import {
   amostrasLocutores,
   projetoMusicas,
   projetoLocutores,
+  respostasNps,
   type User,
   type InsertUser,
   type Projeto,
@@ -49,7 +50,9 @@ import {
   type InsertProjetoMusica,
   type ProjetoLocutor,
   type InsertProjetoLocutor,
-  type ProjetoLocutorWithRelations
+  type ProjetoLocutorWithRelations,
+  type RespostaNps,
+  type InsertRespostaNps
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, asc, sql, gte, lte, lt, max } from "drizzle-orm";
@@ -179,6 +182,7 @@ export interface IStorage {
 
   // Portal do Cliente
   getProjetoByClientToken(token: string): Promise<ProjetoWithRelations | undefined>;
+  getClienteByPortalToken(token: string): Promise<{ cliente: Cliente; projetos: ProjetoWithRelations[] } | undefined>;
   aprovarMusica(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
   aprovarLocucao(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
   aprovarVideoFinal(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
@@ -321,6 +325,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(projetos.responsavelId, users.id))
       .leftJoin(clientes, eq(projetos.clienteId, clientes.id))
       .leftJoin(empreendimentos, eq(projetos.empreendimentoId, empreendimentos.id))
+      .leftJoin(respostasNps, eq(projetos.id, respostasNps.projetoId))
       .orderBy(desc(projetos.dataCriacao));
 
     if (conditions.length > 0) {
@@ -331,6 +336,7 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(users, eq(projetos.responsavelId, users.id))
         .leftJoin(clientes, eq(projetos.clienteId, clientes.id))
         .leftJoin(empreendimentos, eq(projetos.empreendimentoId, empreendimentos.id))
+        .leftJoin(respostasNps, eq(projetos.id, respostasNps.projetoId))
         .where(and(...conditions))
         .orderBy(desc(projetos.dataCriacao));
     }
@@ -347,6 +353,7 @@ export class DatabaseStorage implements IStorage {
       responsavel: row.users!,
       cliente: row.clientes || undefined,
       empreendimento: row.empreendimentos || undefined,
+      respostaNps: row.respostas_nps || null,
     }));
   }
 
@@ -1150,6 +1157,38 @@ export class DatabaseStorage implements IStorage {
       .where(eq(projetoLocutores.id, id));
   }
 
+  // Métodos de NPS
+  async createRespostaNps(resposta: InsertRespostaNps): Promise<RespostaNps> {
+    const [novaResposta] = await this.db
+      .insert(respostasNps)
+      .values(resposta)
+      .returning();
+    return novaResposta;
+  }
+
+  async getRespostaNpsByProjeto(projetoId: string): Promise<RespostaNps | null> {
+    const [resposta] = await this.db
+      .select()
+      .from(respostasNps)
+      .where(eq(respostasNps.projetoId, projetoId))
+      .limit(1);
+    return resposta || null;
+  }
+
+  async getRespostasNpsByCliente(clienteId: string): Promise<RespostaNps[]> {
+    return await this.db
+      .select()
+      .from(respostasNps)
+      .where(eq(respostasNps.clienteId, clienteId));
+  }
+
+  async getAllRespostasNps(): Promise<RespostaNps[]> {
+    return await this.db
+      .select()
+      .from(respostasNps)
+      .orderBy(respostasNps.dataResposta);
+  }
+
   async seedData(): Promise<void> {
     // Seed tipos de video
     const tiposData = [
@@ -1217,6 +1256,49 @@ export class DatabaseStorage implements IStorage {
       responsavel: result[0].users!,
       cliente: result[0].clientes || undefined,
       empreendimento: result[0].empreendimentos || undefined,
+    };
+  }
+
+  async getClienteByPortalToken(token: string): Promise<{ cliente: Cliente; projetos: ProjetoWithRelations[] } | undefined> {
+    // Primeiro, buscar o cliente pelo portal token
+    const [cliente] = await db
+      .select()
+      .from(clientes)
+      .where(eq(clientes.portalToken, token))
+      .limit(1);
+
+    if (!cliente) {
+      return undefined;
+    }
+
+    // Depois, buscar todos os projetos desse cliente
+    const result = await db
+      .select({
+        projetos,
+        tiposDeVideo,
+        users,
+        clientes,
+        empreendimentos,
+      })
+      .from(projetos)
+      .leftJoin(tiposDeVideo, eq(projetos.tipoVideoId, tiposDeVideo.id))
+      .leftJoin(users, eq(projetos.responsavelId, users.id))
+      .leftJoin(clientes, eq(projetos.clienteId, clientes.id))
+      .leftJoin(empreendimentos, eq(projetos.empreendimentoId, empreendimentos.id))
+      .where(eq(projetos.clienteId, cliente.id))
+      .orderBy(desc(projetos.dataCriacao)); // Ordenar por data de criação (mais recentes primeiro)
+
+    const projetosWithRelations = result.map(row => ({
+      ...row.projetos,
+      tipoVideo: row.tiposDeVideo!,
+      responsavel: row.users!,
+      cliente: row.clientes || undefined,
+      empreendimento: row.empreendimentos || undefined,
+    }));
+
+    return {
+      cliente,
+      projetos: projetosWithRelations,
     };
   }
 

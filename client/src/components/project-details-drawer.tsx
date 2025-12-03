@@ -508,6 +508,83 @@ export function ProjectDetailsDrawer({
     }
   };
 
+  const handleCopyUnifiedPortalLink = async () => {
+    const { data: projetoAtualizado } = await refetchProjeto();
+    const projetoParaCopiar = projetoAtualizado || projetoAtual;
+
+    if (projetoParaCopiar?.cliente?.portalToken) {
+      const unifiedLink = `${window.location.origin}/portal/cliente/${projetoParaCopiar.cliente.portalToken}`;
+
+      // Função para copiar que funciona tanto em HTTP quanto HTTPS
+      const copyToClipboard = (text: string): boolean => {
+        // Tentar usar a API moderna primeiro (funciona em HTTPS e localhost)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text)
+            .then(() => {
+              toast({
+                title: "Link copiado!",
+                description: "O link do portal unificado foi copiado para a área de transferência",
+              });
+            })
+            .catch(() => {
+              // Se falhar, tentar método antigo
+              fallbackCopy(text);
+            });
+          return true;
+        }
+
+        // Fallback para HTTP ou navegadores antigos
+        return fallbackCopy(text);
+      };
+
+      const fallbackCopy = (text: string): boolean => {
+        try {
+          const textArea = document.createElement("textarea");
+          textArea.value = text;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-999999px";
+          textArea.style.top = "-999999px";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+
+          const successful = document.execCommand('copy');
+          document.body.removeChild(textArea);
+
+          if (successful) {
+            toast({
+              title: "Link copiado!",
+              description: "O link do portal unificado foi copiado para a área de transferência",
+            });
+            return true;
+          } else {
+            toast({
+              title: "Link do portal unificado",
+              description: unifiedLink,
+              duration: 10000,
+            });
+            return false;
+          }
+        } catch (err) {
+          toast({
+            title: "Link do portal unificado",
+            description: unifiedLink,
+            duration: 10000,
+          });
+          return false;
+        }
+      };
+
+      copyToClipboard(unifiedLink);
+    } else {
+      toast({
+        title: "Portal unificado indisponível",
+        description: "Este cliente ainda não tem um portal unificado configurado.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleAddComment = () => {
     if (newComment.trim() && projetoAtual && user) {
       createCommentMutation.mutate({
@@ -632,6 +709,31 @@ export function ProjectDetailsDrawer({
                           Clique no campo para copiar o link e compartilhar com o cliente.
                         </>
                       )}
+                    </p>
+                  </div>
+                )}
+
+                {/* Portal Unificado do Cliente */}
+                {projetoAtual?.cliente?.portalToken && (
+                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                    <label className="text-sm font-medium text-purple-900 dark:text-purple-100 flex items-center gap-2 mb-2">
+                      <ExternalLink className="h-4 w-4" />
+                      Portal Unificado do Cliente
+                    </label>
+                    <Input
+                      readOnly
+                      value={`${window.location.origin}/portal/cliente/${projetoAtual.cliente.portalToken}`}
+                      className="font-mono text-sm bg-white dark:bg-gray-800 cursor-pointer"
+                      onClick={(e) => {
+                        e.currentTarget.select();
+                        handleCopyUnifiedPortalLink();
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.select();
+                      }}
+                    />
+                    <p className="text-xs text-purple-700 dark:text-purple-300 mt-2">
+                      Link com TODOS os projetos deste cliente. O cliente pode navegar entre seus projetos através de um menu lateral.
                     </p>
                   </div>
                 )}

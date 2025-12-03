@@ -61,6 +61,7 @@ export const clientes = pgTable("clientes", {
   telefone: text("telefone"),
   backgroundColor: text("background_color").notNull().default("#3b82f6"),
   textColor: text("text_color").notNull().default("#ffffff"),
+  portalToken: text("portal_token").unique(), // Token único para portal unificado do cliente
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -125,6 +126,8 @@ export const projetos = pgTable("projetos", {
   videoFinalFeedback: text("video_final_feedback"), // feedback do cliente sobre o vídeo
   videoFinalDataAprovacao: timestamp("video_final_data_aprovacao"), // data da aprovação/reprovação
   videoFinalVisualizadoEm: timestamp("video_final_visualizado_em"), // quando a aprovação foi visualizada pela equipe
+  // Controle de envio
+  enviadoCliente: boolean("enviado_cliente").default(false), // marca se o projeto foi enviado ao cliente
 });
 
 export const logsDeStatus = pgTable("logs_de_status", {
@@ -257,6 +260,27 @@ export const projetoLocutores = pgTable("projeto_locutores", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Tabela de respostas NPS do cliente
+export const respostasNps = pgTable("respostas_nps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projetoId: varchar("projeto_id").references(() => projetos.id, { onDelete: "cascade" }).notNull(),
+  clienteId: varchar("cliente_id").references(() => clientes.id),
+  // Pergunta 1: Em uma escala de 0 a 10, como você avalia nossos serviços prestados?
+  notaServicos: integer("nota_servicos").notNull(), // 0-10
+  // Pergunta 2: Em uma escala de 0 a 10, como você avalia nosso atendimento?
+  notaAtendimento: integer("nota_atendimento").notNull(), // 0-10
+  // Pergunta 3: Em uma escala de 0 a 10, qual a probabilidade de indicar o Grupo Skyline a um parceiro?
+  notaIndicacao: integer("nota_indicacao").notNull(), // 0-10
+  // Campos calculados
+  notaMedia: integer("nota_media"), // Média das 3 notas
+  categoria: text("categoria"), // "detrator" (0-6), "neutro" (7-8), "promotor" (9-10) baseado na nota de indicação
+  // Metadata
+  dataResposta: timestamp("data_resposta").defaultNow().notNull(),
+  ipOrigem: text("ip_origem"), // IP do cliente que respondeu
+  userAgent: text("user_agent"), // User agent do navegador
+  comentario: text("comentario"), // Comentário adicional do cliente
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   projetosResponsavel: many(projetos, { relationName: "responsavel" }),
@@ -305,6 +329,7 @@ export const projetosRelations = relations(projetos, ({ one, many }) => ({
   comentarios: many(comentarios),
   musicas: many(projetoMusicas),
   locutores: many(projetoLocutores),
+  respostasNps: many(respostasNps),
 }));
 
 export const logsDeStatusRelations = relations(logsDeStatus, ({ one }) => ({
@@ -382,6 +407,17 @@ export const projetoLocutoresRelations = relations(projetoLocutores, ({ one }) =
   locutor: one(locutores, {
     fields: [projetoLocutores.locutorId],
     references: [locutores.id],
+  }),
+}));
+
+export const respostasNpsRelations = relations(respostasNps, ({ one }) => ({
+  projeto: one(projetos, {
+    fields: [respostasNps.projetoId],
+    references: [projetos.id],
+  }),
+  cliente: one(clientes, {
+    fields: [respostasNps.clienteId],
+    references: [clientes.id],
   }),
 }));
 
@@ -575,6 +611,9 @@ export const updateProjetoSchema = z.object({
   caminho: z.string().optional().or(z.literal("")),
   referencias: z.string().optional().or(z.literal("")),
   informacoesAdicionais: z.string().optional().or(z.literal("")),
+
+  // Controle de envio ao cliente
+  enviadoCliente: z.boolean().optional(),
 }).partial();
 
 export const insertLogStatusSchema = createInsertSchema(logsDeStatus).omit({
@@ -645,6 +684,15 @@ export const insertProjetoLocutorSchema = createInsertSchema(projetoLocutores).o
   createdAt: true,
 });
 
+export const insertRespostaNpsSchema = createInsertSchema(respostasNps).omit({
+  id: true,
+  dataResposta: true,
+}).extend({
+  notaServicos: z.number().min(0).max(10),
+  notaAtendimento: z.number().min(0).max(10),
+  notaIndicacao: z.number().min(0).max(10),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -677,6 +725,8 @@ export type ProjetoMusica = typeof projetoMusicas.$inferSelect;
 export type InsertProjetoMusica = z.infer<typeof insertProjetoMusicaSchema>;
 export type ProjetoLocutor = typeof projetoLocutores.$inferSelect;
 export type InsertProjetoLocutor = z.infer<typeof insertProjetoLocutorSchema>;
+export type RespostaNps = typeof respostasNps.$inferSelect;
+export type InsertRespostaNps = z.infer<typeof insertRespostaNpsSchema>;
 
 // Extended types with relations
 export type ProjetoWithRelations = Projeto & {
@@ -684,6 +734,7 @@ export type ProjetoWithRelations = Projeto & {
   responsavel: User;
   cliente?: Cliente;
   empreendimento?: Empreendimento;
+  respostaNps?: RespostaNps | null;
 };
 
 export type EmpreendimentoWithRelations = Empreendimento & {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import type { ProjetoMusica, ProjetoLocutorWithRelations } from "@shared/schema";
@@ -50,19 +51,13 @@ interface ProjetoCliente {
     backgroundColor: string;
     textColor: string;
   };
-  cliente: {
-    nome: string;
-    empresa: string | null;
-  } | null;
   empreendimento: {
     nome: string;
   } | null;
-  // Link do Frame.io para visualizar o vídeo
   linkFrameIo: string | null;
-  // Novo sistema com múltiplas músicas e locutores
+  clientToken: string;
   musicas: ProjetoMusica[];
   locutores: ProjetoLocutorWithRelations[];
-  // Campos antigos mantidos para compatibilidade
   musicaUrl: string | null;
   musicaAprovada: boolean | null;
   musicaFeedback: string | null;
@@ -77,64 +72,61 @@ interface ProjetoCliente {
   videoFinalDataAprovacao: string | null;
 }
 
-export default function ClientePortal() {
-  const { token } = useParams<{ token: string }>();
+interface ClienteData {
+  cliente: {
+    nome: string;
+    empresa: string | null;
+    backgroundColor: string;
+    textColor: string;
+  };
+  projetos: ProjetoCliente[];
+}
+
+export default function PortalUnificado() {
+  const { clientToken } = useParams<{ clientToken: string }>();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
+
+  // Extrair projeto selecionado da URL (?projeto=:projetoId)
+  const urlParams = new URLSearchParams(window.location.search);
+  const projetoIdFromUrl = urlParams.get('projeto');
+
+  // Estados de reprodução de áudio
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
-
-  // Novo sistema de seleção única (radio buttons)
-  const [musicaSelecionada, setMusicaSelecionada] = useState<string | null>(null);
-  const [locutorSelecionado, setLocutorSelecionado] = useState<string | null>(null);
-  const [feedbackGeral, setFeedbackGeral] = useState("");
-
-  // Estados para feedback dos itens antigos (sistema legado)
-  const [musicaFeedback, setMusicaFeedback] = useState("");
-  const [locucaoFeedback, setLocucaoFeedback] = useState("");
-  const [videoFeedback, setVideoFeedback] = useState("");
-
-  // Estado para controlar questionário NPS
   const [mostrarQuestionarioNps, setMostrarQuestionarioNps] = useState(false);
   const [npsJaVerificado, setNpsJaVerificado] = useState(false);
 
-  // Função para abrir música em popup (desktop) ou nova aba (mobile)
-  const abrirMusicaPopup = (url: string) => {
-    // Detectar se é mobile
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      // No mobile, abre em nova aba normal
-      window.open(url, '_blank');
-    } else {
-      // No desktop, abre popup estilizada
-      const width = 800;
-      const height = 600;
-      const left = (window.screen.width - width) / 2;
-      const top = (window.screen.height - height) / 2;
-
-      window.open(
-        url,
-        'MusicaPopup',
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no`
-      );
-    }
-  };
-
-  // Query para buscar dados do projeto
-  const { data: projeto, isLoading, error } = useQuery<ProjetoCliente>({
-    queryKey: [`/api/cliente/projeto/${token}`],
+  // Query para buscar dados do cliente e todos os projetos
+  const { data: clienteData, isLoading, error } = useQuery<ClienteData>({
+    queryKey: [`/api/portal/cliente/${clientToken}`],
     retry: false,
   });
+
+  // Selecionar projeto (primeiro por padrão, ou o da URL)
+  const [projetoSelecionadoId, setProjetoSelecionadoId] = useState<string | null>(null);
+
+  // Quando os dados carregam, define o projeto selecionado
+  useEffect(() => {
+    if (clienteData?.projetos && clienteData.projetos.length > 0) {
+      if (projetoIdFromUrl && clienteData.projetos.find(p => p.id === projetoIdFromUrl)) {
+        setProjetoSelecionadoId(projetoIdFromUrl);
+      } else {
+        // Seleciona o primeiro projeto por padrão
+        setProjetoSelecionadoId(clienteData.projetos[0].id);
+      }
+    }
+  }, [clienteData, projetoIdFromUrl]);
 
   // Verificar se deve abrir questionário NPS automaticamente
   useEffect(() => {
     const verificarNPS = async () => {
       // Só verificar uma vez
-      if (npsJaVerificado || !projeto || !token) return;
+      if (npsJaVerificado || !projeto || !projeto.clientToken) return;
 
       // Se o projeto está Aprovado, verificar se já respondeu o NPS
       if (projeto.status === "Aprovado") {
         try {
-          const response = await fetch(`/api/cliente/projeto/${token}/nps/verificar`);
+          const response = await fetch(`/api/cliente/projeto/${projeto.clientToken}/nps/verificar`);
           const data = await response.json();
 
           // Se não existe resposta NPS, abrir o questionário após 2 segundos
@@ -152,25 +144,62 @@ export default function ClientePortal() {
     };
 
     verificarNPS();
-  }, [projeto, token, npsJaVerificado]);
+  }, [projeto, npsJaVerificado]);
 
-  // Mutation para enviar seleções (música + locutor de uma vez)
+  // Função para mudar projeto selecionado
+  const selecionarProjeto = (projetoId: string) => {
+    setProjetoSelecionadoId(projetoId);
+    // Atualizar URL
+    const newUrl = `/portal/cliente/${clientToken}?projeto=${projetoId}`;
+    window.history.pushState({}, '', newUrl);
+  };
+
+  // Projeto atualmente selecionado
+  const projeto = clienteData?.projetos.find(p => p.id === projetoSelecionadoId);
+
+  // Estados para seleção de música e locutor (novo sistema)
+  const [musicaSelecionada, setMusicaSelecionada] = useState<string | null>(null);
+  const [locutorSelecionado, setLocutorSelecionado] = useState<string | null>(null);
+  const [feedbackGeral, setFeedbackGeral] = useState("");
+
+  // Estados para feedback dos itens antigos (sistema legado)
+  const [musicaFeedback, setMusicaFeedback] = useState("");
+  const [locucaoFeedback, setLocucaoFeedback] = useState("");
+  const [videoFeedback, setVideoFeedback] = useState("");
+
+  // Função para abrir música em popup (desktop) ou nova aba (mobile)
+  const abrirMusicaPopup = (url: string) => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+      window.open(url, '_blank');
+    } else {
+      const width = 800;
+      const height = 600;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+      window.open(
+        url,
+        'MusicaPopup',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no`
+      );
+    }
+  };
+
+  // Mutation para enviar seleções (música + locutor)
   const enviarSelecoesMutation = useMutation({
     mutationFn: async () => {
-      if (!musicaSelecionada || !locutorSelecionado) {
+      if (!musicaSelecionada || !locutorSelecionado || !projeto) {
         throw new Error("Selecione uma música e um locutor");
       }
 
-      // Aprovar a música selecionada
-      const musicaResponse = await fetch(`/api/cliente/projeto/${token}/musicas/${musicaSelecionada}/aprovar`, {
+      const musicaResponse = await fetch(`/api/cliente/projeto/${projeto.clientToken}/musicas/${musicaSelecionada}/aprovar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aprovado: true, feedback: feedbackGeral }),
       });
       if (!musicaResponse.ok) throw new Error("Erro ao aprovar música");
 
-      // Aprovar o locutor selecionado
-      const locutorResponse = await fetch(`/api/cliente/projeto/${token}/locutores/${locutorSelecionado}/aprovar`, {
+      const locutorResponse = await fetch(`/api/cliente/projeto/${projeto.clientToken}/locutores/${locutorSelecionado}/aprovar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aprovado: true, feedback: feedbackGeral }),
@@ -180,7 +209,7 @@ export default function ClientePortal() {
       return { success: true };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/cliente/projeto/${token}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/portal/cliente/${clientToken}`] });
       setMusicaSelecionada(null);
       setLocutorSelecionado(null);
       setFeedbackGeral("");
@@ -201,7 +230,8 @@ export default function ClientePortal() {
   // Mutations antigas para aprovações (mantidas para compatibilidade)
   const aprovarMusicaMutation = useMutation({
     mutationFn: async ({ aprovado, feedback }: { aprovado: boolean; feedback?: string }) => {
-      const response = await fetch(`/api/cliente/projeto/${token}/aprovar-musica`, {
+      if (!projeto) throw new Error("Projeto não encontrado");
+      const response = await fetch(`/api/cliente/projeto/${projeto.clientToken}/aprovar-musica`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aprovado, feedback }),
@@ -210,7 +240,7 @@ export default function ClientePortal() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/cliente/projeto/${token}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/portal/cliente/${clientToken}`] });
       setMusicaFeedback("");
       toast({
         title: "Sucesso!",
@@ -221,7 +251,8 @@ export default function ClientePortal() {
 
   const aprovarLocucaoMutation = useMutation({
     mutationFn: async ({ aprovado, feedback }: { aprovado: boolean; feedback?: string }) => {
-      const response = await fetch(`/api/cliente/projeto/${token}/aprovar-locucao`, {
+      if (!projeto) throw new Error("Projeto não encontrado");
+      const response = await fetch(`/api/cliente/projeto/${projeto.clientToken}/aprovar-locucao`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aprovado, feedback }),
@@ -230,7 +261,7 @@ export default function ClientePortal() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/cliente/projeto/${token}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/portal/cliente/${clientToken}`] });
       setLocucaoFeedback("");
       toast({
         title: "Sucesso!",
@@ -241,7 +272,8 @@ export default function ClientePortal() {
 
   const aprovarVideoMutation = useMutation({
     mutationFn: async ({ aprovado, feedback }: { aprovado: boolean; feedback?: string }) => {
-      const response = await fetch(`/api/cliente/projeto/${token}/aprovar-video`, {
+      if (!projeto) throw new Error("Projeto não encontrado");
+      const response = await fetch(`/api/cliente/projeto/${projeto.clientToken}/aprovar-video`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aprovado, feedback }),
@@ -250,7 +282,7 @@ export default function ClientePortal() {
       return response.json();
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/cliente/projeto/${token}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/portal/cliente/${clientToken}`] });
       setVideoFeedback("");
       toast({
         title: "Sucesso!",
@@ -296,7 +328,7 @@ export default function ClientePortal() {
     );
   }
 
-  if (error || !projeto) {
+  if (error || !clienteData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -314,18 +346,18 @@ export default function ClientePortal() {
     );
   }
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      "Briefing": "bg-slate-500",
-      "Roteiro": "bg-blue-500",
-      "Captação": "bg-purple-500",
-      "Edição": "bg-orange-500",
-      "Entrega": "bg-green-500",
-      "Aprovado": "bg-emerald-500",
-      "Aguardando Aprovação": "bg-yellow-500",
-    };
-    return colors[status] || "bg-gray-500";
-  };
+  if (!projeto) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6 flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Carregando projeto...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Calcular dias no status atual (usa statusChangedAt, fallback para dataCriacao se não existir)
   const statusDate = projeto.statusChangedAt && new Date(projeto.statusChangedAt).getTime() > 0
@@ -385,29 +417,132 @@ export default function ClientePortal() {
         {/* Header */}
         <Card className="border-none shadow bg-gradient-to-r from-primary/10 via-primary/5 to-background">
           <CardHeader className="p-3 sm:p-4">
-            {/* Empreendimento e Cliente em destaque */}
+            {/* Cliente Info */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-              {projeto.empreendimento && (
+              <div className="flex items-center gap-2 text-primary">
+                <User className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
+                <p className="font-bold text-base sm:text-xl">{clienteData.cliente.nome}</p>
+              </div>
+              {clienteData.cliente.empresa && (
                 <div className="flex items-center gap-2 text-primary">
                   <Building2 className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
-                  <p className="font-bold text-base sm:text-xl">{projeto.empreendimento.nome}</p>
-                </div>
-              )}
-
-              {projeto.cliente && (
-                <div className="flex items-center gap-2 text-primary">
-                  <User className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
-                  <p className="font-bold text-base sm:text-xl">{projeto.cliente.nome}</p>
+                  <p className="font-bold text-base sm:text-xl">{clienteData.cliente.empresa}</p>
                 </div>
               )}
             </div>
-
-            {/* Descrição se existir */}
-            {projeto.descricao && (
-              <CardDescription className="text-xs sm:text-sm pt-1">{projeto.descricao}</CardDescription>
-            )}
           </CardHeader>
         </Card>
+
+        {/* Project Selector - Separado por status */}
+        {clienteData.projetos.length > 1 && (() => {
+          const projetosEmAndamento = clienteData.projetos.filter(p => p.status !== "Aprovado");
+          const projetosConcluidos = clienteData.projetos.filter(p => p.status === "Aprovado");
+          const projetoAtual = projeto;
+          const isProjetoEmAndamento = projetoAtual && projetoAtual.status !== "Aprovado";
+
+          return (
+            <Card>
+              <CardHeader className="p-4 space-y-1">
+                <CardTitle className="text-base">Selecione o Projeto</CardTitle>
+                <CardDescription className="text-xs">
+                  {projetosEmAndamento.length > 0 && `${projetosEmAndamento.length} em andamento`}
+                  {projetosEmAndamento.length > 0 && projetosConcluidos.length > 0 && " • "}
+                  {projetosConcluidos.length > 0 && `${projetosConcluidos.length} concluído${projetosConcluidos.length > 1 ? 's' : ''}`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 space-y-3">
+                {/* Indicador Visual do Projeto Selecionado */}
+                {projetoAtual && (
+                  <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground mb-1">Visualizando agora:</p>
+                        <p className="font-semibold text-sm text-primary">
+                          {projetoAtual.titulo}
+                        </p>
+                      </div>
+                      {projetoAtual.status === "Aprovado" ? (
+                        <Badge variant="default" className="bg-green-600 shrink-0">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Concluído
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="shrink-0">
+                          {projetoAtual.status}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Projetos em Andamento */}
+                {projetosEmAndamento.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                      <Clock className="h-3 w-3" />
+                      Em Andamento ({projetosEmAndamento.length})
+                    </label>
+                    <Select
+                      value={isProjetoEmAndamento ? projetoSelecionadoId || undefined : ""}
+                      onValueChange={selecionarProjeto}
+                    >
+                      <SelectTrigger className={`w-full ${isProjetoEmAndamento ? 'border-primary/50' : ''}`}>
+                        <SelectValue placeholder="Escolher projeto em andamento..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background/95 backdrop-blur-md border-2">
+                        {projetosEmAndamento.map((proj) => (
+                          <SelectItem key={proj.id} value={proj.id}>
+                            <div className="flex items-center gap-2 w-full">
+                              <span className="flex-1 text-sm">
+                                {proj.titulo}
+                              </span>
+                              <Badge variant="outline" className="text-xs shrink-0">
+                                {proj.status}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Projetos Concluídos */}
+                {projetosConcluidos.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Concluídos ({projetosConcluidos.length})
+                    </label>
+                    <Select
+                      value={!isProjetoEmAndamento && projetoSelecionadoId ? projetoSelecionadoId : ""}
+                      onValueChange={selecionarProjeto}
+                    >
+                      <SelectTrigger className={`w-full ${!isProjetoEmAndamento && projetoSelecionadoId ? 'border-green-500/50' : ''}`}>
+                        <SelectValue placeholder="Escolher projeto concluído..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background/95 backdrop-blur-md border-2">
+                        {projetosConcluidos.map((proj) => (
+                          <SelectItem key={proj.id} value={proj.id}>
+                            <div className="flex items-center gap-2 w-full">
+                              <span className="flex-1 text-sm">
+                                {proj.titulo}
+                              </span>
+                              <span className="text-xs font-medium text-green-600 dark:text-green-400 flex items-center gap-1 shrink-0">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Finalizado
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Barra de Progresso do Projeto */}
         <Card>
@@ -1115,78 +1250,35 @@ export default function ClientePortal() {
           </Card>
         )}
 
-        {/* Mensagem se não houver itens para aprovação */}
-        {!projeto.musicaUrl &&
-          !projeto.locucaoUrl &&
-          !projeto.videoFinalUrl &&
-          (!projeto.musicas || projeto.musicas.length === 0) &&
-          (!projeto.locutores || projeto.locutores.length === 0) && (
-            <Card>
-              <CardContent className="p-4">
-                <Alert className="p-3">
-                  <AlertCircle className="h-3 w-3" />
-                  <AlertTitle className="text-sm">Aguardando conteúdo</AlertTitle>
-                  <AlertDescription className="text-xs">
-                    Ainda não há itens disponíveis para aprovação. Você receberá uma notificação quando houver novos materiais para revisar.
-                  </AlertDescription>
-                </Alert>
+            {/* Footer com informações de contato */}
+            <Card className="bg-muted/50">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Dúvidas? Entre em contato conosco
+                  </p>
+                  <div className="flex items-center justify-center gap-4 text-sm">
+                    <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
+                      <Instagram className="h-4 w-4" />
+                      Instagram
+                    </a>
+                    <a href="https://website.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
+                      <Globe className="h-4 w-4" />
+                      Website
+                    </a>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          )}
-
-        {/* Footer */}
-        <Card className="border-dashed">
-          <CardContent className="p-4 text-center space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Dúvidas? Entre em contato:
-            </p>
-
-            <div className="flex justify-center gap-2">
-              <a
-                href="https://wa.me/message/EB53ZVPWQAXWO1"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-green-600 border border-muted hover:border-green-600 rounded-md transition-colors"
-              >
-                <MessageCircle className="h-3.5 w-3.5" />
-                <span>WhatsApp</span>
-              </a>
-
-              <a
-                href="https://instagram.com/frametyfilmes"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-pink-600 border border-muted hover:border-pink-600 rounded-md transition-colors"
-              >
-                <Instagram className="h-3.5 w-3.5" />
-                <span>Instagram</span>
-              </a>
-
-              <a
-                href="https://framety.com.br"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-blue-600 border border-muted hover:border-blue-600 rounded-md transition-colors"
-              >
-                <Globe className="h-3.5 w-3.5" />
-                <span>Site</span>
-              </a>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Este link é exclusivo para você. Não compartilhe com terceiros.
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Questionário NPS */}
-      {projeto && token && (
+      {projeto && projeto.clientToken && (
         <QuestionarioNps
           isOpen={mostrarQuestionarioNps}
           onClose={() => setMostrarQuestionarioNps(false)}
           projetoId={projeto.id}
-          token={token}
+          token={projeto.clientToken}
         />
       )}
     </div>

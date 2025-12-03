@@ -310,7 +310,7 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
                           <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-background/95 backdrop-blur-md border-2">
                         {tiposVideo.map((tipo) => (
                           <SelectItem key={tipo.id} value={tipo.id}>
                             {tipo.nome}
@@ -335,7 +335,7 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
                           <SelectValue placeholder="Selecione (opcional)..." />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-background/95 backdrop-blur-md border-2">
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.nome}
@@ -362,7 +362,7 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-background/95 backdrop-blur-md border-2">
                         <SelectItem value="Baixa">Baixa</SelectItem>
                         <SelectItem value="Média">Média</SelectItem>
                         <SelectItem value="Alta">Alta</SelectItem>
@@ -405,7 +405,7 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
                         <SelectValue placeholder="Selecione um cliente" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="bg-background/95 backdrop-blur-md border-2">
                       {clientes.map((cliente) => (
                         <SelectItem key={cliente.id} value={cliente.id} data-testid={`option-cliente-${cliente.id}`}>
                           {cliente.nome}
@@ -430,7 +430,7 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
                         <SelectValue placeholder="Selecione um empreendimento" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="bg-background/95 backdrop-blur-md border-2">
                       {empreendimentosFiltrados.map((empreendimento) => (
                         <SelectItem key={empreendimento.id} value={empreendimento.id} data-testid={`option-empreendimento-${empreendimento.id}`}>
                           {empreendimento.nome} - {empreendimento.cliente.nome}
