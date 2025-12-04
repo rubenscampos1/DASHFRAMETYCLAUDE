@@ -96,7 +96,7 @@ export function useWebSocketSync() {
           }
           return matches;
         },
-        refetchType: 'active' // ⚡ Apenas refetch de queries ATIVAS (evita sobrecarga no servidor)
+        refetchType: 'all' // 🔥 Criação é rara, pode atualizar todas as queries
       });
 
       // Invalidar métricas
@@ -122,7 +122,7 @@ export function useWebSocketSync() {
           }
           return matches;
         },
-        refetchType: 'active' // ⚡ Apenas refetch de queries ATIVAS (evita sobrecarga no servidor)
+        refetchType: 'all' // 🔥 Delete é raro, precisa remover de todas as queries
       });
 
       // Invalidar métricas
@@ -178,7 +178,7 @@ export function useWebSocketSync() {
           }
           return matches;
         },
-        refetchType: 'active' // ⚡ Apenas refetch de queries ATIVAS (evita sobrecarga no servidor)
+        refetchType: 'all' // 🔥 NPS é raro, precisa atualizar Finalizados mesmo que não esteja ativo
       });
 
       console.log('🟢 [DEBUG NPS] Invalidação completa!');
