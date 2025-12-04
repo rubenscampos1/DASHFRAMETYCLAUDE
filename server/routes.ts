@@ -520,8 +520,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Emitir evento WebSocket para sincronização em tempo real
       const wsServer = (req.app as any).wsServer;
+      console.log('🟡 [DEBUG DRAG] WebSocket server exists?', !!wsServer);
+      console.log('🟡 [DEBUG DRAG] Projeto atualizado:', projeto.id);
+      console.log('🟡 [DEBUG DRAG] Novo status:', projeto.status);
+      console.log('🟡 [DEBUG DRAG] Emitindo evento projeto:updated...');
+
       if (wsServer) {
         wsServer.emitChange('projeto:updated', { id: projeto.id, projeto });
+        console.log('🟡 [DEBUG DRAG] Evento projeto:updated emitido com sucesso!');
+      } else {
+        console.error('🟡 [DEBUG DRAG] ERRO: WebSocket server não encontrado!');
       }
 
       res.json(projeto);

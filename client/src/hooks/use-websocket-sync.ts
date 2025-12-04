@@ -16,19 +16,44 @@ export function useWebSocketSync() {
 
     // Escutar mudanças em projetos
     socket.on('projeto:updated', (data) => {
-      console.log('[WebSocket] Projeto atualizado:', data.id);
+      console.log('🟠 [DEBUG DRAG] Evento projeto:updated RECEBIDO!');
+      console.log('🟠 [DEBUG DRAG] Dados:', data);
+      console.log('🟠 [DEBUG DRAG] ProjetoId:', data.id);
+      console.log('🟠 [DEBUG DRAG] Status do projeto:', data.projeto?.status);
+
+      // Listar TODAS as queries no cache antes de invalidar
+      const allQueries = queryClient.getQueryCache().getAll();
+      console.log('🟠 [DEBUG DRAG] Total de queries no cache:', allQueries.length);
+
+      const projetoQueries = allQueries.filter(q => {
+        const key = q.queryKey;
+        return Array.isArray(key) && key[0] === '/api/projetos';
+      });
+
+      console.log('🟠 [DEBUG DRAG] Queries de projetos encontradas:', projetoQueries.length);
+      projetoQueries.forEach(q => {
+        console.log('🟠 [DEBUG DRAG]   - QueryKey:', JSON.stringify(q.queryKey));
+      });
 
       // Invalidar TODAS as queries que começam com '/api/projetos'
       // Isso inclui dashboard, finalizados, relatórios, minha fila, etc
+      console.log('🟠 [DEBUG DRAG] Invalidando queries de projetos...');
       queryClient.invalidateQueries({
         predicate: (query) => {
           const queryKey = query.queryKey;
-          return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+          const matches = Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+          if (matches) {
+            console.log('🟠 [DEBUG DRAG]   ✓ Invalidando:', JSON.stringify(queryKey));
+          }
+          return matches;
         }
       });
 
       // Invalidar métricas
+      console.log('🟠 [DEBUG DRAG] Invalidando métricas...');
       queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
+
+      console.log('🟠 [DEBUG DRAG] Invalidação completa!');
     });
 
     // Escutar mudanças em comentários
