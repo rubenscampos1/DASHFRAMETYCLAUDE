@@ -399,7 +399,10 @@ export class DatabaseStorage implements IStorage {
         clientToken,
       })
       .returning();
-    return newProjeto;
+
+    // 🔥 BUSCAR projeto completo com TODOS os relacionamentos (tipoVideo, cliente, etc)
+    const projetoCompleto = await this.getProjeto(newProjeto.id);
+    return projetoCompleto || newProjeto;
   }
 
   async updateProjeto(id: string, projeto: Partial<InsertProjeto>): Promise<Projeto> {
