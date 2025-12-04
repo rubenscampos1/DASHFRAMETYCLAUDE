@@ -21,6 +21,10 @@ export function useWebSocketSync() {
       console.log('🟠 [DEBUG DRAG] ProjetoId:', data.id);
       console.log('🟠 [DEBUG DRAG] Status do projeto:', data.projeto?.status);
 
+      // Detectar se mudou para "Aprovado" (precisa atualizar Finalizados)
+      const foiAprovado = data.projeto?.status === 'Aprovado';
+      console.log('🟠 [DEBUG DRAG] Foi aprovado?', foiAprovado);
+
       // Listar TODAS as queries no cache antes de invalidar
       const allQueries = queryClient.getQueryCache().getAll();
       console.log('🟠 [DEBUG DRAG] Total de queries no cache:', allQueries.length);
@@ -47,7 +51,9 @@ export function useWebSocketSync() {
           }
           return matches;
         },
-        refetchType: 'active' // ⚡ Apenas refetch de queries ATIVAS (evita sobrecarga no servidor)
+        // 🎯 Se foi aprovado, atualiza TUDO (incluindo Finalizados)
+        // Senão, só atualiza página atual (evita sobrecarga)
+        refetchType: foiAprovado ? 'all' : 'active'
       });
 
       // Invalidar métricas
