@@ -281,6 +281,16 @@ export const respostasNps = pgTable("respostas_nps", {
   comentario: text("comentario"), // Comentário adicional do cliente
 });
 
+export const tokensAcesso = pgTable("tokens_acesso", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: text("token").unique().notNull(),
+  tipo: text("tipo").default("finalizados").notNull(), // Tipo de acesso que o token fornece
+  descricao: text("descricao"), // Descrição do token (ex: "Time Comercial")
+  ativo: boolean("ativo").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   projetosResponsavel: many(projetos, { relationName: "responsavel" }),
@@ -727,6 +737,17 @@ export type ProjetoLocutor = typeof projetoLocutores.$inferSelect;
 export type InsertProjetoLocutor = z.infer<typeof insertProjetoLocutorSchema>;
 export type RespostaNps = typeof respostasNps.$inferSelect;
 export type InsertRespostaNps = z.infer<typeof insertRespostaNpsSchema>;
+
+// Token de Acesso schemas
+export const insertTokenAcessoSchema = z.object({
+  token: z.string().min(1),
+  tipo: z.string().default("finalizados"),
+  descricao: z.string().optional(),
+  ativo: z.boolean().default(true),
+});
+
+export type TokenAcesso = typeof tokensAcesso.$inferSelect;
+export type InsertTokenAcesso = z.infer<typeof insertTokenAcessoSchema>;
 
 // Extended types with relations
 export type ProjetoWithRelations = Projeto & {

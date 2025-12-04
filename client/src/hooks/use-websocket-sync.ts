@@ -16,11 +16,14 @@ export function useWebSocketSync() {
     socket.on('projeto:updated', (data) => {
       console.log('[WebSocket] Projeto atualizado:', data.id);
 
-      // Invalidar todas as queries de projetos para forçar refetch
-      queryClient.invalidateQueries({ queryKey: ['/api/projetos'] });
-
-      // Invalidar projeto específico
-      queryClient.invalidateQueries({ queryKey: ['/api/projetos', data.id] });
+      // Invalidar TODAS as queries que começam com '/api/projetos'
+      // Isso inclui dashboard, finalizados, relatórios, minha fila, etc
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const queryKey = query.queryKey;
+          return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+        }
+      });
 
       // Invalidar métricas
       queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
@@ -45,11 +48,13 @@ export function useWebSocketSync() {
     socket.on('nps:created', (data) => {
       console.log('[WebSocket] NPS respondido para projeto:', data.projetoId, 'Categoria:', data.categoria);
 
-      // Invalidar todas as queries de projetos para atualizar badges e informações
-      queryClient.invalidateQueries({ queryKey: ['/api/projetos'] });
-
-      // Invalidar projeto específico
-      queryClient.invalidateQueries({ queryKey: ['/api/projetos', data.projetoId] });
+      // Invalidar TODAS as queries de projetos (incluindo finalizados)
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const queryKey = query.queryKey;
+          return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+        }
+      });
     });
 
     // Escutar mudanças em notas
