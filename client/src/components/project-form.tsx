@@ -104,71 +104,9 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
       const response = await apiRequest("POST", "/api/projetos", data);
       return response.json();
     },
-    onMutate: async (newProjeto) => {
-      await queryClient.cancelQueries({ queryKey: ["/api/projetos"] });
-      
-      const tipoVideo = tiposVideo.find(t => t.id === newProjeto.tipoVideoId);
-      const cliente = clientes.find(c => c.id === newProjeto.clienteId);
-      const empreendimento = empreendimentos.find(e => e.id === newProjeto.empreendimentoId);
-      const responsavel = users.find(u => u.id === newProjeto.responsavelId);
-      
-      const tempProjeto = {
-        ...newProjeto,
-        id: `temp-${Date.now()}`,
-        dataCriacao: new Date().toISOString(),
-        dataAprovacao: null,
-        sequencialId: 0,
-        status: "Briefing",
-        tipoVideo: tipoVideo || null,
-        cliente: cliente || null,
-        empreendimento: empreendimento || null,
-        responsavel: responsavel || null,
-        anexos: [],
-        tags: newProjeto.tags || [],
-      };
-      
-      const matchesFilter = (filters: any) => {
-        if (!filters) return true;
-        if (filters.responsavelId && filters.responsavelId !== tempProjeto.responsavelId) return false;
-        if (filters.tipoVideoId && filters.tipoVideoId !== tempProjeto.tipoVideoId) return false;
-        if (filters.prioridade && filters.prioridade !== tempProjeto.prioridade) return false;
-        if (filters.search && typeof filters.search === 'string') {
-          const searchLower = filters.search.toLowerCase();
-          const matchesSearch = 
-            (tempProjeto.titulo ?? "").toLowerCase().includes(searchLower) ||
-            (tempProjeto.cliente?.nome ?? "").toLowerCase().includes(searchLower);
-          if (!matchesSearch) return false;
-        }
-        return true;
-      };
-      
-      const previousQueries: any[] = [];
-      queryClient.getQueriesData({ queryKey: ["/api/projetos"] }).forEach(([key, data]) => {
-        const filters = (key as any[])[1];
-        previousQueries.push({ key, data });
-        
-        if (matchesFilter(filters)) {
-          queryClient.setQueryData(key, (old: any) => {
-            return Array.isArray(old) ? [tempProjeto, ...old] : [tempProjeto];
-          });
-        }
-      });
-      
-      return { previousQueries };
-    },
     onSuccess: (data) => {
-      queryClient.getQueriesData({ queryKey: ["/api/projetos"] }).forEach(([key]) => {
-        queryClient.setQueryData(key, (old: any) => {
-          if (!Array.isArray(old)) return old;
-          const hasTemp = old.some((p: any) => p.id.toString().startsWith('temp-'));
-          if (hasTemp) {
-            return old.map((p: any) => p.id.toString().startsWith('temp-') ? data : p);
-          }
-          return old;
-        });
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+      // ✨ Agora com WebSocket em tempo real, não precisamos de optimistic updates!
+      // O evento projeto:created vai invalidar as queries automaticamente
       toast({
         title: "Projeto criado com sucesso!",
         description: "O projeto foi adicionado à sua lista.",
@@ -176,12 +114,7 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
       form.reset();
       onSuccess?.();
     },
-    onError: (error: Error, _newProjeto, context) => {
-      if (context?.previousQueries) {
-        context.previousQueries.forEach(({ key, data }: any) => {
-          queryClient.setQueryData(key, data);
-        });
-      }
+    onError: (error: Error) => {
       toast({
         title: "Erro ao criar projeto",
         description: error.message,
