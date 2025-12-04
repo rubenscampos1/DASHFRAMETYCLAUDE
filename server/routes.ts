@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertProjetoSchema.parse(req.body);
       console.log("[POST /api/projetos] validatedData:", JSON.stringify(validatedData, null, 2));
       const projeto = await storage.createProjeto(validatedData);
-      
+
       // Create initial status log
       await storage.createLogStatus({
         projetoId: projeto.id,
@@ -457,6 +457,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         statusNovo: projeto.status,
         alteradoPorId: req.user!.id,
       });
+
+      // Emitir evento WebSocket para sincronização em tempo real
+      const wsServer = (req.app as any).wsServer;
+      console.log('🟢 [DEBUG CREATE] WebSocket server exists?', !!wsServer);
+      console.log('🟢 [DEBUG CREATE] Novo projeto criado:', projeto.id);
+      console.log('🟢 [DEBUG CREATE] Dados do projeto:', {
+        id: projeto.id,
+        nome: projeto.nome,
+        tipoVideoId: projeto.tipoVideoId,
+        status: projeto.status,
+        temTipoVideo: !!projeto.tipoVideo,
+        tipoVideoNome: projeto.tipoVideo?.nome
+      });
+
+      if (wsServer) {
+        wsServer.emitChange('projeto:created', { id: projeto.id, projeto });
+        console.log('🟢 [DEBUG CREATE] Evento projeto:created emitido com sucesso!');
+      } else {
+        console.error('🟢 [DEBUG CREATE] ERRO: WebSocket server não encontrado!');
+      }
 
       res.status(201).json(projeto);
     } catch (error) {

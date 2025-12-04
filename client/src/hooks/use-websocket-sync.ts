@@ -57,6 +57,55 @@ export function useWebSocketSync() {
       console.log('🟠 [DEBUG DRAG] Invalidação completa!');
     });
 
+    // Escutar quando projeto é criado
+    socket.on('projeto:created', (data) => {
+      console.log('🟢 [DEBUG CREATE] Evento projeto:created RECEBIDO!');
+      console.log('🟢 [DEBUG CREATE] Dados:', data);
+      console.log('🟢 [DEBUG CREATE] ProjetoId:', data.id);
+      console.log('🟢 [DEBUG CREATE] Projeto completo:', {
+        id: data.projeto?.id,
+        nome: data.projeto?.nome,
+        tipoVideoId: data.projeto?.tipoVideoId,
+        status: data.projeto?.status,
+        temTipoVideo: !!data.projeto?.tipoVideo,
+        tipoVideoNome: data.projeto?.tipoVideo?.nome
+      });
+
+      // Listar TODAS as queries no cache antes de invalidar
+      const allQueries = queryClient.getQueryCache().getAll();
+      console.log('🟢 [DEBUG CREATE] Total de queries no cache:', allQueries.length);
+
+      const projetoQueries = allQueries.filter(q => {
+        const key = q.queryKey;
+        return Array.isArray(key) && key[0] === '/api/projetos';
+      });
+
+      console.log('🟢 [DEBUG CREATE] Queries de projetos encontradas:', projetoQueries.length);
+      projetoQueries.forEach(q => {
+        console.log('🟢 [DEBUG CREATE]   - QueryKey:', JSON.stringify(q.queryKey));
+      });
+
+      // Invalidar TODAS as queries de projetos
+      console.log('🟢 [DEBUG CREATE] Invalidando queries de projetos...');
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const queryKey = query.queryKey;
+          const matches = Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+          if (matches) {
+            console.log('🟢 [DEBUG CREATE]   ✓ Invalidando:', JSON.stringify(queryKey));
+          }
+          return matches;
+        },
+        refetchType: 'all' // 🔥 FORÇA refetch de queries ATIVAS e INATIVAS
+      });
+
+      // Invalidar métricas
+      console.log('🟢 [DEBUG CREATE] Invalidando métricas...');
+      queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
+
+      console.log('🟢 [DEBUG CREATE] Invalidação completa!');
+    });
+
     // Escutar quando projeto é deletado
     socket.on('projeto:deleted', (data) => {
       console.log('🔴 [DEBUG DELETE] Evento projeto:deleted RECEBIDO!');
@@ -155,6 +204,7 @@ export function useWebSocketSync() {
     // Cleanup: remover listeners quando componente desmontar
     return () => {
       console.log('[WebSocket] Limpando listeners');
+      socket.off('projeto:created');
       socket.off('projeto:updated');
       socket.off('projeto:deleted');
       socket.off('comentario:created');
