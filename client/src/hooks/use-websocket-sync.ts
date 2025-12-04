@@ -46,7 +46,8 @@ export function useWebSocketSync() {
             console.log('🟠 [DEBUG DRAG]   ✓ Invalidando:', JSON.stringify(queryKey));
           }
           return matches;
-        }
+        },
+        refetchType: 'all' // 🔥 FORÇA refetch de queries ATIVAS e INATIVAS (componentes não montados)
       });
 
       // Invalidar métricas
@@ -101,7 +102,8 @@ export function useWebSocketSync() {
             console.log('🟢 [DEBUG NPS]   ✓ Invalidando:', JSON.stringify(queryKey));
           }
           return matches;
-        }
+        },
+        refetchType: 'all' // 🔥 FORÇA refetch de queries ATIVAS e INATIVAS (componentes não montados)
       });
 
       console.log('🟢 [DEBUG NPS] Invalidação completa!');
