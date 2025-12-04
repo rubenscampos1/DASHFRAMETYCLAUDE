@@ -47,7 +47,7 @@ export function useWebSocketSync() {
           }
           return matches;
         },
-        refetchType: 'all' // 🔥 FORÇA refetch de queries ATIVAS e INATIVAS (componentes não montados)
+        refetchType: 'active' // ⚡ Apenas refetch de queries ATIVAS (evita sobrecarga no servidor)
       });
 
       // Invalidar métricas
@@ -96,7 +96,7 @@ export function useWebSocketSync() {
           }
           return matches;
         },
-        refetchType: 'all' // 🔥 FORÇA refetch de queries ATIVAS e INATIVAS
+        refetchType: 'active' // ⚡ Apenas refetch de queries ATIVAS (evita sobrecarga no servidor)
       });
 
       // Invalidar métricas
@@ -122,7 +122,7 @@ export function useWebSocketSync() {
           }
           return matches;
         },
-        refetchType: 'all' // 🔥 FORÇA refetch de queries ATIVAS e INATIVAS
+        refetchType: 'active' // ⚡ Apenas refetch de queries ATIVAS (evita sobrecarga no servidor)
       });
 
       // Invalidar métricas
@@ -178,7 +178,7 @@ export function useWebSocketSync() {
           }
           return matches;
         },
-        refetchType: 'all' // 🔥 FORÇA refetch de queries ATIVAS e INATIVAS (componentes não montados)
+        refetchType: 'active' // ⚡ Apenas refetch de queries ATIVAS (evita sobrecarga no servidor)
       });
 
       console.log('🟢 [DEBUG NPS] Invalidação completa!');
