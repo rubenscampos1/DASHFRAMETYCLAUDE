@@ -546,6 +546,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.deleteProjeto(req.params.id);
+
+      // Emitir evento WebSocket para atualização em tempo real
+      const wsServer = (req.app as any).wsServer;
+      console.log('🔴 [DEBUG DELETE] WebSocket server exists?', !!wsServer);
+      console.log('🔴 [DEBUG DELETE] Projeto deletado:', req.params.id);
+      console.log('🔴 [DEBUG DELETE] Emitindo evento projeto:deleted...');
+
+      if (wsServer) {
+        wsServer.emitChange('projeto:deleted', { id: req.params.id });
+        console.log('🔴 [DEBUG DELETE] Evento projeto:deleted emitido com sucesso!');
+      } else {
+        console.error('🔴 [DEBUG DELETE] ERRO: WebSocket server não encontrado!');
+      }
+
       res.sendStatus(204);
     } catch (error) {
       next(error);

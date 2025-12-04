@@ -57,6 +57,32 @@ export function useWebSocketSync() {
       console.log('🟠 [DEBUG DRAG] Invalidação completa!');
     });
 
+    // Escutar quando projeto é deletado
+    socket.on('projeto:deleted', (data) => {
+      console.log('🔴 [DEBUG DELETE] Evento projeto:deleted RECEBIDO!');
+      console.log('🔴 [DEBUG DELETE] ProjetoId deletado:', data.id);
+
+      // Invalidar TODAS as queries de projetos
+      console.log('🔴 [DEBUG DELETE] Invalidando queries de projetos...');
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const queryKey = query.queryKey;
+          const matches = Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+          if (matches) {
+            console.log('🔴 [DEBUG DELETE]   ✓ Invalidando:', JSON.stringify(queryKey));
+          }
+          return matches;
+        },
+        refetchType: 'all' // 🔥 FORÇA refetch de queries ATIVAS e INATIVAS
+      });
+
+      // Invalidar métricas
+      console.log('🔴 [DEBUG DELETE] Invalidando métricas...');
+      queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
+
+      console.log('🔴 [DEBUG DELETE] Invalidação completa!');
+    });
+
     // Escutar mudanças em comentários
     socket.on('comentario:created', (data) => {
       console.log('[WebSocket] Comentário criado no projeto:', data.projetoId);
@@ -130,6 +156,7 @@ export function useWebSocketSync() {
     return () => {
       console.log('[WebSocket] Limpando listeners');
       socket.off('projeto:updated');
+      socket.off('projeto:deleted');
       socket.off('comentario:created');
       socket.off('comentario:deleted');
       socket.off('nps:created');
