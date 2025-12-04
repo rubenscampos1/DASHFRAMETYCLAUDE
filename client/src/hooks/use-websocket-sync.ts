@@ -11,6 +11,8 @@ import { queryClient } from '@/lib/queryClient';
 export function useWebSocketSync() {
   useEffect(() => {
     console.log('[WebSocket] Iniciando sincronização em tempo real');
+    console.log('🔵 [DEBUG NPS] Socket conectado?', socket.connected);
+    console.log('🔵 [DEBUG NPS] Socket ID:', socket.id);
 
     // Escutar mudanças em projetos
     socket.on('projeto:updated', (data) => {
@@ -46,15 +48,38 @@ export function useWebSocketSync() {
 
     // Escutar criação de resposta NPS
     socket.on('nps:created', (data) => {
-      console.log('[WebSocket] NPS respondido para projeto:', data.projetoId, 'Categoria:', data.categoria);
+      console.log('🟢 [DEBUG NPS] Evento nps:created RECEBIDO!');
+      console.log('🟢 [DEBUG NPS] Dados:', data);
+      console.log('🟢 [DEBUG NPS] ProjetoId:', data.projetoId, 'Categoria:', data.categoria);
+
+      // Listar TODAS as queries no cache antes de invalidar
+      const allQueries = queryClient.getQueryCache().getAll();
+      console.log('🟢 [DEBUG NPS] Total de queries no cache:', allQueries.length);
+
+      const projetoQueries = allQueries.filter(q => {
+        const key = q.queryKey;
+        return Array.isArray(key) && key[0] === '/api/projetos';
+      });
+
+      console.log('🟢 [DEBUG NPS] Queries de projetos encontradas:', projetoQueries.length);
+      projetoQueries.forEach(q => {
+        console.log('🟢 [DEBUG NPS]   - QueryKey:', JSON.stringify(q.queryKey));
+      });
 
       // Invalidar TODAS as queries de projetos (incluindo finalizados)
+      console.log('🟢 [DEBUG NPS] Invalidando queries de projetos...');
       queryClient.invalidateQueries({
         predicate: (query) => {
           const queryKey = query.queryKey;
-          return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+          const matches = Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+          if (matches) {
+            console.log('🟢 [DEBUG NPS]   ✓ Invalidando:', JSON.stringify(queryKey));
+          }
+          return matches;
         }
       });
+
+      console.log('🟢 [DEBUG NPS] Invalidação completa!');
     });
 
     // Escutar mudanças em notas

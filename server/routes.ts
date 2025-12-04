@@ -1724,8 +1724,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Emitir evento WebSocket para atualização em tempo real
       const wsServer = (req.app as any).wsServer;
+      console.log('🔴 [DEBUG NPS] WebSocket server exists?', !!wsServer);
+      console.log('🔴 [DEBUG NPS] Emitindo evento nps:created para projeto:', projeto.id, 'categoria:', categoria);
+
       if (wsServer) {
         wsServer.emitChange('nps:created', { projetoId: projeto.id, categoria });
+        console.log('🔴 [DEBUG NPS] Evento nps:created emitido com sucesso!');
+      } else {
+        console.error('🔴 [DEBUG NPS] ERRO: WebSocket server não encontrado!');
       }
 
       res.json({
