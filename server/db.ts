@@ -26,12 +26,10 @@ if (isLocalhost || isProduction || isSupabase) {
   pool = new PgPool({
     connectionString: process.env.DATABASE_URL,
     ssl: isLocalhost ? false : { rejectUnauthorized: false },
-    // Configuração de pool otimizada para Supabase
-    max: isLocalhost ? 10 : 3, // Máximo de conexões (reduzido para evitar sobrecarga)
-    min: isLocalhost ? 2 : 1, // Mínimo de conexões (1 em produção para economizar)
-    idleTimeoutMillis: 20000, // Fechar conexões ociosas após 20 segundos
-    connectionTimeoutMillis: 30000, // Timeout aumentado para 30 segundos (Supabase pode ser lento)
-    allowExitOnIdle: true, // Permitir que o pool feche quando não houver conexões ativas
+    // Configuração de pool estável - conexões ficam abertas
+    max: 10, // Máximo de conexões simultâneas
+    idleTimeoutMillis: 0, // 0 = nunca fechar conexões ociosas (fica sempre aberto)
+    connectionTimeoutMillis: 0, // 0 = sem timeout (aguarda indefinidamente)
   });
   db = drizzlePg({ client: pool, schema });
 } else {
