@@ -59,7 +59,7 @@ export function setupAuth(app: Express) {
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
   };
 
@@ -126,6 +126,10 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", passport.authenticate("local"), (req, res) => {
+    // Se o usuário marcou "lembrar-me", estende a sessão para 90 dias
+    if (req.body.rememberMe && req.session.cookie) {
+      req.session.cookie.maxAge = 90 * 24 * 60 * 60 * 1000; // 90 days
+    }
     res.status(200).json(req.user);
   });
 

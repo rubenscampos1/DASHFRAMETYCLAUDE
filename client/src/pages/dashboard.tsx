@@ -163,16 +163,20 @@ export default function Dashboard() {
       <Sidebar />
 
       <div className={`${mainContentClass} flex flex-col flex-1 overflow-hidden transition-all duration-300`}>
-        {/* Header */}
+        {/* Header - Responsivo */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="relative z-10 flex-shrink-0 flex h-20 glass border-b border-white/10 shadow-sm"
+          className="relative z-10 flex-shrink-0 glass border-b border-white/10 shadow-sm
+                     h-auto md:h-20"
         >
-          <div className="flex-1 px-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <motion.div variants={itemVariants} className="flex flex-col gap-2 justify-center">
+          <div className="flex-1 px-3 md:px-6 py-3 md:py-0
+                          flex flex-col md:flex-row gap-3 md:gap-0
+                          md:items-center md:justify-between">
+            {/* Filtros - Vertical em mobile, horizontal em desktop */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3 w-full md:w-auto">
+              <motion.div variants={itemVariants} className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-muted-foreground px-1">Buscar</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -181,51 +185,54 @@ export default function Dashboard() {
                   <Input
                     type="search"
                     placeholder="Buscar projetos..."
-                    className="pl-10 w-64 bg-white/50 dark:bg-slate-950/50 border-white/20 dark:border-white/10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/50"
+                    className="pl-10 w-full md:w-64 bg-white/50 dark:bg-slate-950/50 border-white/20 dark:border-white/10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/50"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
               </motion.div>
 
-              <motion.div variants={itemVariants} className="flex flex-col gap-2 justify-center">
-                <label className="text-xs font-medium text-muted-foreground px-1">Responsável</label>
-                <Select value={responsavelId} onValueChange={setResponsavelId}>
-                  <SelectTrigger className="w-[170px] bg-white/50 dark:bg-slate-950/50 border-white/20 dark:border-white/10">
-                    <SelectValue placeholder="Todos" />
-                  </SelectTrigger>
-                  <SelectContent className="glass-card">
-                    <SelectItem value="all">Todos</SelectItem>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </motion.div>
+              <div className="flex gap-2">
+                <motion.div variants={itemVariants} className="flex flex-col gap-1 flex-1 md:flex-initial">
+                  <label className="text-xs font-medium text-muted-foreground px-1">Responsável</label>
+                  <Select value={responsavelId} onValueChange={setResponsavelId}>
+                    <SelectTrigger className="w-full md:w-[170px] bg-white/50 dark:bg-slate-950/50 border-white/20 dark:border-white/10">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent className="glass-card">
+                      <SelectItem value="all">Todos</SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </motion.div>
 
-              <motion.div variants={itemVariants} className="flex flex-col gap-2 justify-center">
-                <label className="text-xs font-medium text-muted-foreground px-1">Tipo de Vídeo</label>
-                <Select value={tipoVideoId} onValueChange={setTipoVideoId}>
-                  <SelectTrigger className="w-[180px] bg-white/50 dark:bg-slate-950/50 border-white/20 dark:border-white/10">
-                    <SelectValue placeholder="Todos" />
-                  </SelectTrigger>
-                  <SelectContent className="glass-card">
-                    <SelectItem value="all">Todos</SelectItem>
-                    {tiposVideo.map((tipo) => (
-                      <SelectItem key={tipo.id} value={tipo.id}>
-                        {tipo.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </motion.div>
+                <motion.div variants={itemVariants} className="flex flex-col gap-1 flex-1 md:flex-initial">
+                  <label className="text-xs font-medium text-muted-foreground px-1">Tipo de Vídeo</label>
+                  <Select value={tipoVideoId} onValueChange={setTipoVideoId}>
+                    <SelectTrigger className="w-full md:w-[180px] bg-white/50 dark:bg-slate-950/50 border-white/20 dark:border-white/10">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent className="glass-card">
+                      <SelectItem value="all">Todos</SelectItem>
+                      {tiposVideo.map((tipo) => (
+                        <SelectItem key={tipo.id} value={tipo.id}>
+                          {tipo.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </motion.div>
+              </div>
             </div>
 
-            <motion.div variants={itemVariants} className="flex items-center">
-              <Link href="/novo-projeto">
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all">
+            {/* Botão Novo Projeto */}
+            <motion.div variants={itemVariants} className="flex items-center w-full md:w-auto">
+              <Link href="/novo-projeto" className="w-full md:w-auto">
+                <Button className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all">
                   <Plus className="h-4 w-4 mr-2" />
                   Novo Projeto
                 </Button>
@@ -235,7 +242,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col overflow-hidden p-6">
+        <main className="flex-1 flex flex-col overflow-hidden p-2 md:p-6">
           <motion.div
             className="flex flex-col h-full w-full"
             variants={containerVariants}

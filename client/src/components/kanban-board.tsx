@@ -3,6 +3,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautif
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Plus, CheckCircle } from "lucide-react";
 import { ProjectCard } from "./project-card";
 import { ProjectDetailsDrawer } from "./project-details-drawer";
@@ -34,6 +35,22 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   const { user } = useAuth();
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
+
+  // Detectar se está em mobile baseado no tamanho da tela
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    // Verificar no mount
+    checkMobile();
+
+    // Adicionar listener para resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const { data: projetos = [], isLoading } = useQuery<ProjetoWithRelations[]>({
     queryKey: ["/api/projetos", filters],
@@ -275,60 +292,40 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     </div>
   ) : (
     <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-      {/* Container principal com scroll horizontal suave no mobile, normal no desktop */}
-      <div className="h-full flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent px-2 md:px-0" data-testid="kanban-board">
-        {statusColumns.map((column) => {
-          const columnProjects = projectsByStatus[column.id] || [];
+      {/* MOBILE: Accordion vertical */}
+      {isMobile ? (
+        <div className="h-full overflow-y-auto">
+          <Accordion type="multiple" className="space-y-2 pb-4">
+            {statusColumns.map((column) => {
+              const columnProjects = projectsByStatus[column.id] || [];
 
-          return (
-            <div key={column.id} className="flex-shrink-0 w-[300px] min-w-[300px] md:w-80 md:min-w-0 h-full snap-center md:snap-align-none kanban-column relative group">
-              {/* Background layer with glass effect - separate from content to avoid breaking fixed positioning */}
-              <div className="absolute inset-0 glass-card border-0 rounded-xl" />
-
-              {/* Content layer */}
-              <Card className="h-full flex flex-col bg-transparent border-0 relative z-10">
-                {/* Cabeçalho fixo da coluna */}
-                <CardHeader className="p-4 border-b border-white/10 flex-shrink-0 bg-transparent">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-3 h-3 rounded-full ${column.color}`} />
-                      <h3 className="text-sm font-medium text-foreground">
-                        {column.title}
-                      </h3>
-                      <Badge variant="secondary" className="text-xs" data-testid={`column-count-${column.id}`}>
+              return (
+                <AccordionItem key={column.id} value={column.id} className="glass-card border-0 rounded-xl overflow-hidden">
+                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                    <div className="flex items-center gap-3 w-full">
+                      <div className={`w-3 h-3 rounded-full ${column.color} flex-shrink-0`} />
+                      <span className="font-medium text-sm">{column.title}</span>
+                      <Badge variant="secondary" className="ml-auto">
                         {columnProjects.length}
                       </Badge>
                     </div>
-                    {column.isDropZone ? (
-                      <CheckCircle className="h-4 w-4 text-chart-4" />
-                    ) : (
-                      <Plus className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-pointer" />
-                    )}
-                  </div>
-                </CardHeader>
-
-                {/* Droppable com scroll vertical independente */}
-                <Droppable droppableId={column.id}>
-                  {(provided, snapshot) => (
-                    <div className="flex-1 overflow-hidden">
-                      <CardContent
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`p-4 space-y-3 h-full overflow-y-auto transition-colors ${snapshot.isDraggingOver ? "bg-accent/20" : ""
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4">
+                    <Droppable droppableId={column.id}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`space-y-3 min-h-[100px] ${
+                            snapshot.isDraggingOver ? "bg-accent/20 rounded-lg p-2" : ""
                           }`}
-                        data-testid={`column-${column.id}`}
-                      >
-                        {column.isDropZone && columnProjects.length === 0 ? (
-                          <div className="h-full flex items-center justify-center min-h-[200px]">
-                            <div className="text-center text-muted-foreground">
-                              <CheckCircle className="h-12 w-12 mx-auto mb-2" />
-                              <p className="text-sm">Arraste projetos aqui para aprovar</p>
-                              <p className="text-xs mt-1">Serão movidos para "Finalizados"</p>
+                        >
+                          {columnProjects.length === 0 ? (
+                            <div className="text-center text-muted-foreground py-8">
+                              <p className="text-sm">Nenhum projeto</p>
                             </div>
-                          </div>
-                        ) : (
-                          <>
-                            {columnProjects.map((projeto, index) => (
+                          ) : (
+                            columnProjects.map((projeto, index) => (
                               <Draggable
                                 key={projeto.id}
                                 draggableId={projeto.id}
@@ -351,19 +348,109 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
                                   </div>
                                 )}
                               </Draggable>
-                            ))}
-                          </>
-                        )}
-                        {provided.placeholder}
-                      </CardContent>
+                            ))
+                          )}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        </div>
+      ) : (
+        /* DESKTOP: Horizontal kanban (original) */
+        <div className="h-full flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent" data-testid="kanban-board">
+          {statusColumns.map((column) => {
+            const columnProjects = projectsByStatus[column.id] || [];
+
+            return (
+              <div key={column.id} className="flex-shrink-0 w-80 min-w-0 h-full kanban-column relative group">
+                {/* Background layer with glass effect - separate from content to avoid breaking fixed positioning */}
+                <div className="absolute inset-0 glass-card border-0 rounded-xl" />
+
+                {/* Content layer */}
+                <Card className="h-full flex flex-col bg-transparent border-0 relative z-10">
+                  {/* Cabeçalho fixo da coluna */}
+                  <CardHeader className="p-4 border-b border-white/10 flex-shrink-0 bg-transparent">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-3 h-3 rounded-full ${column.color}`} />
+                        <h3 className="text-sm font-medium text-foreground">
+                          {column.title}
+                        </h3>
+                        <Badge variant="secondary" className="text-xs" data-testid={`column-count-${column.id}`}>
+                          {columnProjects.length}
+                        </Badge>
+                      </div>
+                      {column.isDropZone ? (
+                        <CheckCircle className="h-4 w-4 text-chart-4" />
+                      ) : (
+                        <Plus className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-pointer" />
+                      )}
                     </div>
-                  )}
-                </Droppable>
-              </Card>
-            </div>
-          );
-        })}
-      </div>
+                  </CardHeader>
+
+                  {/* Droppable com scroll vertical independente */}
+                  <Droppable droppableId={column.id}>
+                    {(provided, snapshot) => (
+                      <div className="flex-1 overflow-hidden">
+                        <CardContent
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`p-4 space-y-3 h-full overflow-y-auto transition-colors ${snapshot.isDraggingOver ? "bg-accent/20" : ""
+                            }`}
+                          data-testid={`column-${column.id}`}
+                        >
+                          {column.isDropZone && columnProjects.length === 0 ? (
+                            <div className="h-full flex items-center justify-center min-h-[200px]">
+                              <div className="text-center text-muted-foreground">
+                                <CheckCircle className="h-12 w-12 mx-auto mb-2" />
+                                <p className="text-sm">Arraste projetos aqui para aprovar</p>
+                                <p className="text-xs mt-1">Serão movidos para "Finalizados"</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {columnProjects.map((projeto, index) => (
+                                <Draggable
+                                  key={projeto.id}
+                                  draggableId={projeto.id}
+                                  index={index}
+                                >
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      style={provided.draggableProps.style}
+                                    >
+                                      <ProjectCard
+                                        projeto={projeto}
+                                        isDragging={snapshot.isDragging || draggedItem === projeto.id}
+                                        onEdit={setSelectedProject}
+                                        onDelete={(projetoId) => deleteProjectMutation.mutate(projetoId)}
+                                        onDuplicate={(projetoId) => duplicateProjectMutation.mutate(projetoId)}
+                                      />
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))}
+                            </>
+                          )}
+                          {provided.placeholder}
+                        </CardContent>
+                      </div>
+                    )}
+                  </Droppable>
+                </Card>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <ProjectDetailsDrawer
         projeto={selectedProject}

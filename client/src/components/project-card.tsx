@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Calendar, AlertTriangle, Trash2, Copy, Star } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProjetoWithRelations } from "@shared/schema";
 import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -163,9 +164,30 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
               )}
             </div>
 
-            <span className="text-xs md:text-xs text-muted-foreground truncate max-w-[120px]" data-testid="project-responsible">
-              {projeto.responsavel?.nome}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <Avatar className="h-7 w-7 border-2 border-background shadow-sm">
+                {projeto.responsavel?.fotoUrl && (
+                  <AvatarImage
+                    src={projeto.responsavel.fotoUrl}
+                    alt={projeto.responsavel.nome}
+                    className="object-cover"
+                  />
+                )}
+                <AvatarFallback
+                  className="text-white font-semibold text-[10px]"
+                  style={{
+                    backgroundColor: projeto.responsavel?.nome
+                      ? `hsl(${(projeto.responsavel.nome.charCodeAt(0) * 137.5) % 360}, 70%, 50%)`
+                      : undefined
+                  }}
+                >
+                  {projeto.responsavel?.nome?.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-xs text-muted-foreground truncate max-w-[90px]" data-testid="project-responsible">
+                {projeto.responsavel?.nome}
+              </span>
+            </div>
           </div>
         </CardContent>
       </Card>
