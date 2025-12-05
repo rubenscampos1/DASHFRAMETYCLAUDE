@@ -550,9 +550,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCliente(cliente: InsertCliente): Promise<Cliente> {
+    // Gerar portalToken único para o cliente acessar portal unificado
+    const portalToken = nanoid(32);
+
     const [newCliente] = await db
       .insert(clientes)
-      .values(cliente)
+      .values({
+        ...cliente,
+        portalToken, // Adicionar token do portal unificado
+      })
       .returning();
     return newCliente;
   }
