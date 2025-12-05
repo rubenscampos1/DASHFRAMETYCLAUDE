@@ -25,7 +25,12 @@ if (isLocalhost || isProduction || isSupabase) {
   // Standard PostgreSQL connection for Render, Supabase, or Local Development
   pool = new PgPool({
     connectionString: process.env.DATABASE_URL,
-    ssl: isLocalhost ? false : { rejectUnauthorized: false }
+    ssl: isLocalhost ? false : { rejectUnauthorized: false },
+    // Configuração de pool para evitar "Connection terminated unexpectedly"
+    max: isLocalhost ? 10 : 5, // Máximo de conexões (Supabase free tier tem limite de 15)
+    min: 2, // Mínimo de conexões sempre abertas
+    idleTimeoutMillis: 30000, // Fechar conexões ociosas após 30 segundos
+    connectionTimeoutMillis: 10000, // Timeout para estabelecer conexão: 10 segundos
   });
   db = drizzlePg({ client: pool, schema });
 } else {

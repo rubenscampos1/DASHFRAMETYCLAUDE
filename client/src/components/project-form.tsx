@@ -105,8 +105,16 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
       return response.json();
     },
     onSuccess: (data) => {
-      // ✨ Agora com WebSocket em tempo real, não precisamos de optimistic updates!
-      // O evento projeto:created vai invalidar as queries automaticamente
+      // Invalidar queries manualmente para garantir atualização imediata
+      // O WebSocket também vai invalidar, mas isso garante que funcione mesmo se houver delay
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const queryKey = query.queryKey;
+          return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+        }
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
+
       toast({
         title: "Projeto criado com sucesso!",
         description: "O projeto foi adicionado à sua lista.",
