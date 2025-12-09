@@ -7,7 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Plus, CheckCircle } from "lucide-react";
 import { ProjectCard } from "./project-card";
 import { ProjectDetailsDrawer } from "./project-details-drawer";
-import { ProjetoWithRelations } from "@shared/schema";
+import { ProjetoKanbanLight } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -34,7 +34,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjetoKanbanLight | null>(null);
 
   // Detectar se está em mobile baseado no tamanho da tela
   const [isMobile, setIsMobile] = useState(false);
@@ -52,11 +52,13 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const { data: projetos = [], isLoading } = useQuery<ProjetoWithRelations[]>({
-    queryKey: ["/api/projetos", filters],
+  // ========== FASE 2D: USAR ENDPOINT LEVE /api/projetos/light ==========
+  // Busca apenas campos necessários para Kanban (~70% menos dados)
+  const { data: projetos = [], isLoading } = useQuery<ProjetoKanbanLight[]>({
+    queryKey: ["/api/projetos/light", filters],
     queryFn: async () => {
       const startTime = performance.now();
-      console.log('⏱️ [Performance] Iniciando carga de projetos...', filters);
+      console.log('⏱️ [Performance] Iniciando carga de projetos (endpoint leve)...', filters);
 
       const params = new URLSearchParams();
 
@@ -64,7 +66,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
         if (value && value !== "all" && value !== "") params.append(key, value);
       });
 
-      const response = await fetch(`/api/projetos?${params}`, {
+      const response = await fetch(`/api/projetos/light?${params}`, {
         credentials: "include",
       });
 
@@ -73,12 +75,14 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
 
       const endTime = performance.now();
       const duration = (endTime - startTime).toFixed(2);
-      console.log(`⏱️ [Performance] Projetos carregados em ${duration}ms (${data.length} projetos)`);
+      console.log(`⏱️ [Performance] Projetos carregados em ${duration}ms (${data.length} projetos, endpoint leve)`);
+      console.log(`💡 [Optimization] Endpoint /api/projetos/light: ~70% menos dados que endpoint completo`);
 
       // Show all projects including approved ones
       return data;
     },
   });
+  // ====================================================================
 
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -88,13 +92,13 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     // Optimistic update: atualiza a UI imediatamente antes da resposta do servidor
     onMutate: async ({ id, status: newStatus }) => {
       // Cancelar queries em andamento para evitar conflito
-      await queryClient.cancelQueries({ queryKey: ["/api/projetos", filters] });
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos/light", filters] });
 
       // Salvar estado anterior para rollback se necessário
-      const previousProjetos = queryClient.getQueryData(["/api/projetos", filters]);
+      const previousProjetos = queryClient.getQueryData(["/api/projetos/light", filters]);
 
       // Atualizar cache otimisticamente e reordenar para card movido aparecer no topo
-      queryClient.setQueryData(["/api/projetos", filters], (old: ProjetoWithRelations[] | undefined) => {
+      queryClient.setQueryData(["/api/projetos/light", filters], (old: ProjetoKanbanLight[] | undefined) => {
         if (!old) return old;
 
         // Encontrar o projeto que está sendo movido
@@ -119,17 +123,35 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
 
       return { previousProjetos };
     },
-    onSuccess: (updatedProject, { status }) => {
-      // Invalidar queries para garantir sincronização com servidor
-      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+    onSuccess: async (updatedProject, { status }) => {
+      // 🎯 UX FIX: NÃO refetch /api/projetos/light para preservar ordenação otimista do onMutate
+      // O onMutate já colocou o card no topo. Se refetch aqui, o servidor retorna em outra ordem e sobrescreve.
+      // WebSocket vai sincronizar mudanças de outros usuários automaticamente depois.
 
       if (status === "Aprovado") {
+        // ✅ AJUSTE CRÍTICO: Quando projeto é aprovado, FORÇAR refetch de página Finalizados
+        // Mantém Kanban leve e métricas sincronizados
+        queryClient.invalidateQueries({ queryKey: ["/api/projetos/light"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+
+        // 🔄 FORÇA refetch de TODAS as queries que começam com "/api/projetos"
+        // Isso inclui a useInfiniteQuery da página de Finalizados (que usa ["/api/projetos", filters])
+        // exact: false garante que queries filhas também sejam refetchadas
+        await queryClient.refetchQueries({
+          queryKey: ["/api/projetos"],
+          exact: false,
+        });
+
         toast({
           title: "Projeto aprovado!",
           description: "O projeto foi aprovado com sucesso.",
         });
       } else {
+        // ⚠️ NORMALIZAÇÃO: exact:true evita refetch desnecessário do drawer
+        // NÃO invalida /api/projetos/light → preserva ordem otimista do drag & drop
+        queryClient.invalidateQueries({ queryKey: ["/api/projetos"], exact: true });
+        queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+
         toast({
           title: "Status atualizado",
           description: "O projeto foi movido com sucesso.",
@@ -139,7 +161,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     onError: (error: Error, variables, context) => {
       // Rollback: reverter para estado anterior em caso de erro
       if (context?.previousProjetos) {
-        queryClient.setQueryData(["/api/projetos", filters], context.previousProjetos);
+        queryClient.setQueryData(["/api/projetos/light", filters], context.previousProjetos);
       }
 
       toast({
@@ -156,11 +178,11 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       return { success: true };
     },
     onMutate: async (projetoId) => {
-      await queryClient.cancelQueries({ queryKey: ["/api/projetos", filters] });
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos/light", filters] });
 
-      const previousProjetos = queryClient.getQueryData(["/api/projetos", filters]);
+      const previousProjetos = queryClient.getQueryData(["/api/projetos/light", filters]);
 
-      queryClient.setQueryData(["/api/projetos", filters], (old: any) => {
+      queryClient.setQueryData(["/api/projetos/light", filters], (old: any) => {
         if (!old) return old;
         return old.filter((p: any) => p.id !== projetoId);
       });
@@ -168,7 +190,9 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       return { previousProjetos };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+      // ⚠️ NORMALIZAÇÃO: Invalidar com exact:true para evitar refetch de drawer (/api/projetos/:id)
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"], exact: true });
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos/light"] });
       queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
       toast({
         title: "Projeto removido",
@@ -177,7 +201,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     },
     onError: (error: Error, _projetoId, context) => {
       if (context?.previousProjetos) {
-        queryClient.setQueryData(["/api/projetos", filters], context.previousProjetos);
+        queryClient.setQueryData(["/api/projetos/light", filters], context.previousProjetos);
       }
       toast({
         title: "Erro ao remover projeto",
@@ -193,9 +217,9 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       return response.json();
     },
     onMutate: async (projetoId) => {
-      await queryClient.cancelQueries({ queryKey: ["/api/projetos", filters] });
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos/light", filters] });
 
-      const previousProjetos = queryClient.getQueryData(["/api/projetos", filters]);
+      const previousProjetos = queryClient.getQueryData(["/api/projetos/light", filters]);
 
       const originalProject = projetos.find(p => p.id === projetoId);
       if (originalProject) {
@@ -205,7 +229,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
           titulo: `${originalProject.titulo} (Cópia)`,
         };
 
-        queryClient.setQueryData(["/api/projetos", filters], (old: any) => {
+        queryClient.setQueryData(["/api/projetos/light", filters], (old: any) => {
           return old ? [tempDuplicate, ...old] : [tempDuplicate];
         });
       }
@@ -213,12 +237,15 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
       return { previousProjetos };
     },
     onSuccess: (newProject) => {
-      queryClient.setQueryData(["/api/projetos", filters], (old: any) => {
+      queryClient.setQueryData(["/api/projetos/light", filters], (old: any) => {
         if (!old) return [newProject];
         return old.map((p: any) =>
           p.id.toString().startsWith('temp-dup-') ? newProject : p
         );
       });
+      // ⚠️ NORMALIZAÇÃO: Invalidar com exact:true para evitar refetch de drawer (/api/projetos/:id)
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"], exact: true });
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos/light"] });
       queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
       toast({
         title: "Projeto duplicado",
@@ -227,7 +254,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     },
     onError: (error: Error, _projetoId, context) => {
       if (context?.previousProjetos) {
-        queryClient.setQueryData(["/api/projetos", filters], context.previousProjetos);
+        queryClient.setQueryData(["/api/projetos/light", filters], context.previousProjetos);
       }
       toast({
         title: "Erro ao duplicar projeto",
@@ -239,7 +266,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
 
   // Memoizar agrupamento de projetos por status para evitar recalcular em cada render
   const projectsByStatus = useMemo(() => {
-    const grouped: Record<string, ProjetoWithRelations[]> = {};
+    const grouped: Record<string, ProjetoKanbanLight[]> = {};
     statusColumns.forEach(column => {
       grouped[column.id] = projetos.filter(projeto => projeto.status === column.id);
     });

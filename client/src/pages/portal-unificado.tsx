@@ -99,7 +99,13 @@ export default function PortalUnificado() {
   // Query para buscar dados do cliente e todos os projetos
   const { data: clienteData, isLoading, error } = useQuery<ClienteData>({
     queryKey: [`/api/portal/cliente/${clientToken}`],
-    retry: false,
+    // Retry inteligente: apenas para erros temporários de rede
+    // NÃO retry se backend retornar 504 (timeout do portal com muitos projetos)
+    retry: (failureCount, error) => {
+      return error?.status !== 504 && failureCount < 3;
+    },
+    // Backoff exponencial: 1s → 2s → 4s (max 10s)
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
   });
 
   // Selecionar projeto (primeiro por padrão, ou o da URL)

@@ -23,6 +23,9 @@ import TimelapsePage from "@/pages/timelapse";
 import ClientePortal from "@/pages/cliente-portal";
 import PortalUnificado from "@/pages/portal-unificado";
 import TestePortal from "@/pages/teste-portal";
+import VideosGrid from "@/pages/videos-grid";
+import VideosCliente from "@/pages/videos-cliente";
+import VideosPasta from "@/pages/videos-pasta";
 
 function Router() {
   return (
@@ -43,6 +46,9 @@ function Router() {
       <ProtectedRoute path="/banco-de-dados" component={DatabasePage} />
       <ProtectedRoute path="/notas" component={NotasPage} />
       <ProtectedRoute path="/timelapse" component={TimelapsePage} />
+      <ProtectedRoute path="/videos" component={VideosGrid} />
+      <ProtectedRoute path="/videos/:clienteId/pastas/:pastaId" component={VideosPasta} />
+      <ProtectedRoute path="/videos/:clienteId" component={VideosCliente} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

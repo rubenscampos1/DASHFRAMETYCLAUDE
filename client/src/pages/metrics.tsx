@@ -20,12 +20,43 @@ export default function Metrics() {
   const [selectedCliente, setSelectedCliente] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjetoWithRelations | null>(null);
 
+  // ========== CONFIGURAÇÃO OTIMIZADA DE MÉTRICAS (FASE 1B) ==========
+  // Reduzida pressão no banco ao remover polling e refetches desnecessários
   const { data: metricas, isLoading } = useQuery<any>({
     queryKey: ["/api/metricas"],
-    refetchInterval: 30000,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    staleTime: 0,
+
+    // ❌ REMOVIDO: refetchInterval: 30000
+    //    - Antes: refetch automático a cada 30 segundos (muito agressivo!)
+    //    - Agora: sem polling automático
+    //    - Métricas ainda atualizam via WebSocket quando projeto muda
+    //    - Reduz 120+ chamadas/hora para ~0 chamadas automáticas
+
+    // ❌ DESABILITADO: refetchOnWindowFocus
+    //    - Antes: refetch toda vez que usuário foca na janela
+    //    - Agora: false (não refaz chamada ao focar)
+    //    - Reduz chamadas desnecessárias ao trocar de aba/janela
+    refetchOnWindowFocus: false,
+
+    // ❌ DESABILITADO: refetchOnReconnect
+    //    - Antes: refetch toda vez que reconecta à internet
+    //    - Agora: false (não refaz chamada ao reconectar)
+    //    - Evita spike de chamadas quando rede volta
+    refetchOnReconnect: false,
+
+    // ✅ AUMENTADO: staleTime de 0 → 5 minutos (300000ms)
+    //    - Antes: 0 (dados sempre "stale", sempre refetch)
+    //    - Agora: 5 minutos (dados considerados "fresh" por 5 min)
+    //    - Métricas não mudam tão rápido; 5min é razoável
+    //    - WebSocket invalida quando há mudanças reais (projeto criado/atualizado)
+    //    - Reduz chamadas redundantes ao navegar entre páginas
+    staleTime: 5 * 60 * 1000, // 5 minutos
+
+    // RESULTADO:
+    // ✅ Polling removido: de ~120 chamadas/hora → 0 chamadas automáticas
+    // ✅ Cache eficiente: reutiliza dados por 5 minutos
+    // ✅ Dados ainda atualizados: WebSocket invalida quando necessário
+    // ✅ Menos pressão no banco: 8 queries SQL executadas muito menos vezes
+    // ================================================================
   });
 
   const { data: users = [] } = useQuery<any[]>({

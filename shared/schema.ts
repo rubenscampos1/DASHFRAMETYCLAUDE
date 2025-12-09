@@ -291,6 +291,71 @@ export const tokensAcesso = pgTable("tokens_acesso", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Sistema de Vídeos (Frame.io-like com Bunny.net)
+export const videoStatusEnum = pgEnum("video_status", ["uploading", "processing", "ready", "failed"]);
+
+export const videosProjeto = pgTable("videos_projeto", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projetoId: varchar("projeto_id").references(() => projetos.id, { onDelete: "cascade" }), // OPCIONAL agora
+  pastaId: varchar("pasta_id").references((): any => videoPastas.id, { onDelete: "cascade" }), // FK para pasta (opcional inicialmente, depois será obrigatório)
+  titulo: text("titulo").notNull(),
+  descricao: text("descricao"),
+  // Dados do Bunny.net
+  bunnyVideoId: text("bunny_video_id").unique(), // ID do vídeo no Bunny Stream
+  bunnyLibraryId: text("bunny_library_id"), // ID da biblioteca do Bunny
+  bunnyGuid: text("bunny_guid"), // GUID do vídeo no Bunny
+  status: videoStatusEnum("status").notNull().default("uploading"),
+  // URLs e metadata
+  thumbnailUrl: text("thumbnail_url"), // URL da thumbnail
+  videoUrl: text("video_url"), // URL do vídeo (CDN do Bunny)
+  duration: integer("duration"), // duração em segundos
+  fileSize: integer("file_size"), // tamanho em bytes
+  width: integer("width"), // largura do vídeo
+  height: integer("height"), // altura do vídeo
+  // Versionamento
+  versao: integer("versao").notNull().default(1), // versão do vídeo (1, 2, 3...)
+  // Aprovação (similar ao sistema de música/locução)
+  aprovado: boolean("aprovado"), // null = pendente, true = aprovado, false = reprovado
+  feedback: text("feedback"), // feedback geral do cliente
+  dataAprovacao: timestamp("data_aprovacao"), // data da aprovação/reprovação
+  // Metadata
+  uploadedById: varchar("uploaded_by_id").references(() => users.id), // quem fez upload
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const videoComentarios = pgTable("video_comentarios", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  videoId: varchar("video_id").references(() => videosProjeto.id, { onDelete: "cascade" }).notNull(),
+  autorId: varchar("autor_id").references(() => users.id), // null se for comentário do cliente
+  autorNome: text("autor_nome"), // nome do autor (para clientes não autenticados)
+  texto: text("texto").notNull(),
+  timestamp: integer("timestamp").notNull(), // timestamp do vídeo em segundos
+  // Status do comentário
+  resolvido: boolean("resolvido").default(false), // marca comentário como resolvido
+  resolvidoPorId: varchar("resolvido_por_id").references(() => users.id), // quem resolveu
+  dataResolucao: timestamp("data_resolucao"), // quando foi resolvido
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Sistema de Pastas de Vídeos (Frame.io-like)
+export const videoPastas = pgTable("video_pastas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clienteId: varchar("cliente_id").references(() => clientes.id, { onDelete: "cascade" }).notNull(),
+  empreendimentoId: varchar("empreendimento_id").references(() => empreendimentos.id), // opcional - para vincular a empreendimento
+  pastaPaiId: varchar("pasta_pai_id").references((): any => videoPastas.id, { onDelete: "cascade" }), // para hierarquia de pastas
+  nome: text("nome").notNull(),
+  descricao: text("descricao"),
+  cor: text("cor").default("#3b82f6"), // cor para identificação visual
+  icone: text("icone"), // emoji ou nome de ícone
+  ordem: integer("ordem").default(0), // para ordenação customizada
+  // Contadores desnormalizados para performance
+  totalVideos: integer("total_videos").default(0),
+  totalStorage: integer("total_storage").default(0), // em bytes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   projetosResponsavel: many(projetos, { relationName: "responsavel" }),
@@ -307,6 +372,7 @@ export const clientesRelations = relations(clientes, ({ many }) => ({
   projetos: many(projetos),
   empreendimentos: many(empreendimentos),
   timelapses: many(timelapses),
+  videoPastas: many(videoPastas),
 }));
 
 export const empreendimentosRelations = relations(empreendimentos, ({ one, many }) => ({
@@ -340,6 +406,7 @@ export const projetosRelations = relations(projetos, ({ one, many }) => ({
   musicas: many(projetoMusicas),
   locutores: many(projetoLocutores),
   respostasNps: many(respostasNps),
+  videos: many(videosProjeto),
 }));
 
 export const logsDeStatusRelations = relations(logsDeStatus, ({ one }) => ({
@@ -429,6 +496,57 @@ export const respostasNpsRelations = relations(respostasNps, ({ one }) => ({
     fields: [respostasNps.clienteId],
     references: [clientes.id],
   }),
+}));
+
+export const videosProjetoRelations = relations(videosProjeto, ({ one, many }) => ({
+  projeto: one(projetos, {
+    fields: [videosProjeto.projetoId],
+    references: [projetos.id],
+  }),
+  pasta: one(videoPastas, {
+    fields: [videosProjeto.pastaId],
+    references: [videoPastas.id],
+  }),
+  uploadedBy: one(users, {
+    fields: [videosProjeto.uploadedById],
+    references: [users.id],
+  }),
+  comentarios: many(videoComentarios),
+}));
+
+export const videoComentariosRelations = relations(videoComentarios, ({ one }) => ({
+  video: one(videosProjeto, {
+    fields: [videoComentarios.videoId],
+    references: [videosProjeto.id],
+  }),
+  autor: one(users, {
+    fields: [videoComentarios.autorId],
+    references: [users.id],
+  }),
+  resolvidoPor: one(users, {
+    fields: [videoComentarios.resolvidoPorId],
+    references: [users.id],
+  }),
+}));
+
+export const videoPastasRelations = relations(videoPastas, ({ one, many }) => ({
+  cliente: one(clientes, {
+    fields: [videoPastas.clienteId],
+    references: [clientes.id],
+  }),
+  empreendimento: one(empreendimentos, {
+    fields: [videoPastas.empreendimentoId],
+    references: [empreendimentos.id],
+  }),
+  pastaPai: one(videoPastas, {
+    fields: [videoPastas.pastaPaiId],
+    references: [videoPastas.id],
+    relationName: "subpastas",
+  }),
+  subpastas: many(videoPastas, {
+    relationName: "subpastas",
+  }),
+  videos: many(videosProjeto),
 }));
 
 // Schemas
@@ -703,6 +821,25 @@ export const insertRespostaNpsSchema = createInsertSchema(respostasNps).omit({
   notaIndicacao: z.number().min(0).max(10),
 });
 
+export const insertVideoProjetoSchema = createInsertSchema(videosProjeto).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertVideoComentarioSchema = createInsertSchema(videoComentarios).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertVideoPastaSchema = createInsertSchema(videoPastas).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  totalVideos: true,
+  totalStorage: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -737,6 +874,12 @@ export type ProjetoLocutor = typeof projetoLocutores.$inferSelect;
 export type InsertProjetoLocutor = z.infer<typeof insertProjetoLocutorSchema>;
 export type RespostaNps = typeof respostasNps.$inferSelect;
 export type InsertRespostaNps = z.infer<typeof insertRespostaNpsSchema>;
+export type VideoProjeto = typeof videosProjeto.$inferSelect;
+export type InsertVideoProjeto = z.infer<typeof insertVideoProjetoSchema>;
+export type VideoComentario = typeof videoComentarios.$inferSelect;
+export type InsertVideoComentario = z.infer<typeof insertVideoComentarioSchema>;
+export type VideoPasta = typeof videoPastas.$inferSelect;
+export type InsertVideoPasta = z.infer<typeof insertVideoPastaSchema>;
 
 // Token de Acesso schemas
 export const insertTokenAcessoSchema = z.object({
@@ -787,4 +930,78 @@ export type ProjetoMusicaWithRelations = ProjetoMusica & {
 export type ProjetoLocutorWithRelations = ProjetoLocutor & {
   projeto: Projeto;
   locutor: Locutor;
+};
+
+export type VideoProjetoWithRelations = VideoProjeto & {
+  projeto: Projeto;
+  uploadedBy?: User;
+  comentarios: VideoComentario[];
+};
+
+export type VideoComentarioWithRelations = VideoComentario & {
+  video: VideoProjeto;
+  autor?: User;
+  resolvidoPor?: User;
+};
+
+export type VideoPastaWithRelations = VideoPasta & {
+  cliente: Cliente;
+  empreendimento?: Empreendimento;
+  pastaPai?: VideoPasta;
+  subpastas: VideoPasta[];
+  videos: VideoProjeto[];
+};
+
+// ========== TIPO LEVE PARA KANBAN (FASE 2A) ==========
+// Versão otimizada com apenas os campos necessários para renderizar cards do Kanban
+// Reduz drasticamente o volume de dados transferidos e processados
+export type ProjetoKanbanLight = {
+  // Campos básicos do projeto
+  id: string;
+  sequencialId: number;
+  titulo: string;
+  status: typeof projetos.$inferSelect.status;
+  prioridade: typeof projetos.$inferSelect.prioridade;
+  dataCriacao: Date;
+  dataPrevistaEntrega: Date | null;
+  dataAprovacao: Date | null;
+
+  // Relacionamentos apenas com campos essenciais (sem objetos completos)
+  tipoVideo: {
+    nome: string;
+    backgroundColor: string;
+    textColor: string;
+  };
+  responsavel: {
+    id: string;
+    nome: string;
+  };
+  cliente?: {
+    id: string;
+    nome: string;
+  } | null;
+
+  // Campos de aprovação do cliente (necessários para badge de notificação)
+  musicaAprovada: boolean | null;
+  musicaVisualizadaEm: Date | null;
+  locucaoAprovada: boolean | null;
+  locucaoVisualizadaEm: Date | null;
+  videoFinalAprovado: boolean | null;
+  videoFinalVisualizadoEm: Date | null;
+
+  // CAMPOS REMOVIDOS (presentes em ProjetoWithRelations mas não necessários no Kanban):
+  // ❌ descricao - não exibida no card
+  // ❌ tags - não exibida no card
+  // ❌ anexos - não exibida no card
+  // ❌ linkYoutube - não exibida no card
+  // ❌ duracao, formato, captacao, roteiro - não exibidas no card
+  // ❌ informacoesAdicionais, referencias - não exibidas no card
+  // ❌ empreendimento - não exibido no card
+  // ❌ respostaNps - não exibida no card
+  // ❌ musicaUrl, locucaoUrl, videoFinalUrl - não exibidas no card
+  // ❌ todos os campos de aprovação de música/locução/vídeo - não exibidos no card
+  //
+  // RESULTADO: ~70% menos dados transferidos por projeto!
+  // Exemplo: ProjetoWithRelations = ~2KB, ProjetoKanbanLight = ~0.6KB
+  // Com 70 projetos: 140KB → 42KB (economia de ~100KB por requisição)
 };

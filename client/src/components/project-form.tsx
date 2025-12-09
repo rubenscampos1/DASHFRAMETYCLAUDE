@@ -104,16 +104,14 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
       const response = await apiRequest("POST", "/api/projetos", data);
       return response.json();
     },
-    onSuccess: (data) => {
-      // Invalidar queries manualmente para garantir atualização imediata
-      // O WebSocket também vai invalidar, mas isso garante que funcione mesmo se houver delay
-      queryClient.invalidateQueries({
-        predicate: (query) => {
-          const queryKey = query.queryKey;
-          return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
-        }
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
+    onSuccess: async (data) => {
+      // ⚠️ OTIMIZAÇÃO: Refetch apenas endpoint leve para reduzir tráfego
+      // O endpoint /api/projetos (full) não precisa ser refetchado pois não é usado no Kanban
+      // WebSocket vai sincronizar mudanças para outros usuários automaticamente
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["/api/projetos/light"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/metricas"] }),
+      ]);
 
       toast({
         title: "Projeto criado com sucesso!",
@@ -159,6 +157,9 @@ export function ProjectForm({ onSuccess, initialData, isEdit, projectId }: Proje
           return old.map((p: any) => p.id === projectId ? data : p);
         });
       });
+      // FASE 4: Invalidar TODOS os caches de projetos (incluindo endpoint leve)
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos/light"] });
       queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
       toast({
         title: "Projeto atualizado com sucesso!",

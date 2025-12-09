@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import { ProjetoWithRelations, insertProjetoSchema } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const editProjetoSchema = insertProjetoSchema.partial().extend({
@@ -128,7 +128,21 @@ export function EditProjectModal({
       const response = await apiRequest("PATCH", `/api/projetos/${id}`, formattedData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Cancelar queries primeiro para limpar optimistic updates
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos/light"] });
+
+      // Invalidar caches relevantes
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos/light"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"], exact: true });
+      queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+
+      // Forçar refetch imediato
+      await queryClient.refetchQueries({
+        queryKey: ["/api/projetos/light"],
+        exact: false,
+      });
+
       toast({
         title: "Projeto atualizado",
         description: "As alterações foram salvas com sucesso.",

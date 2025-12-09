@@ -246,6 +246,8 @@ const arePropsEqual = (
     prevProps.projeto.titulo !== nextProps.projeto.titulo ||
     prevProps.projeto.sequencialId !== nextProps.projeto.sequencialId ||
     prevProps.projeto.dataPrevistaEntrega !== nextProps.projeto.dataPrevistaEntrega ||
+    prevProps.projeto.responsavel?.id !== nextProps.projeto.responsavel?.id ||
+    prevProps.projeto.responsavel?.nome !== nextProps.projeto.responsavel?.nome ||
     prevProps.isDragging !== nextProps.isDragging
   ) {
     return false;

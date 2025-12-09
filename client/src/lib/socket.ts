@@ -1,10 +1,11 @@
 import { io, Socket } from 'socket.io-client';
+import { queryClient } from './queryClient';
 
 // Criar conexão WebSocket com o servidor
-// Em desenvolvimento: localhost:5000
+// Em desenvolvimento: localhost:3000
 // Em produção: mesma origem do site
 const socketUrl = import.meta.env.DEV
-  ? 'http://localhost:5000'
+  ? 'http://localhost:3000'
   : window.location.origin;
 
 export const socket: Socket = io(socketUrl, {
@@ -36,6 +37,12 @@ socket.on('connect_error', (error) => {
 
 socket.on('reconnect', (attemptNumber) => {
   console.log('[Socket.io] Reconectado após', attemptNumber, 'tentativas');
+
+  // ⚠️ OTIMIZAÇÃO: Ao reconectar, invalidar apenas endpoint leve
+  // Isso garante que o Kanban seja atualizado com mudanças que possam ter ocorrido durante a desconexão
+  // Não fazer refetch para não sobrescrever optimistic updates em andamento
+  queryClient.invalidateQueries({ queryKey: ['/api/projetos/light'] });
+  console.log('[Socket.io] Cache /api/projetos/light invalidado após reconexão');
 });
 
 // Ping/pong para manter conexão ativa

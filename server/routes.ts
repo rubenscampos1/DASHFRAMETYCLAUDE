@@ -179,6 +179,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Projetos routes
+
+  // ========== FASE 2C: ENDPOINT LEVE PARA KANBAN ==========
+  // Retorna apenas campos necessários para renderizar cards (~70% menos dados)
+  //
+  // ⚠️ CRÍTICO - ORDEM DE ROTAS (FASE 4):
+  // Esta rota DEVE estar registrada ANTES de /api/projetos/:id (linha ~270)
+  // Caso contrário, Express vai capturar "light" como um :id e retornar 404.
+  // Ordem correta: /light → /api/projetos → /:id
+  // NÃO mova esta rota sem verificar a ordem das rotas dinâmicas abaixo!
+  app.get("/api/projetos/light", requireAuth, async (req, res, next) => {
+    try {
+      const filters = {
+        status: req.query.status as string,
+        responsavelId: req.query.responsavelId as string,
+        tipoVideoId: req.query.tipoVideoId as string,
+        prioridade: req.query.prioridade as string,
+        search: req.query.search as string,
+      };
+
+      // Remove undefined values and "all" values
+      Object.keys(filters).forEach(key => {
+        const value = filters[key as keyof typeof filters];
+        if (value === undefined || value === "all" || value === "") {
+          delete filters[key as keyof typeof filters];
+        }
+      });
+
+      const projetos = await storage.getProjetosKanbanLight(filters);
+      res.json(projetos);
+    } catch (error) {
+      next(error);
+    }
+  });
+  // ========================================================
+
   app.get("/api/projetos", requireAuth, async (req, res, next) => {
     try {
       const filters = {
@@ -205,15 +240,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const projetos = await storage.getProjetos(filters);
 
-      // Otimização: Remover campos pesados desnecessários para o dashboard
-      // Campos como descricao, informacoesAdicionais, referencias, anotacoes são carregados apenas no drawer
-      let projetosOtimizados = projetos.map(projeto => ({
-        ...projeto,
-        descricao: undefined,  // Não enviar descrição completa para o dashboard
-        informacoesAdicionais: undefined,  // Não enviar informações adicionais para o dashboard
-        referencias: undefined,  // Não enviar referências para o dashboard
-        caminho: undefined,  // Não enviar caminho para o dashboard
-      }));
+      // ✅ FASE 5: Otimização completa - campos pesados já excluídos no SELECT (storage.ts:366-455)
+      // Campos não carregados do banco: descricao, informacoesAdicionais, referencias, caminho
+      // Reduz ~20-30% do volume de dados trafegados desde o banco até o cliente
+      // Não é mais necessário deletar em memória - otimização movida para a query
+      let projetosOtimizados = projetos;
 
       // Se paginação foi solicitada, aplicar limit e offset
       if (limit !== undefined && offset !== undefined) {
@@ -1448,7 +1479,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Buscar todos os projetos de um cliente por portal token (rota pública - sem autenticação)
   app.get("/api/portal/cliente/:clientToken", async (req, res, next) => {
     try {
+      const startTime = Date.now();
       const result = await storage.getClienteByPortalToken(req.params.clientToken);
+      const duration = (Date.now() - startTime).toFixed(2);
+
+      console.log(`⏱️ [Portal Performance] getClienteByPortalToken: ${duration}ms`);
 
       if (!result) {
         return res.status(404).json({ message: "Cliente não encontrado ou link inválido" });
@@ -1456,44 +1491,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { cliente, projetos } = result;
 
-      // Para cada projeto, buscar músicas e locutores
-      const projetosComDetalhes = await Promise.all(
-        projetos.map(async (projeto) => {
-          const musicas = await storage.getProjetoMusicas(projeto.id);
-          const locutores = await storage.getProjetoLocutores(projeto.id);
+      // ========== FASE 3D: BATCH QUERIES - ELIMINA N+1 ==========
+      // Antes: 1 query por projeto para músicas + 1 query por projeto para locutores
+      //        + 1 query por locutor para amostras = 40+ queries simultâneas
+      // Agora: 1 query para todas as músicas + 2 queries para todos os locutores/amostras
+      //        = apenas 3 queries total, independente do número de projetos
 
-          return {
-            id: projeto.id,
-            sequencialId: projeto.sequencialId,
-            titulo: projeto.titulo,
-            descricao: projeto.descricao,
-            status: projeto.status,
-            dataCriacao: projeto.dataCriacao,
-            dataPrevistaEntrega: projeto.dataPrevistaEntrega,
-            statusChangedAt: projeto.statusChangedAt,
-            tipoVideo: projeto.tipoVideo,
-            empreendimento: projeto.empreendimento,
-            linkFrameIo: projeto.linkFrameIo,
-            clientToken: projeto.clientToken, // Token individual do projeto (para compatibilidade)
-            // Arrays de músicas e locutores para aprovação
-            musicas,
-            locutores,
-            // URLs antigas para aprovação (mantidas para compatibilidade)
-            musicaUrl: projeto.musicaUrl,
-            musicaAprovada: projeto.musicaAprovada,
-            musicaFeedback: projeto.musicaFeedback,
-            musicaDataAprovacao: projeto.musicaDataAprovacao,
-            locucaoUrl: projeto.locucaoUrl,
-            locucaoAprovada: projeto.locucaoAprovada,
-            locucaoFeedback: projeto.locucaoFeedback,
-            locucaoDataAprovacao: projeto.locucaoDataAprovacao,
-            videoFinalUrl: projeto.videoFinalUrl,
-            videoFinalAprovado: projeto.videoFinalAprovado,
-            videoFinalFeedback: projeto.videoFinalFeedback,
-            videoFinalDataAprovacao: projeto.videoFinalDataAprovacao,
-          };
-        })
-      );
+      const projetoIds = projetos.map(p => p.id);
+
+      // Busca todas as músicas e locutores em lote (batch)
+      const [musicasPorProjeto, locutoresPorProjeto] = await Promise.all([
+        storage.getProjetosMusicasForProjetos(projetoIds),
+        storage.getProjetosLocutoresForProjetos(projetoIds),
+      ]);
+
+      // Mapeia projetos anexando músicas/locutores do resultado batch
+      const projetosComDetalhes = projetos.map(projeto => ({
+        id: projeto.id,
+        sequencialId: projeto.sequencialId,
+        titulo: projeto.titulo,
+        descricao: projeto.descricao,
+        status: projeto.status,
+        dataCriacao: projeto.dataCriacao,
+        dataPrevistaEntrega: projeto.dataPrevistaEntrega,
+        statusChangedAt: projeto.statusChangedAt,
+        tipoVideo: projeto.tipoVideo,
+        empreendimento: projeto.empreendimento,
+        linkFrameIo: projeto.linkFrameIo,
+        clientToken: projeto.clientToken, // Token individual do projeto (para compatibilidade)
+        // Arrays de músicas e locutores para aprovação (vem do batch)
+        musicas: musicasPorProjeto[projeto.id] || [],
+        locutores: locutoresPorProjeto[projeto.id] || [],
+        // URLs antigas para aprovação (mantidas para compatibilidade)
+        musicaUrl: projeto.musicaUrl,
+        musicaAprovada: projeto.musicaAprovada,
+        musicaFeedback: projeto.musicaFeedback,
+        musicaDataAprovacao: projeto.musicaDataAprovacao,
+        locucaoUrl: projeto.locucaoUrl,
+        locucaoAprovada: projeto.locucaoAprovada,
+        locucaoFeedback: projeto.locucaoFeedback,
+        locucaoDataAprovacao: projeto.locucaoDataAprovacao,
+        videoFinalUrl: projeto.videoFinalUrl,
+        videoFinalAprovado: projeto.videoFinalAprovado,
+        videoFinalFeedback: projeto.videoFinalFeedback,
+        videoFinalDataAprovacao: projeto.videoFinalDataAprovacao,
+      }));
 
       res.json({
         cliente: {
@@ -1504,7 +1546,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         projetos: projetosComDetalhes,
       });
-    } catch (error) {
+    } catch (error: any) {
+      // FASE 4: Tratamento específico para timeouts de batch queries
+      if (error.message?.includes('statement timeout') || error.message?.includes('query timeout')) {
+        console.error('⚠️ [Portal Timeout] Batch query excedeu 30s:', {
+          clientToken: req.params.clientToken,
+          error: error.message,
+        });
+        return res.status(504).json({
+          message: "O portal possui muitos projetos e demorou mais que o esperado. Tente novamente em instantes.",
+          timeout: true,
+        });
+      }
       next(error);
     }
   });
@@ -1791,6 +1844,422 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const novoToken = await storage.regenerarClientToken(req.params.id);
       res.json({ clientToken: novoToken });
     } catch (error) {
+      next(error);
+    }
+  });
+
+  // ========== ROTAS DE PASTAS DE VÍDEOS (Sistema Frame.io-like) ==========
+
+  // Listar todos os clientes com estatísticas de vídeos (Grid de Clientes)
+  app.get("/api/videos/clientes", requireAuth, async (req, res, next) => {
+    try {
+      const clientes = await storage.getClientesComEstatisticasVideos();
+      res.json(clientes);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Criar nova pasta em um cliente
+  app.post("/api/clientes/:clienteId/pastas", requireAuth, async (req, res, next) => {
+    try {
+      const pastaData = {
+        ...req.body,
+        clienteId: req.params.clienteId,
+      };
+
+      const pasta = await storage.createVideoPasta(pastaData);
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('pasta:created', { clienteId: req.params.clienteId, pastaId: pasta.id });
+      }
+
+      res.json(pasta);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Listar pastas de um cliente
+  app.get("/api/clientes/:clienteId/pastas", requireAuth, async (req, res, next) => {
+    try {
+      const includeSubpastas = req.query.includeSubpastas !== 'false';
+      const pastas = await storage.getVideoPastasByClienteId(req.params.clienteId, includeSubpastas);
+      res.json(pastas);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Obter pasta por ID (com vídeos e subpastas)
+  app.get("/api/pastas/:pastaId", requireAuth, async (req, res, next) => {
+    try {
+      const pasta = await storage.getVideoPastaById(req.params.pastaId);
+      if (!pasta) {
+        return res.status(404).json({ message: "Pasta não encontrada" });
+      }
+      res.json(pasta);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Atualizar pasta
+  app.patch("/api/pastas/:pastaId", requireAuth, async (req, res, next) => {
+    try {
+      const pasta = await storage.updateVideoPasta(req.params.pastaId, req.body);
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('pasta:updated', { pastaId: pasta.id });
+      }
+
+      res.json(pasta);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Deletar pasta
+  app.delete("/api/pastas/:pastaId", requireAuth, async (req, res, next) => {
+    try {
+      await storage.deleteVideoPasta(req.params.pastaId);
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('pasta:deleted', { pastaId: req.params.pastaId });
+      }
+
+      res.json({ message: "Pasta deletada com sucesso" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Buscar breadcrumb de uma pasta
+  app.get("/api/pastas/:pastaId/breadcrumb", requireAuth, async (req, res, next) => {
+    try {
+      const breadcrumb = await storage.getVideoPastaBreadcrumb(req.params.pastaId);
+      res.json(breadcrumb);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Mover vídeo para outra pasta
+  app.patch("/api/videos/:videoId/mover", requireAuth, async (req, res, next) => {
+    try {
+      const { novaPastaId } = req.body;
+      if (!novaPastaId) {
+        return res.status(400).json({ message: "novaPastaId é obrigatório" });
+      }
+
+      const video = await storage.moverVideoParaPasta(req.params.videoId, novaPastaId);
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('video:moved', { videoId: video.id, novaPastaId });
+      }
+
+      res.json(video);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ========== ROTAS DE VÍDEOS (Sistema Frame.io-like) ==========
+
+  // Criar novo vídeo em um projeto
+  app.post("/api/projetos/:id/videos", requireAuth, async (req, res, next) => {
+    try {
+      const { id: projetoId } = req.params;
+      const videoData = {
+        ...req.body,
+        projetoId,
+        uploadedById: req.user!.id,
+      };
+
+      const video = await storage.createVideoProjeto(videoData);
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('video:created', { projetoId, videoId: video.id });
+      }
+
+      res.json(video);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Listar vídeos de um projeto
+  app.get("/api/projetos/:id/videos", requireAuth, async (req, res, next) => {
+    try {
+      const videos = await storage.getVideosByProjetoId(req.params.id);
+      res.json(videos);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Obter vídeo por ID (com comentários)
+  app.get("/api/videos/:id", requireAuth, async (req, res, next) => {
+    try {
+      const video = await storage.getVideoById(req.params.id);
+      if (!video) {
+        return res.status(404).json({ message: "Vídeo não encontrado" });
+      }
+      res.json(video);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Atualizar vídeo (status, aprovação, etc.)
+  app.patch("/api/videos/:id", requireAuth, async (req, res, next) => {
+    try {
+      const video = await storage.updateVideoProjeto(req.params.id, req.body);
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('video:updated', { videoId: video.id });
+      }
+
+      res.json(video);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Deletar vídeo
+  app.delete("/api/videos/:id", requireAuth, async (req, res, next) => {
+    try {
+      await storage.deleteVideoProjeto(req.params.id);
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('video:deleted', { videoId: req.params.id });
+      }
+
+      res.json({ message: "Vídeo deletado com sucesso" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Criar comentário em vídeo
+  app.post("/api/videos/:id/comentarios", requireAuth, async (req, res, next) => {
+    try {
+      const comentarioData = {
+        ...req.body,
+        videoId: req.params.id,
+        autorId: req.user!.id,
+      };
+
+      const comentario = await storage.createVideoComentario(comentarioData);
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('video:comentario:created', {
+          videoId: req.params.id,
+          comentarioId: comentario.id
+        });
+      }
+
+      res.json(comentario);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Toggle resolvido em comentário
+  app.patch("/api/videos/comentarios/:id/toggle-resolvido", requireAuth, async (req, res, next) => {
+    try {
+      const comentario = await storage.toggleResolverComentario(
+        req.params.id,
+        req.user!.id
+      );
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('video:comentario:updated', {
+          comentarioId: comentario.id,
+          resolvido: comentario.resolvido
+        });
+      }
+
+      res.json(comentario);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Deletar comentário
+  app.delete("/api/videos/comentarios/:id", requireAuth, async (req, res, next) => {
+    try {
+      await storage.deleteVideoComentario(req.params.id);
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('video:comentario:deleted', { comentarioId: req.params.id });
+      }
+
+      res.json({ message: "Comentário deletado com sucesso" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ========== ROTAS DE UPLOAD DE VÍDEO (Bunny.net) ==========
+
+  // Iniciar upload de vídeo em uma pasta
+  app.post("/api/pastas/:pastaId/videos/upload-init", requireAuth, async (req, res, next) => {
+    try {
+      const { pastaId } = req.params;
+      const { titulo, descricao } = req.body;
+
+      // Importar bunnyStream aqui para evitar problemas de inicialização
+      const { bunnyStream } = await import("./bunny");
+
+      // 1. Criar vídeo no Bunny.net
+      const bunnyVideo = await bunnyStream.createVideo(titulo);
+      console.log("Resposta do Bunny.net:", bunnyVideo);
+
+      // 2. Criar registro no banco de dados
+      const video = await storage.createVideoInPasta({
+        pastaId,
+        titulo,
+        descricao,
+        bunnyVideoId: bunnyVideo.guid,  // Bunny.net usa 'guid' como ID
+        bunnyGuid: bunnyVideo.guid,
+        bunnyLibraryId: process.env.BUNNY_LIBRARY_ID,
+        status: "uploading",
+        uploadedById: req.user!.id,
+      });
+
+      // 3. Retornar dados para o frontend fazer upload direto
+      res.json({
+        videoId: video.id,
+        bunnyVideoId: bunnyVideo.guid,  // Bunny.net usa 'guid' não 'videoId'
+        uploadUrl: bunnyStream.getUploadUrl(bunnyVideo.guid),
+        uploadHeaders: {
+          "AccessKey": process.env.BUNNY_API_KEY,
+          "Content-Type": "application/octet-stream",
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao iniciar upload:", error);
+      next(error);
+    }
+  });
+
+  // Atualizar status do vídeo após upload
+  app.patch("/api/videos/:videoId/status", requireAuth, async (req, res, next) => {
+    try {
+      const { videoId } = req.params;
+      const { status } = req.body;
+
+      // Se o status for "processing", buscar informações do Bunny.net
+      if (status === "processing" || status === "ready") {
+        const video = await storage.getVideoById(videoId);
+        if (!video || !video.bunnyVideoId) {
+          return res.status(404).json({ message: "Vídeo não encontrado" });
+        }
+
+        const { bunnyStream } = await import("./bunny");
+        const bunnyVideo = await bunnyStream.getVideo(video.bunnyVideoId);
+
+        // Atualizar com informações completas do Bunny.net
+        const updatedVideo = await storage.updateVideoProjeto(videoId, {
+          status: bunnyVideo.status === 4 ? "ready" : "processing",
+          thumbnailUrl: bunnyStream.getThumbnailUrl(video.bunnyGuid!),
+          videoUrl: bunnyStream.getVideoUrl(video.bunnyGuid!),
+          duration: bunnyVideo.length,
+          fileSize: bunnyVideo.storageSize,
+          width: bunnyVideo.width,
+          height: bunnyVideo.height,
+        });
+
+        // Emitir evento WebSocket
+        const wsServer = (req.app as any).wsServer;
+        if (wsServer) {
+          wsServer.emitChange('video:updated', { videoId: updatedVideo.id });
+        }
+
+        return res.json(updatedVideo);
+      }
+
+      // Atualizar apenas o status
+      const updatedVideo = await storage.updateVideoProjeto(videoId, { status });
+
+      // Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('video:updated', { videoId: updatedVideo.id });
+      }
+
+      res.json(updatedVideo);
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+      next(error);
+    }
+  });
+
+  // Listar vídeos de uma pasta
+  app.get("/api/pastas/:pastaId/videos", requireAuth, async (req, res, next) => {
+    try {
+      const videos = await storage.getVideosByPastaId(req.params.pastaId);
+      res.json(videos);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Deletar um vídeo
+  app.delete("/api/videos/:videoId", requireAuth, async (req, res, next) => {
+    try {
+      const { videoId } = req.params;
+
+      // 1. Buscar informações do vídeo
+      const video = await storage.getVideoById(videoId);
+      if (!video) {
+        return res.status(404).json({ message: "Vídeo não encontrado" });
+      }
+
+      // 2. Deletar do Bunny.net se tiver bunnyVideoId
+      if (video.bunnyVideoId) {
+        try {
+          const { bunnyStream } = await import("./bunny");
+          await bunnyStream.deleteVideo(video.bunnyVideoId);
+        } catch (error) {
+          console.error("Erro ao deletar do Bunny.net:", error);
+          // Continua mesmo se falhar no Bunny (pode já ter sido deletado)
+        }
+      }
+
+      // 3. Deletar do banco de dados
+      await storage.deleteVideoProjeto(videoId);
+
+      // 4. Emitir evento WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('video:deleted', { videoId });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Erro ao deletar vídeo:", error);
       next(error);
     }
   });

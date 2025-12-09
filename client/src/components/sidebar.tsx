@@ -8,6 +8,7 @@ import {
   User,
   FileText,
   Database,
+  Folder,
   StickyNote,
   Clock,
   Settings,
@@ -60,6 +61,11 @@ export function Sidebar() {
       name: "Banco de Dados",
       href: "/banco-de-dados",
       icon: Database,
+    },
+    {
+      name: "Vídeos",
+      href: "/videos",
+      icon: Folder,
     },
     {
       name: "Notas",

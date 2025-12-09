@@ -120,11 +120,32 @@ export function ProjectDetailsDrawer({
       // O servidor vai decidir se realmente precisa atualizar ou não
       const now = new Date();
 
-      // 1. Atualizar TODAS as queries de projetos IMEDIATAMENTE
+      // 1. Atualizar TODAS as queries de projetos IMEDIATAMENTE (inclusive LIGHT!)
       console.log('🔔 [Badge Debug] Atualizando cache instantaneamente...');
-      const queries = queryClient.getQueriesData({ queryKey: ['/api/projetos'] });
 
+      // Atualizar queries /api/projetos (completo)
+      const queries = queryClient.getQueriesData({ queryKey: ['/api/projetos'] });
       queries.forEach(([key, data]) => {
+        queryClient.setQueryData(key, (old: any) => {
+          if (!old || !Array.isArray(old)) return old;
+
+          return old.map((projeto: any) => {
+            if (projeto.id === projetoAtual.id) {
+              return {
+                ...projeto,
+                musicaVisualizadaEm: projeto.musicaAprovada ? now : projeto.musicaVisualizadaEm,
+                locucaoVisualizadaEm: projeto.locucaoAprovada ? now : projeto.locucaoVisualizadaEm,
+                videoFinalVisualizadoEm: projeto.videoFinalAprovado ? now : projeto.videoFinalVisualizadoEm,
+              };
+            }
+            return projeto;
+          });
+        });
+      });
+
+      // 🔔 IMPORTANTE: Atualizar queries /api/projetos/light (usado pelo Kanban!)
+      const lightQueries = queryClient.getQueriesData({ queryKey: ['/api/projetos/light'] });
+      lightQueries.forEach(([key, data]) => {
         queryClient.setQueryData(key, (old: any) => {
           if (!old || !Array.isArray(old)) return old;
 
@@ -257,10 +278,20 @@ export function ProjectDetailsDrawer({
       const response = await apiRequest("PATCH", `/api/projetos/${projectId}`, updateData);
       return response.json();
     },
-    onSuccess: (updatedProject) => {
-      // Invalida queries para refetch - isso fará com que o projeto seja atualizado
-      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+    onSuccess: async (updatedProject) => {
+      // Cancelar queries primeiro para limpar optimistic updates
+      await queryClient.cancelQueries({ queryKey: ["/api/projetos/light"] });
+
+      // Invalidar caches relevantes
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos/light"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"], exact: true });
       queryClient.invalidateQueries({ queryKey: ["/api/metricas"] });
+
+      // Forçar refetch imediato
+      await queryClient.refetchQueries({
+        queryKey: ["/api/projetos/light"],
+        exact: false,
+      });
 
       // Atualiza o callback do parent com os dados novos
       onProjectUpdate?.(updatedProject);
