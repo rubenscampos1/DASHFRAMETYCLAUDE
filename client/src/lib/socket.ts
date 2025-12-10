@@ -2,11 +2,11 @@ import { io, Socket } from 'socket.io-client';
 import { queryClient } from './queryClient';
 
 // Criar conexão WebSocket com o servidor
-// Em desenvolvimento: localhost:3000
-// Em produção: mesma origem do site
 const socketUrl = import.meta.env.DEV
-  ? 'http://localhost:3000'
+  ? `http://localhost:${import.meta.env.VITE_PORT || '5000'}`
   : window.location.origin;
+
+console.log('[WebSocket] Conectando em:', socketUrl);
 
 export const socket: Socket = io(socketUrl, {
   // Reconnection config
@@ -18,31 +18,32 @@ export const socket: Socket = io(socketUrl, {
   // Connection timeout
   timeout: 20000,
 
-  // Transport
-  transports: ['websocket', 'polling'], // Tentar WebSocket primeiro, fallback para polling
+  // Transport - priorizar polling em produção para evitar problemas com proxy
+  transports: import.meta.env.DEV ? ['websocket', 'polling'] : ['polling', 'websocket'],
+
+  // Path do Socket.io
+  path: '/socket.io',
 });
 
-// Logs de debug
+// Logs focados em diagnóstico de conexão
 socket.on('connect', () => {
-  console.log('[Socket.io] Conectado ao servidor WebSocket');
+  console.log('[WebSocket] ✅ CONECTADO - ID:', socket.id);
+  console.log('[WebSocket] Transport:', socket.io.engine.transport.name);
 });
 
 socket.on('disconnect', (reason) => {
-  console.log('[Socket.io] Desconectado:', reason);
+  console.warn('[WebSocket] ❌ DESCONECTADO - Razão:', reason);
 });
 
 socket.on('connect_error', (error) => {
-  console.error('[Socket.io] Erro de conexão:', error.message);
+  console.error('[WebSocket] 🔴 ERRO DE CONEXÃO:', error.message);
+  console.error('[WebSocket] URL tentada:', socketUrl);
+  console.error('[WebSocket] Transports disponíveis:', socket.io.opts.transports);
 });
 
 socket.on('reconnect', (attemptNumber) => {
-  console.log('[Socket.io] Reconectado após', attemptNumber, 'tentativas');
-
-  // ⚠️ OTIMIZAÇÃO: Ao reconectar, invalidar apenas endpoint leve
-  // Isso garante que o Kanban seja atualizado com mudanças que possam ter ocorrido durante a desconexão
-  // Não fazer refetch para não sobrescrever optimistic updates em andamento
+  console.log('[WebSocket] 🔄 RECONECTADO após', attemptNumber, 'tentativas');
   queryClient.invalidateQueries({ queryKey: ['/api/projetos/light'] });
-  console.log('[Socket.io] Cache /api/projetos/light invalidado após reconexão');
 });
 
 // Ping/pong para manter conexão ativa

@@ -1,12 +1,3 @@
-// Debug: Log environment variables at startup (for Render deployment troubleshooting)
-console.log('=== Environment Variables at Startup ===');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('PORT:', process.env.PORT);
-console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-console.log('DATABASE_URL preview:', process.env.DATABASE_URL?.substring(0, 50) + '...');
-console.log('SESSION_SECRET exists:', !!process.env.SESSION_SECRET);
-console.log('========================================');
-
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import { registerRoutes } from "./routes";
@@ -61,7 +52,7 @@ app.use((req, res, next) => {
 
   // Configurar WebSocket para sincronização em tempo real
   const wsServer = setupWebSocket(server);
-  log('[WebSocket] Servidor configurado e pronto');
+  log('[WebSocket] ✅ Servidor configurado - Transports: polling, websocket');
 
   // Disponibilizar WebSocket server globalmente para uso nas rotas
   (app as any).wsServer = wsServer;

@@ -34,10 +34,6 @@ export function ProjetoLocutores({ projetoId }: ProjetoLocutoresProps) {
     refetchOnMount: true, // Refetch quando componente montar
   });
 
-  // Debug: verificar se locutores estão sendo carregados
-  console.log('🎤 [ProjetoLocutores Debug] projetoId:', projetoId);
-  console.log('🎤 [ProjetoLocutores Debug] locutores carregados:', locutoresProjeto);
-
   // Mutation para adicionar locutor
   const adicionarLocutorMutation = useMutation({
     mutationFn: async (locutorId: string) => {

@@ -588,21 +588,6 @@ export class DatabaseStorage implements IStorage {
 
     // 🔔 DEBUG SININHO: Verificar se campos de aprovação estão vindo do banco
     const projetosComAprovacao = result.filter(r => r.musicaAprovada || r.locucaoAprovada || r.videoFinalAprovado);
-    if (projetosComAprovacao.length > 0) {
-      console.log('🔔 [DEBUG SININHO] Projetos com aprovações encontrados:', projetosComAprovacao.length);
-      projetosComAprovacao.forEach(p => {
-        console.log(`  📋 Projeto ${p.titulo}:`, {
-          musicaAprovada: p.musicaAprovada,
-          musicaVisualizadaEm: p.musicaVisualizadaEm,
-          locucaoAprovada: p.locucaoAprovada,
-          locucaoVisualizadaEm: p.locucaoVisualizadaEm,
-          videoFinalAprovado: p.videoFinalAprovado,
-          videoFinalVisualizadoEm: p.videoFinalVisualizadoEm,
-        });
-      });
-    } else {
-      console.log('🔔 [DEBUG SININHO] Nenhum projeto com aprovações encontrado');
-    }
 
     // Mapear resultados para o tipo ProjetoKanbanLight
     return result.map(row => ({

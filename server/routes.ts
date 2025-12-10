@@ -480,22 +480,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Emitir evento WebSocket para sincronização em tempo real
       const wsServer = (req.app as any).wsServer;
-      console.log('🟢 [DEBUG CREATE] WebSocket server exists?', !!wsServer);
-      console.log('🟢 [DEBUG CREATE] Novo projeto criado:', projeto.id);
-      console.log('🟢 [DEBUG CREATE] Dados do projeto:', {
-        id: projeto.id,
-        nome: projeto.nome,
-        tipoVideoId: projeto.tipoVideoId,
-        status: projeto.status,
-        temTipoVideo: !!projeto.tipoVideo,
-        tipoVideoNome: projeto.tipoVideo?.nome
-      });
-
       if (wsServer) {
         wsServer.emitChange('projeto:created', { id: projeto.id, status: projeto.status });
-        console.log('🟢 [DEBUG CREATE] Evento projeto:created emitido com sucesso!');
-      } else {
-        console.error('🟢 [DEBUG CREATE] ERRO: WebSocket server não encontrado!');
       }
 
       res.status(201).json(projeto);
@@ -560,16 +546,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Emitir evento WebSocket para sincronização em tempo real
       const wsServer = (req.app as any).wsServer;
-      console.log('🟡 [DEBUG DRAG] WebSocket server exists?', !!wsServer);
-      console.log('🟡 [DEBUG DRAG] Projeto atualizado:', projeto.id);
-      console.log('🟡 [DEBUG DRAG] Novo status:', projeto.status);
-      console.log('🟡 [DEBUG DRAG] Emitindo evento projeto:updated...');
-
       if (wsServer) {
         wsServer.emitChange('projeto:updated', { id: projeto.id, projeto });
-        console.log('🟡 [DEBUG DRAG] Evento projeto:updated emitido com sucesso!');
-      } else {
-        console.error('🟡 [DEBUG DRAG] ERRO: WebSocket server não encontrado!');
       }
 
       res.json(projeto);
@@ -589,15 +567,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Emitir evento WebSocket para atualização em tempo real
       const wsServer = (req.app as any).wsServer;
-      console.log('🔴 [DEBUG DELETE] WebSocket server exists?', !!wsServer);
-      console.log('🔴 [DEBUG DELETE] Projeto deletado:', req.params.id);
-      console.log('🔴 [DEBUG DELETE] Emitindo evento projeto:deleted...');
-
       if (wsServer) {
         wsServer.emitChange('projeto:deleted', { id: req.params.id });
-        console.log('🔴 [DEBUG DELETE] Evento projeto:deleted emitido com sucesso!');
-      } else {
-        console.error('🔴 [DEBUG DELETE] ERRO: WebSocket server não encontrado!');
       }
 
       res.sendStatus(204);
@@ -1842,14 +1813,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Emitir evento WebSocket para atualização em tempo real
       const wsServer = (req.app as any).wsServer;
-      console.log('🔴 [DEBUG NPS] WebSocket server exists?', !!wsServer);
-      console.log('🔴 [DEBUG NPS] Emitindo evento nps:created para projeto:', projeto.id, 'categoria:', categoria);
-
       if (wsServer) {
         wsServer.emitChange('nps:created', { projetoId: projeto.id, categoria });
-        console.log('🔴 [DEBUG NPS] Evento nps:created emitido com sucesso!');
-      } else {
-        console.error('🔴 [DEBUG NPS] ERRO: WebSocket server não encontrado!');
       }
 
       res.json({
