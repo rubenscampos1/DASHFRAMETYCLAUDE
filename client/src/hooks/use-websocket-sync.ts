@@ -23,20 +23,29 @@ export function useWebSocketSync() {
                             data.projeto?.locucaoAprovada ||
                             data.projeto?.videoFinalAprovado;
 
-      // Invalidar TODAS as queries que começam com '/api/projetos'
-      // Use 'all' para aprovações (precisa atualizar sininho mesmo em outras páginas)
-      // Use 'active' para mudanças normais (drag and drop)
-      queryClient.invalidateQueries({
-        predicate: (query) => {
-          const queryKey = query.queryKey;
-          return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
-        },
-        refetchType: houveAprovacao ? 'all' : 'active'
-      });
+      if (houveAprovacao) {
+        // Para aprovações: FORÇAR refetch imediato (sininho precisa aparecer!)
+        console.log('[WebSocket Sync] 🔔 APROVAÇÃO DETECTADA - Forçando refetch imediato');
+        queryClient.refetchQueries({
+          predicate: (query) => {
+            const queryKey = query.queryKey;
+            return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+          }
+        });
+      } else {
+        // Para mudanças normais (drag and drop): apenas invalidar queries ativas
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            const queryKey = query.queryKey;
+            return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
+          },
+          refetchType: 'active'
+        });
+      }
 
       // Invalidar métricas
       queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
-      console.log('[WebSocket Sync] ✅ Queries invalidadas - refetchType:', houveAprovacao ? 'all' : 'active');
+      console.log('[WebSocket Sync] ✅ Ação completa - tipo:', houveAprovacao ? 'refetch' : 'invalidate');
     });
 
     // Escutar quando projeto é criado
