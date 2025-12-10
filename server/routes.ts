@@ -1676,6 +1676,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projetoAtualizado = await storage.getProjeto(projeto.id);
       const wsServer = (req.app as any).wsServer;
       if (wsServer && projetoAtualizado) {
+        console.log('[WebSocket Server] 🎵 MÚSICA APROVADA - Emitindo evento:', {
+          projetoId: projetoAtualizado.id,
+          musicaAprovada: projetoAtualizado.musicaAprovada,
+          musicaVisualizadaEm: projetoAtualizado.musicaVisualizadaEm,
+          clientesConectados: wsServer.io.sockets.sockets.size
+        });
         wsServer.emitChange('projeto:updated', { id: projetoAtualizado.id, projeto: projetoAtualizado });
       }
 
@@ -1727,6 +1733,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projetoAtualizado = await storage.getProjeto(projeto.id);
       const wsServer = (req.app as any).wsServer;
       if (wsServer && projetoAtualizado) {
+        console.log('[WebSocket Server] 🎤 LOCUÇÃO APROVADA - Emitindo evento:', {
+          projetoId: projetoAtualizado.id,
+          locucaoAprovada: projetoAtualizado.locucaoAprovada,
+          locucaoVisualizadaEm: projetoAtualizado.locucaoVisualizadaEm,
+          clientesConectados: wsServer.io.sockets.sockets.size
+        });
         wsServer.emitChange('projeto:updated', { id: projetoAtualizado.id, projeto: projetoAtualizado });
       }
 
