@@ -26,11 +26,18 @@ export function useWebSocketSync() {
       if (houveAprovacao) {
         // Para aprovações: FORÇAR refetch imediato (sininho precisa aparecer!)
         console.log('[WebSocket Sync] 🔔 APROVAÇÃO DETECTADA - Forçando refetch imediato');
+
+        // Refetch TODAS as variações da query /api/projetos/light (kanban com diferentes filtros)
         queryClient.refetchQueries({
-          predicate: (query) => {
-            const queryKey = query.queryKey;
-            return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
-          }
+          queryKey: ['/api/projetos/light'],
+          type: 'all'
+        });
+
+        // Refetch query de projetos completos
+        queryClient.refetchQueries({
+          queryKey: ['/api/projetos'],
+          exact: true,
+          type: 'all'
         });
       } else {
         // Para mudanças normais (drag and drop): apenas invalidar queries ativas
