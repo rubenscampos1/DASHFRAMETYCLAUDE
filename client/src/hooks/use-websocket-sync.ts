@@ -17,20 +17,26 @@ export function useWebSocketSync() {
     // Escutar mudanças em projetos
     socket.on('projeto:updated', (data) => {
       console.log('[WebSocket Sync] 📥 EVENTO RECEBIDO: projeto:updated', data);
-      const foiAprovado = data.projeto?.status === 'Aprovado';
+
+      // Verificar se houve aprovação do cliente (música, locução ou vídeo)
+      const houveAprovacao = data.projeto?.musicaAprovada ||
+                            data.projeto?.locucaoAprovada ||
+                            data.projeto?.videoFinalAprovado;
 
       // Invalidar TODAS as queries que começam com '/api/projetos'
+      // Use 'all' para aprovações (precisa atualizar sininho mesmo em outras páginas)
+      // Use 'active' para mudanças normais (drag and drop)
       queryClient.invalidateQueries({
         predicate: (query) => {
           const queryKey = query.queryKey;
           return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
         },
-        refetchType: foiAprovado ? 'all' : 'active'
+        refetchType: houveAprovacao ? 'all' : 'active'
       });
 
       // Invalidar métricas
       queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
-      console.log('[WebSocket Sync] ✅ Queries invalidadas - UI vai atualizar');
+      console.log('[WebSocket Sync] ✅ Queries invalidadas - refetchType:', houveAprovacao ? 'all' : 'active');
     });
 
     // Escutar quando projeto é criado
