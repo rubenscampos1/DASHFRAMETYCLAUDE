@@ -704,7 +704,8 @@ export default function PortalUnificado() {
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
-                              setMusicaSelecionada(musica.id);
+                              // Toggle: se já está selecionada, desmarca; senão, seleciona
+                              setMusicaSelecionada(musicaSelecionada === musica.id ? null : musica.id);
                             }}
                             className={`
                               w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all
@@ -795,7 +796,8 @@ export default function PortalUnificado() {
                             <div
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setLocutorSelecionado(projetoLocutor.id);
+                                // Toggle: se já está selecionado, desmarca; senão, seleciona
+                                setLocutorSelecionado(locutorSelecionado === projetoLocutor.id ? null : projetoLocutor.id);
                               }}
                               className={`
                                 w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0
@@ -877,12 +879,12 @@ export default function PortalUnificado() {
 
         {/* Botão de envio de respostas (novo sistema) */}
         {/* Só mostra o botão se: */}
-        {/* 1. Existem músicas OU locutores */}
-        {/* 2. Pelo menos UM deles ainda não foi aprovado (música OU locutor pendente) */}
+        {/* 1. Existem músicas E locutores */}
+        {/* 2. Pelo menos UM deles ainda NÃO foi aprovado pelo cliente */}
         {/* 3. Card desaparece apenas quando AMBOS já foram aprovados */}
         {projeto.musicas && projeto.musicas.length > 0 && projeto.locutores && projeto.locutores.length > 0 && (
-          // Verifica se existe PELO MENOS UM item pendente (música OU locutor)
-          projeto.musicas.some(m => m.aprovada === null) || projeto.locutores.some(l => l.aprovado === null)
+          // Verifica se pelo menos UM ainda NÃO foi aprovado (música OU locutor)
+          !projeto.musicas.some(m => m.aprovada === true) || !projeto.locutores.some(l => l.aprovado === true)
         ) && (
           <Card className="border-primary/20">
             <CardContent className="p-4">
