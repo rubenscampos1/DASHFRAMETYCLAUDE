@@ -153,30 +153,39 @@ export default function ClientePortal() {
     verificarNPS();
   }, [projeto, token, npsJaVerificado]);
 
-  // Mutation para enviar seleções (música + locutor de uma vez)
+  // Mutation para enviar seleções (música, locutor ou ambos)
   const enviarSelecoesMutation = useMutation({
     mutationFn: async () => {
-      if (!musicaSelecionada || !locutorSelecionado) {
-        throw new Error("Selecione uma música e um locutor");
+      // Validação: Pelo menos UM deve estar selecionado
+      if (!musicaSelecionada && !locutorSelecionado) {
+        throw new Error("Selecione pelo menos uma música ou um locutor");
       }
 
-      // Aprovar a música selecionada
-      const musicaResponse = await fetch(`/api/cliente/projeto/${token}/musicas/${musicaSelecionada}/aprovar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aprovado: true, feedback: feedbackGeral }),
-      });
-      if (!musicaResponse.ok) throw new Error("Erro ao aprovar música");
+      const results = [];
 
-      // Aprovar o locutor selecionado
-      const locutorResponse = await fetch(`/api/cliente/projeto/${token}/locutores/${locutorSelecionado}/aprovar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aprovado: true, feedback: feedbackGeral }),
-      });
-      if (!locutorResponse.ok) throw new Error("Erro ao aprovar locutor");
+      // Aprovar a música selecionada (se houver)
+      if (musicaSelecionada) {
+        const musicaResponse = await fetch(`/api/cliente/projeto/${token}/musicas/${musicaSelecionada}/aprovar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aprovado: true, feedback: feedbackGeral }),
+        });
+        if (!musicaResponse.ok) throw new Error("Erro ao aprovar música");
+        results.push("música");
+      }
 
-      return { success: true };
+      // Aprovar o locutor selecionado (se houver)
+      if (locutorSelecionado) {
+        const locutorResponse = await fetch(`/api/cliente/projeto/${token}/locutores/${locutorSelecionado}/aprovar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aprovado: true, feedback: feedbackGeral }),
+        });
+        if (!locutorResponse.ok) throw new Error("Erro ao aprovar locutor");
+        results.push("locutor");
+      }
+
+      return { success: true, approved: results };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/cliente/projeto/${token}`] });
@@ -734,12 +743,12 @@ export default function ClientePortal() {
 
         {/* Botão de envio de respostas (novo sistema) */}
         {/* Só mostra o botão se: */}
-        {/* 1. Existem músicas E locutores */}
-        {/* 2. Ainda não foi aprovado nada (nenhuma música E nenhum locutor aprovados) */}
-        {/* 3. Existem itens pendentes (não aprovados) */}
+        {/* 1. Existem músicas OU locutores */}
+        {/* 2. Pelo menos UM deles ainda não foi aprovado (música OU locutor pendente) */}
+        {/* 3. Card desaparece apenas quando AMBOS já foram aprovados */}
         {projeto.musicas && projeto.musicas.length > 0 && projeto.locutores && projeto.locutores.length > 0 && (
-          // Verifica se NENHUMA música foi aprovada ainda E NENHUM locutor foi aprovado ainda
-          !projeto.musicas.some(m => m.aprovada !== null) && !projeto.locutores.some(l => l.aprovado !== null)
+          // Verifica se existe PELO MENOS UM item pendente (música OU locutor)
+          projeto.musicas.some(m => m.aprovada === null) || projeto.locutores.some(l => l.aprovado === null)
         ) && (
           <Card className="border-primary/20">
             <CardContent className="p-4">
@@ -758,18 +767,18 @@ export default function ClientePortal() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  {(!musicaSelecionada || !locutorSelecionado) && (
+                  {(!musicaSelecionada && !locutorSelecionado) && (
                     <Alert className="p-3">
                       <AlertCircle className="h-3 w-3" />
                       <AlertDescription className="text-xs">
-                        Selecione uma música e um locutor antes de enviar sua resposta
+                        Selecione pelo menos uma música ou um locutor antes de enviar sua resposta
                       </AlertDescription>
                     </Alert>
                   )}
 
                   <Button
                     onClick={() => enviarSelecoesMutation.mutate()}
-                    disabled={!musicaSelecionada || !locutorSelecionado || enviarSelecoesMutation.isPending}
+                    disabled={(!musicaSelecionada && !locutorSelecionado) || enviarSelecoesMutation.isPending}
                     size="lg"
                     className="w-full bg-primary hover:bg-primary/90 text-white font-semibold"
                   >
