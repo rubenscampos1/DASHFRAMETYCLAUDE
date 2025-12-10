@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import type { ProjetoMusica, ProjetoLocutorWithRelations } from "@shared/schema";
 import { QuestionarioNps } from "@/components/questionario-nps";
+import { getLocutorAudioUrl } from "@/lib/storage";
 
 interface ProjetoCliente {
   id: string;
@@ -826,7 +827,7 @@ export default function PortalUnificado() {
                               </div>
                               <audio
                                 id={`audio-locutor-${projetoLocutor.id}`}
-                                src={amostraDestaque.arquivoUrl}
+                                src={getLocutorAudioUrl(amostraDestaque.arquivoUrl)}
                                 onEnded={() => setPlayingAudio(null)}
                                 className="hidden"
                               />

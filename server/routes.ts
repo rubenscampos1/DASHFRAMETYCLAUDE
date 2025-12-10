@@ -14,6 +14,8 @@ import { log } from "./vite";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { v4 as uuidv4 } from "uuid";
+import { uploadLocutorAudioToSupabase, deleteLocutorAudioFromSupabase } from "./storage-helpers";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -32,22 +34,9 @@ function requireRole(roles: string[]) {
 }
 
 // Configuração do Multer para upload de áudio
-const audioStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(process.cwd(), "uploads", "locutores");
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// ✅ MIGRADO PARA SUPABASE STORAGE - usa memoryStorage ao invés de diskStorage
 const audioUpload = multer({
-  storage: audioStorage,
+  storage: multer.memoryStorage(), // 🔥 Salva em memória (buffer), não em disco
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB max
   },
@@ -1270,25 +1259,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { titulo, descricao, estiloId, destaque } = req.body;
-      const arquivoUrl = `/uploads/locutores/${req.file.filename}`;
+      const locutorId = req.params.locutorId;
 
+      // Gerar ID único para a amostra (antes de salvar no banco)
+      const amostraId = uuidv4();
+
+      console.log('[Upload Audio] Uploading to Supabase Storage...');
+      console.log('[Upload Audio] locutorId:', locutorId);
+      console.log('[Upload Audio] amostraId:', amostraId);
+      console.log('[Upload Audio] originalName:', req.file.originalname);
+      console.log('[Upload Audio] size:', (req.file.size / 1024 / 1024).toFixed(2), 'MB');
+
+      // 🔥 Upload para Supabase Storage
+      const { storagePath, publicUrl } = await uploadLocutorAudioToSupabase({
+        locutorId,
+        amostraId,
+        originalName: req.file.originalname,
+        buffer: req.file.buffer, // 🔥 Buffer em memória (não arquivo em disco)
+        contentType: req.file.mimetype,
+      });
+
+      console.log('[Upload Audio] Supabase path:', storagePath);
+      console.log('[Upload Audio] Public URL:', publicUrl);
+
+      // Salvar no banco (com storagePath, não URL completa)
       const novaAmostra = await storage.createAmostraLocutor({
-        locutorId: req.params.locutorId,
+        id: amostraId, // 🔥 Usar o mesmo ID gerado antes
+        locutorId,
         titulo,
         descricao: descricao || null,
         estiloId: estiloId || null,
-        arquivoUrl,
-        duracao: null, // Pode ser calculado no frontend ou com uma lib
+        arquivoUrl: storagePath, // 🔥 "locutores/{locutorId}/{amostraId}.mp3"
+        duracao: null,
         ordem: 0,
         destaque: destaque === 'true' || destaque === true
       });
 
+      console.log('[Upload Audio] Database saved:', novaAmostra.id);
+
       res.status(201).json(novaAmostra);
     } catch (error) {
-      // Se der erro, remove o arquivo que foi feito upload
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
+      console.error('[Upload Audio] Error:', error);
+      // 🔥 NÃO precisa mais de fs.unlinkSync (não salvou em disco)
       next(error);
     }
   });
@@ -1304,23 +1316,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/amostras/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
     try {
+      // 1. Buscar amostra no banco
       const amostra = await storage.getAmostraLocutor(req.params.id);
-      if (amostra) {
-        // Remove o arquivo físico
-        const filePath = path.join(process.cwd(), amostra.arquivoUrl);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
+
+      if (!amostra) {
+        return res.status(404).json({ message: "Amostra não encontrada" });
       }
+
+      console.log('[Delete Audio] Deleting amostra:', amostra.id);
+      console.log('[Delete Audio] Storage path:', amostra.arquivoUrl);
+
+      // 2. Deletar do Supabase Storage
+      await deleteLocutorAudioFromSupabase(amostra.arquivoUrl);
+
+      // 3. Deletar do banco
       await storage.deleteAmostraLocutor(req.params.id);
+
+      console.log('[Delete Audio] Success');
+
       res.status(204).send();
     } catch (error) {
+      console.error('[Delete Audio] Error:', error);
       next(error);
     }
   });
 
+  // ❌ DESATIVADO - Migrado para Supabase Storage
   // Servir arquivos estáticos de uploads
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  // app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // ==========================================
   // MÚSICAS DO PROJETO

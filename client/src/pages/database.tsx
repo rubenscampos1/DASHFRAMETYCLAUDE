@@ -20,6 +20,7 @@ import { insertClienteSchema, insertTipoVideoSchema, insertEmpreendimentoSchema,
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarLayout } from "@/hooks/use-sidebar-layout";
+import { getLocutorAudioUrl } from "@/lib/storage";
 import { useAuth } from "@/hooks/use-auth";
 import { motion } from "framer-motion";
 import { containerVariants, itemVariants } from "@/components/motion-wrapper";
@@ -3061,7 +3062,7 @@ export default function DatabasePage() {
                         </div>
                         <audio
                           id={`audio-${sample.id}`}
-                          src={sample.arquivoUrl}
+                          src={getLocutorAudioUrl(sample.arquivoUrl)}
                           onEnded={() => setPlayingAudioId(null)}
                           className="hidden"
                         />

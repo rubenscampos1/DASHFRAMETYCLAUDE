@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { ProjetoLocutorWithRelations, LocutorWithRelations } from "@shared/schema";
+import { getLocutorAudioUrl } from "@/lib/storage";
 
 interface ProjetoLocutoresProps {
   projetoId: string;
@@ -126,7 +127,7 @@ export function ProjetoLocutores({ projetoId }: ProjetoLocutoresProps) {
     // Criar ou obter o elemento de áudio
     let audio = audioElements[audioUrl];
     if (!audio) {
-      audio = new Audio(audioUrl);
+      audio = new Audio(getLocutorAudioUrl(audioUrl)); // 🔥 Converte path relativo para URL do Supabase
       setAudioElements({ ...audioElements, [audioUrl]: audio });
     }
 
