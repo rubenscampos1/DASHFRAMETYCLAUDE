@@ -1270,12 +1270,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLocutor(id: string): Promise<void> {
-    // Delete all amostras first
-    await this.db
-      .delete(amostrasLocutores)
+    // Get all amostras to delete audio files from Supabase Storage
+    const amostras = await this.db
+      .select()
+      .from(amostrasLocutores)
       .where(eq(amostrasLocutores.locutorId, id));
 
-    // Then delete locutor
+    // Delete audio files from Supabase Storage
+    const { deleteLocutorAudioFromSupabase } = await import('./storage-helpers');
+    for (const amostra of amostras) {
+      await deleteLocutorAudioFromSupabase(amostra.arquivoUrl);
+    }
+
+    // Delete locutor (CASCADE will delete amostras and projeto_locutores in DB)
     await this.db
       .delete(locutores)
       .where(eq(locutores.id, id));

@@ -223,7 +223,7 @@ export const locutores = pgTable("locutores", {
 
 export const amostrasLocutores = pgTable("amostras_locutores", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  locutorId: varchar("locutor_id").references(() => locutores.id).notNull(),
+  locutorId: varchar("locutor_id").references(() => locutores.id, { onDelete: "cascade" }).notNull(),
   estiloId: varchar("estilo_id").references(() => estilosLocucao.id),
   titulo: text("titulo").notNull(),
   descricao: text("descricao"),
@@ -252,7 +252,7 @@ export const projetoMusicas = pgTable("projeto_musicas", {
 export const projetoLocutores = pgTable("projeto_locutores", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   projetoId: varchar("projeto_id").references(() => projetos.id, { onDelete: "cascade" }).notNull(),
-  locutorId: varchar("locutor_id").references(() => locutores.id).notNull(),
+  locutorId: varchar("locutor_id").references(() => locutores.id, { onDelete: "cascade" }).notNull(),
   aprovado: boolean("aprovado"), // null = pendente, true = aprovado, false = reprovado
   feedback: text("feedback"), // feedback do cliente sobre este locutor
   dataAprovacao: timestamp("data_aprovacao"), // data da aprovação/reprovação
