@@ -1666,10 +1666,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Emitir evento WebSocket para atualização em tempo real
+      // Buscar projeto atualizado e emitir evento WebSocket
+      const projetoAtualizado = await storage.getProjeto(projeto.id);
       const wsServer = (req.app as any).wsServer;
-      if (wsServer) {
-        wsServer.emitChange('projeto:updated', { id: projeto.id });
+      if (wsServer && projetoAtualizado) {
+        wsServer.emitChange('projeto:updated', { id: projetoAtualizado.id, projeto: projetoAtualizado });
       }
 
       res.json({
@@ -1716,10 +1717,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Emitir evento WebSocket para atualização em tempo real
+      // Buscar projeto atualizado e emitir evento WebSocket
+      const projetoAtualizado = await storage.getProjeto(projeto.id);
       const wsServer = (req.app as any).wsServer;
-      if (wsServer) {
-        wsServer.emitChange('projeto:updated', { id: projeto.id });
+      if (wsServer && projetoAtualizado) {
+        wsServer.emitChange('projeto:updated', { id: projetoAtualizado.id, projeto: projetoAtualizado });
       }
 
       res.json({
