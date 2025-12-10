@@ -53,6 +53,19 @@ const ProjectCardComponent = ({ projeto, isDragging, onEdit, onDelete, onDuplica
   // Contar aprovações do cliente
   const approvalCount = countClientApprovals(projeto);
 
+  // Debug: Log quando há aprovações
+  if (approvalCount > 0 || projeto.musicaAprovada || projeto.locucaoAprovada || projeto.videoFinalAprovado) {
+    console.log(`🔔 [Badge] Projeto ${projeto.titulo}:`, {
+      approvalCount,
+      musicaAprovada: projeto.musicaAprovada,
+      musicaVisualizadaEm: projeto.musicaVisualizadaEm,
+      locucaoAprovada: projeto.locucaoAprovada,
+      locucaoVisualizadaEm: projeto.locucaoVisualizadaEm,
+      videoFinalAprovado: projeto.videoFinalAprovado,
+      videoFinalVisualizadoEm: projeto.videoFinalVisualizadoEm,
+    });
+  }
+
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -2 }}

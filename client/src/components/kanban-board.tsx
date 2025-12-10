@@ -59,6 +59,7 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
     queryFn: async () => {
       const startTime = performance.now();
       console.log('⏱️ [Performance] Iniciando carga de projetos (endpoint leve)...', filters);
+      console.log('🔄 [Refetch Debug] Query executando - provavelmente após invalidação');
 
       const params = new URLSearchParams();
 
