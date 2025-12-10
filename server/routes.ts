@@ -547,6 +547,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Emitir evento WebSocket para sincronização em tempo real
       const wsServer = (req.app as any).wsServer;
       if (wsServer) {
+        console.log('[WebSocket Server] 📤 Emitindo projeto:updated:', {
+          id: projeto.id,
+          status: projeto.status,
+          temProjetoCompleto: !!projeto,
+          camposEnviados: Object.keys(projeto).length
+        });
         wsServer.emitChange('projeto:updated', { id: projeto.id, projeto });
       }
 
