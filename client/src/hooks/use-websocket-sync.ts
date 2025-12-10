@@ -10,10 +10,13 @@ import { queryClient } from '@/lib/queryClient';
  */
 export function useWebSocketSync() {
   useEffect(() => {
-    console.log('[WebSocket] Sincronização em tempo real iniciada');
+    console.log('[WebSocket Sync] 🎯 Hooks de sincronização registrados');
+    console.log('[WebSocket Sync] Socket conectado?', socket.connected);
+    console.log('[WebSocket Sync] Socket ID:', socket.id);
 
     // Escutar mudanças em projetos
     socket.on('projeto:updated', (data) => {
+      console.log('[WebSocket Sync] 📥 EVENTO RECEBIDO: projeto:updated', data);
       const foiAprovado = data.projeto?.status === 'Aprovado';
 
       // Invalidar TODAS as queries que começam com '/api/projetos'
@@ -27,10 +30,12 @@ export function useWebSocketSync() {
 
       // Invalidar métricas
       queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
+      console.log('[WebSocket Sync] ✅ Queries invalidadas - UI vai atualizar');
     });
 
     // Escutar quando projeto é criado
     socket.on('projeto:created', (data) => {
+      console.log('[WebSocket Sync] 📥 EVENTO RECEBIDO: projeto:created', data);
       // Invalidar TODAS as queries de projetos
       queryClient.invalidateQueries({
         predicate: (query) => {
@@ -42,10 +47,12 @@ export function useWebSocketSync() {
 
       // Invalidar métricas
       queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
+      console.log('[WebSocket Sync] ✅ Novo projeto - queries invalidadas');
     });
 
     // Escutar quando projeto é deletado
     socket.on('projeto:deleted', (data) => {
+      console.log('[WebSocket Sync] 📥 EVENTO RECEBIDO: projeto:deleted', data);
       // Invalidar TODAS as queries de projetos
       queryClient.invalidateQueries({
         predicate: (query) => {
@@ -57,6 +64,7 @@ export function useWebSocketSync() {
 
       // Invalidar métricas
       queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
+      console.log('[WebSocket Sync] ✅ Projeto deletado - queries invalidadas');
     });
 
     // Escutar mudanças em comentários

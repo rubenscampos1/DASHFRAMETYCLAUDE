@@ -7,39 +7,19 @@ import { ProjetoWithRelations } from '@shared/schema';
 export function countClientApprovals(projeto: ProjetoWithRelations): number {
   let count = 0;
 
-  // 🔔 DEBUG SININHO
-  const hasAnyApproval = projeto.musicaAprovada || projeto.locucaoAprovada || projeto.videoFinalAprovado;
-  if (hasAnyApproval) {
-    console.log(`🔔 [countClientApprovals] Projeto ${projeto.titulo}:`, {
-      musicaAprovada: projeto.musicaAprovada,
-      musicaVisualizadaEm: projeto.musicaVisualizadaEm,
-      locucaoAprovada: projeto.locucaoAprovada,
-      locucaoVisualizadaEm: projeto.locucaoVisualizadaEm,
-      videoFinalAprovado: projeto.videoFinalAprovado,
-      videoFinalVisualizadoEm: projeto.videoFinalVisualizadoEm,
-    });
-  }
-
   // Música aprovada e não visualizada
   if (projeto.musicaAprovada === true && !projeto.musicaVisualizadaEm) {
     count++;
-    console.log(`  ✅ Música não visualizada - count++`);
   }
 
   // Locução aprovada e não visualizada
   if (projeto.locucaoAprovada === true && !projeto.locucaoVisualizadaEm) {
     count++;
-    console.log(`  ✅ Locução não visualizada - count++`);
   }
 
   // Vídeo final aprovado e não visualizado
   if (projeto.videoFinalAprovado === true && !projeto.videoFinalVisualizadoEm) {
     count++;
-    console.log(`  ✅ Vídeo final não visualizado - count++`);
-  }
-
-  if (hasAnyApproval) {
-    console.log(`  🔢 Total de aprovações não visualizadas: ${count}`);
   }
 
   return count;

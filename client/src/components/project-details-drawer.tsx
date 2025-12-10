@@ -113,15 +113,11 @@ export function ProjectDetailsDrawer({
     wasOpenRef.current = isOpen;
 
     if (justOpened && projetoAtual?.id) {
-      console.log('🔔 [Badge Debug] Drawer ACABOU DE ABRIR para projeto:', projetoAtual.id);
-      console.log('🔔 [Badge Debug] SEMPRE marcando como visualizado (servidor decide se precisa)');
-
       // NOVA ABORDAGEM: Sempre marcar como visualizado, sem verificar estado
       // O servidor vai decidir se realmente precisa atualizar ou não
       const now = new Date();
 
       // 1. Atualizar TODAS as queries de projetos IMEDIATAMENTE (inclusive LIGHT!)
-      console.log('🔔 [Badge Debug] Atualizando cache instantaneamente...');
 
       // Atualizar queries /api/projetos (completo)
       const queries = queryClient.getQueriesData({ queryKey: ['/api/projetos'] });
@@ -174,15 +170,13 @@ export function ProjectDetailsDrawer({
         };
       });
 
-      console.log('🔔 [Badge Debug] ✅ Cache atualizado! Badge deve desaparecer AGORA.');
-
       // 3. Sincronizar com servidor em background
       fetch(`/api/projetos/${projetoAtual.id}/marcar-aprovacoes-visualizadas`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
       }).catch((error) => {
-        console.error('🔔 [Badge Debug] Erro ao sincronizar:', error);
+        console.error('[Approval Sync] Erro ao sincronizar:', error);
       });
     }
   }, [isOpen, projetoAtual?.id, queryClient]);

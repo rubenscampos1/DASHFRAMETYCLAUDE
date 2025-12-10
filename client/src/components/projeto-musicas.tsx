@@ -25,10 +25,6 @@ export function ProjetoMusicas({ projetoId }: ProjetoMusicasProps) {
     refetchOnMount: true, // Refetch quando componente montar
   });
 
-  // Debug: verificar se músicas estão sendo carregadas
-  console.log('🎵 [ProjetoMusicas Debug] projetoId:', projetoId);
-  console.log('🎵 [ProjetoMusicas Debug] músicas carregadas:', musicas);
-
   // Mutation para adicionar música
   const adicionarMusicaMutation = useMutation({
     mutationFn: async (musica: { titulo: string; musicaUrl: string }) => {
