@@ -40,19 +40,25 @@ export function useWebSocketSync() {
           type: 'all'
         });
       } else {
-        // Para mudanças normais (drag and drop): apenas invalidar queries ativas
-        queryClient.invalidateQueries({
-          predicate: (query) => {
-            const queryKey = query.queryKey;
-            return Array.isArray(queryKey) && queryKey[0] === '/api/projetos';
-          },
-          refetchType: 'active'
+        // Para mudanças normais (drag and drop): TAMBÉM forçar refetch imediato
+        console.log('[WebSocket Sync] 🔄 DRAG-AND-DROP DETECTADO - Forçando refetch imediato');
+
+        // Usar mesma estratégia que funcionou para aprovações
+        queryClient.refetchQueries({
+          queryKey: ['/api/projetos/light'],
+          type: 'all'
+        });
+
+        queryClient.refetchQueries({
+          queryKey: ['/api/projetos'],
+          exact: true,
+          type: 'all'
         });
       }
 
       // Invalidar métricas
       queryClient.invalidateQueries({ queryKey: ['/api/metricas'] });
-      console.log('[WebSocket Sync] ✅ Ação completa - tipo:', houveAprovacao ? 'refetch' : 'invalidate');
+      console.log('[WebSocket Sync] ✅ Ação completa - tipo:', houveAprovacao ? 'aprovação' : 'drag-and-drop');
     });
 
     // Escutar quando projeto é criado
