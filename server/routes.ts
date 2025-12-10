@@ -503,7 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (wsServer) {
-        wsServer.emitChange('projeto:created', { id: projeto.id, projeto });
+        wsServer.emitChange('projeto:created', { id: projeto.id, status: projeto.status });
         console.log('🟢 [DEBUG CREATE] Evento projeto:created emitido com sucesso!');
       } else {
         console.error('🟢 [DEBUG CREATE] ERRO: WebSocket server não encontrado!');
