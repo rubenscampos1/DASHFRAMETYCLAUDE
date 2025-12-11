@@ -176,7 +176,7 @@ export interface IStorage {
   deleteEstiloLocucao(id: string): Promise<void>;
 
   // Locutores
-  getLocutores(filters?: { genero?: string; faixaEtaria?: string; regiao?: string; disponivel?: boolean }): Promise<LocutorWithRelations[]>;
+  getLocutores(filters?: { genero?: string; faixaEtaria?: string; idioma?: string }): Promise<LocutorWithRelations[]>;
   getLocutor(id: string): Promise<LocutorWithRelations | undefined>;
   createLocutor(locutor: InsertLocutor): Promise<Locutor>;
   updateLocutor(id: string, locutor: Partial<InsertLocutor>): Promise<Locutor>;
@@ -1173,12 +1173,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Locutores
-  async getLocutores(filters?: { genero?: string; faixaEtaria?: string; regiao?: string; disponivel?: boolean }): Promise<LocutorWithRelations[]> {
+  async getLocutores(filters?: { genero?: string; faixaEtaria?: string; idioma?: string }): Promise<LocutorWithRelations[]> {
     let query = this.db
       .select()
       .from(locutores)
       .leftJoin(amostrasLocutores, eq(locutores.id, amostrasLocutores.locutorId))
-      .orderBy(locutores.nome);
+      .orderBy(sql`${locutores.nomeFicticio}`);
 
     if (filters?.genero) {
       query = query.where(eq(locutores.genero, filters.genero as any));
@@ -1186,12 +1186,8 @@ export class DatabaseStorage implements IStorage {
     if (filters?.faixaEtaria) {
       query = query.where(eq(locutores.faixaEtaria, filters.faixaEtaria as any));
     }
-    if (filters?.regiao) {
-      query = query.where(eq(locutores.regiao, filters.regiao as any));
-    }
-    if (filters?.disponivel !== undefined) {
-      query = query.where(eq(locutores.disponivel, filters.disponivel));
-    }
+    // Note: idioma filtering needs to be done in-memory since it's an array column
+    // We'll filter after the query
 
     const results = await query;
 
@@ -1214,7 +1210,16 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    return Array.from(locutoresMap.values());
+    let locutoresList = Array.from(locutoresMap.values());
+
+    // Filter by idioma if specified (in-memory filtering for array column)
+    if (filters?.idioma) {
+      locutoresList = locutoresList.filter(locutor =>
+        locutor.idiomas && locutor.idiomas.includes(filters.idioma!)
+      );
+    }
+
+    return locutoresList;
   }
 
   async getLocutor(id: string): Promise<LocutorWithRelations | undefined> {

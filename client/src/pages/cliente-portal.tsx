@@ -685,23 +685,13 @@ export default function ClientePortal() {
 
                         {/* Info do locutor */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Mic className="h-4 w-4 text-primary flex-shrink-0" />
-                            <span className="font-medium text-sm">{locutor.nome}</span>
+                            <span className="font-medium text-sm">{locutor.nomeFicticio}</span>
                             <Badge variant="outline" className="text-xs">{locutor.genero}</Badge>
-                            <Badge variant="outline" className="text-xs">{locutor.regiao}</Badge>
+                            <Badge variant="outline" className="text-xs">{locutor.faixaEtaria}</Badge>
                             <ApprovalStatus approved={projetoLocutor.aprovado} />
                           </div>
-
-                          {/* Biografia */}
-                          {locutor.biografia && (
-                            <p className="text-xs text-muted-foreground mb-2">{locutor.biografia}</p>
-                          )}
-
-                          {/* Título da amostra */}
-                          {amostraDestaque && (
-                            <p className="text-xs font-medium text-primary">{amostraDestaque.titulo}</p>
-                          )}
                         </div>
 
                         {/* Botão de Play para áudio - no canto direito */}

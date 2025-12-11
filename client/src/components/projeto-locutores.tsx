@@ -158,7 +158,7 @@ export function ProjetoLocutores({ projetoId }: ProjetoLocutoresProps) {
             <SelectContent>
               {locutoresDisponiveisFiltrados.map((locutor) => (
                 <SelectItem key={locutor.id} value={locutor.id}>
-                  {locutor.nome} - {locutor.genero} - {locutor.regiao}
+                  {locutor.nomeFicticio} - {locutor.genero} - {locutor.faixaEtaria}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -185,14 +185,10 @@ export function ProjetoLocutores({ projetoId }: ProjetoLocutoresProps) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-medium">{locutor.nome}</h4>
+                      <h4 className="font-medium">{locutor.nomeFicticio}</h4>
                       <Badge variant="outline">{locutor.genero}</Badge>
-                      <Badge variant="outline">{locutor.regiao}</Badge>
+                      <Badge variant="outline">{locutor.faixaEtaria}</Badge>
                     </div>
-
-                    {locutor.biografia && (
-                      <p className="text-sm text-gray-600 mb-3">{locutor.biografia}</p>
-                    )}
 
                     {/* Amostra de áudio */}
                     {amostraDestaque && (

@@ -1128,13 +1128,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Locutores routes
   app.get("/api/locutores", requireAuth, async (req, res, next) => {
     try {
-      const { genero, faixaEtaria, regiao, disponivel } = req.query;
+      const { genero, faixaEtaria, idioma } = req.query;
       const filters: any = {};
 
       if (genero) filters.genero = genero as string;
       if (faixaEtaria) filters.faixaEtaria = faixaEtaria as string;
-      if (regiao) filters.regiao = regiao as string;
-      if (disponivel !== undefined) filters.disponivel = disponivel === 'true';
+      if (idioma) filters.idioma = idioma as string;
 
       const locutores = await storage.getLocutores(filters);
       res.json(locutores);

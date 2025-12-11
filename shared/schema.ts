@@ -22,9 +22,8 @@ export const priorityEnum = pgEnum("priority", ["Baixa", "Média", "Alta"]);
 export const noteTipoEnum = pgEnum("note_tipo", ["Nota", "Senha", "Arquivo"]);
 export const timelapseFrequenciaEnum = pgEnum("timelapse_frequencia", ["Semanal", "Quinzenal", "Mensal"]);
 export const timelapseStatusEnum = pgEnum("timelapse_status", ["Ativo", "Pausado", "Cancelado"]);
-export const generoEnum = pgEnum("genero", ["Masculino", "Feminino", "Outro"]);
-export const faixaEtariaEnum = pgEnum("faixa_etaria", ["Jovem", "Adulto", "Idoso"]);
-export const regiaoEnum = pgEnum("regiao", ["Sul", "Sudeste", "Norte", "Nordeste", "Centro-Oeste", "Nacional"]);
+export const generoEnum = pgEnum("genero", ["Masculino", "Feminino"]);
+export const faixaEtariaEnum = pgEnum("faixa_etaria", ["Criança", "Jovem", "Adulto", "Madura"]);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -193,30 +192,19 @@ export const estilosLocucao = pgTable("estilos_locucao", {
 
 export const locutores = pgTable("locutores", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  nome: text("nome").notNull(),
-  fotoUrl: text("foto_url"),
-  biografia: text("biografia"),
+  nomeFicticio: text("nome_ficticio").notNull(), // Nome público/artístico
+  nomeReal: text("nome_real").notNull(), // Nome verdadeiro (interno)
   // Características
   genero: generoEnum("genero").notNull(),
   faixaEtaria: faixaEtariaEnum("faixa_etaria").notNull(),
-  idadePorVoz: text("idade_por_voz"), // Ex: "18-25", "26-35"
-  regiao: regiaoEnum("regiao").notNull(),
-  sotaque: text("sotaque").notNull(), // Ex: "Neutro", "Carioca", "Paulista"
-  idiomas: text("idiomas").array().default(["Português"]),
-  // Valores
-  valorPorPalavra: integer("valor_por_palavra"), // em centavos
-  valorMinimo: integer("valor_minimo"), // em centavos
-  valorPorMinuto: integer("valor_por_minuto"), // em centavos
+  idiomas: text("idiomas").array().notNull().default(["Português"]),
+  // Valor
+  valorPorMinuto: text("valor_por_minuto"), // Campo livre de texto (ex: "R$ 150", "150", "$100")
   // Contato
   email: text("email"),
   telefone: text("telefone"),
   instagram: text("instagram"),
-  // Avaliação
-  avaliacaoMedia: integer("avaliacao_media").default(0), // 0-500 (0-5.0 estrelas * 100)
-  totalProjetos: integer("total_projetos").default(0),
-  // Status
-  disponivel: boolean("disponivel").notNull().default(true),
-  ativo: boolean("ativo").notNull().default(true),
+  // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -793,8 +781,6 @@ export const insertLocutorSchema = createInsertSchema(locutores).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-  avaliacaoMedia: true,
-  totalProjetos: true,
 });
 
 export const insertAmostraLocutorSchema = createInsertSchema(amostrasLocutores).omit({

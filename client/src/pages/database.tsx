@@ -105,10 +105,9 @@ export default function DatabasePage() {
     if (!searchLocutor) return true;
     const searchLower = searchLocutor.toLowerCase();
     return (
-      locutor.nome.toLowerCase().includes(searchLower) ||
-      locutor.email?.toLowerCase().includes(searchLower) ||
-      locutor.sotaque?.toLowerCase().includes(searchLower) ||
-      locutor.regiao?.toLowerCase().includes(searchLower)
+      locutor.nomeFicticio.toLowerCase().includes(searchLower) ||
+      locutor.nomeReal.toLowerCase().includes(searchLower) ||
+      locutor.email?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -182,32 +181,30 @@ export default function DatabasePage() {
   const locutorForm = useForm<InsertLocutor>({
     resolver: zodResolver(insertLocutorSchema),
     defaultValues: {
-      nome: "",
-      biografia: "",
+      nomeFicticio: "",
+      nomeReal: "",
       genero: "Masculino",
       faixaEtaria: "Adulto",
-      regiao: "Sudeste",
-      sotaque: "Neutro",
+      idiomas: ["Português"],
+      valorPorMinuto: "",
       email: "",
       telefone: "",
-      disponivel: true,
-      ativo: true,
+      instagram: "",
     },
   });
 
   const editLocutorForm = useForm<InsertLocutor>({
     resolver: zodResolver(insertLocutorSchema),
     defaultValues: {
-      nome: "",
-      biografia: "",
+      nomeFicticio: "",
+      nomeReal: "",
       genero: "Masculino",
       faixaEtaria: "Adulto",
-      regiao: "Sudeste",
-      sotaque: "Neutro",
+      idiomas: ["Português"],
+      valorPorMinuto: "",
       email: "",
       telefone: "",
-      disponivel: true,
-      ativo: true,
+      instagram: "",
     },
   });
 
@@ -559,23 +556,15 @@ export default function DatabasePage() {
   const handleEditLocutor = (locutor: Locutor) => {
     setEditingLocutor(locutor);
     editLocutorForm.reset({
-      nome: locutor.nome,
-      biografia: locutor.biografia || "",
-      fotoUrl: locutor.fotoUrl || "",
+      nomeFicticio: locutor.nomeFicticio,
+      nomeReal: locutor.nomeReal,
       genero: locutor.genero,
       faixaEtaria: locutor.faixaEtaria,
-      idadePorVoz: locutor.idadePorVoz || "",
-      regiao: locutor.regiao,
-      sotaque: locutor.sotaque,
       idiomas: locutor.idiomas,
-      valorPorPalavra: locutor.valorPorPalavra,
-      valorMinimo: locutor.valorMinimo,
-      valorPorMinuto: locutor.valorPorMinuto,
+      valorPorMinuto: locutor.valorPorMinuto || "",
       email: locutor.email || "",
       telefone: locutor.telefone || "",
       instagram: locutor.instagram || "",
-      disponivel: locutor.disponivel,
-      ativo: locutor.ativo,
     });
   };
 
@@ -1187,33 +1176,23 @@ export default function DatabasePage() {
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead>Nome</TableHead>
+                                  <TableHead>Nome Fictício</TableHead>
                                   <TableHead>Gênero</TableHead>
-                                  <TableHead>Idade</TableHead>
-                                  <TableHead>Região</TableHead>
-                                  <TableHead>Sotaque</TableHead>
+                                  <TableHead>Faixa Etária</TableHead>
+                                  <TableHead>Idiomas</TableHead>
                                   <TableHead>Valor/min</TableHead>
-                                  <TableHead>Status</TableHead>
                                   <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {filteredLocutores.map((locutor) => (
                                   <TableRow key={locutor.id} data-testid={`row-locutor-${locutor.id}`}>
-                                    <TableCell className="font-medium">{locutor.nome}</TableCell>
+                                    <TableCell className="font-medium">{locutor.nomeFicticio}</TableCell>
                                     <TableCell>{locutor.genero}</TableCell>
                                     <TableCell>{locutor.faixaEtaria}</TableCell>
-                                    <TableCell>{locutor.regiao}</TableCell>
-                                    <TableCell>{locutor.sotaque}</TableCell>
+                                    <TableCell>{locutor.idiomas.join(", ")}</TableCell>
                                     <TableCell>
-                                      {locutor.valorPorMinuto ? `R$ ${(locutor.valorPorMinuto / 100).toFixed(2)}` : "—"}
-                                    </TableCell>
-                                    <TableCell>
-                                      {locutor.disponivel ? (
-                                        <span className="text-green-600">Disponível</span>
-                                      ) : (
-                                        <span className="text-gray-400">Indisponível</span>
-                                      )}
+                                      {locutor.valorPorMinuto || "—"}
                                     </TableCell>
                                     <TableCell className="text-right">
                                       {user?.papel === "Admin" && (
@@ -1252,7 +1231,7 @@ export default function DatabasePage() {
                                               <AlertDialogHeader>
                                                 <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                  Tem certeza que deseja remover o locutor "{locutor.nome}"? Esta ação não pode ser desfeita.
+                                                  Tem certeza que deseja remover o locutor "{locutor.nomeFicticio}"? Esta ação não pode ser desfeita.
                                                 </AlertDialogDescription>
                                               </AlertDialogHeader>
                                               <AlertDialogFooter>
@@ -2213,12 +2192,12 @@ export default function DatabasePage() {
 
                   <FormField
                     control={locutorForm.control}
-                    name="nome"
+                    name="nomeFicticio"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nome *</FormLabel>
+                        <FormLabel>Nome Fictício *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Nome do locutor" {...field} />
+                          <Input placeholder="Nome público do locutor" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -2227,35 +2206,12 @@ export default function DatabasePage() {
 
                   <FormField
                     control={locutorForm.control}
-                    name="biografia"
+                    name="nomeReal"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Biografia</FormLabel>
+                        <FormLabel>Nome Real *</FormLabel>
                         <FormControl>
-                          <Textarea
-                            placeholder="Breve biografia do locutor"
-                            {...field}
-                            value={field.value || ""}
-                            rows={3}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={locutorForm.control}
-                    name="fotoUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>URL da Foto</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="https://..."
-                            {...field}
-                            value={field.value || ""}
-                          />
+                          <Input placeholder="Nome verdadeiro do locutor" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -2283,7 +2239,6 @@ export default function DatabasePage() {
                             <SelectContent>
                               <SelectItem value="Masculino">Masculino</SelectItem>
                               <SelectItem value="Feminino">Feminino</SelectItem>
-                              <SelectItem value="Outro">Outro</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -2304,71 +2259,12 @@ export default function DatabasePage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
+                              <SelectItem value="Criança">Criança</SelectItem>
                               <SelectItem value="Jovem">Jovem</SelectItem>
                               <SelectItem value="Adulto">Adulto</SelectItem>
-                              <SelectItem value="Idoso">Idoso</SelectItem>
+                              <SelectItem value="Madura">Madura</SelectItem>
                             </SelectContent>
                           </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={locutorForm.control}
-                    name="idadePorVoz"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Idade por Voz</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Ex: 25-35 anos"
-                            {...field}
-                            value={field.value || ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={locutorForm.control}
-                      name="regiao"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Região *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Sul">Sul</SelectItem>
-                              <SelectItem value="Sudeste">Sudeste</SelectItem>
-                              <SelectItem value="Norte">Norte</SelectItem>
-                              <SelectItem value="Nordeste">Nordeste</SelectItem>
-                              <SelectItem value="Centro-Oeste">Centro-Oeste</SelectItem>
-                              <SelectItem value="Nacional">Nacional</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={locutorForm.control}
-                      name="sotaque"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Sotaque *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: Neutro, Carioca..." {...field} />
-                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -2397,69 +2293,25 @@ export default function DatabasePage() {
 
                 {/* Valores */}
                 <div className="space-y-4 pt-4 border-t">
-                  <h3 className="font-medium text-sm">Valores (em Reais)</h3>
+                  <h3 className="font-medium text-sm">Valores</h3>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={locutorForm.control}
-                      name="valorPorPalavra"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Por Palavra</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={field.value ? (field.value / 100).toFixed(2) : ""}
-                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={locutorForm.control}
-                      name="valorMinimo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Valor Mínimo</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={field.value ? (field.value / 100).toFixed(2) : ""}
-                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={locutorForm.control}
-                      name="valorPorMinuto"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Por Minuto</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={field.value ? (field.value / 100).toFixed(2) : ""}
-                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={locutorForm.control}
+                    name="valorPorMinuto"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Valor por Minuto</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: R$ 50,00 ou Sob consulta"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 {/* Contato */}
@@ -2518,49 +2370,6 @@ export default function DatabasePage() {
                             />
                           </FormControl>
                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div className="space-y-4 pt-4 border-t">
-                  <h3 className="font-medium text-sm">Status</h3>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={locutorForm.control}
-                      name="disponivel"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                          <div className="space-y-0.5">
-                            <FormLabel>Disponível</FormLabel>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={locutorForm.control}
-                      name="ativo"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                          <div className="space-y-0.5">
-                            <FormLabel>Ativo</FormLabel>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
                         </FormItem>
                       )}
                     />
@@ -2600,12 +2409,12 @@ export default function DatabasePage() {
 
                   <FormField
                     control={editLocutorForm.control}
-                    name="nome"
+                    name="nomeFicticio"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nome *</FormLabel>
+                        <FormLabel>Nome Fictício *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Nome do locutor" {...field} />
+                          <Input placeholder="Nome público do locutor" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -2614,35 +2423,12 @@ export default function DatabasePage() {
 
                   <FormField
                     control={editLocutorForm.control}
-                    name="biografia"
+                    name="nomeReal"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Biografia</FormLabel>
+                        <FormLabel>Nome Real *</FormLabel>
                         <FormControl>
-                          <Textarea
-                            placeholder="Breve biografia do locutor"
-                            {...field}
-                            value={field.value || ""}
-                            rows={3}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editLocutorForm.control}
-                    name="fotoUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>URL da Foto</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="https://..."
-                            {...field}
-                            value={field.value || ""}
-                          />
+                          <Input placeholder="Nome verdadeiro do locutor" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -2670,7 +2456,6 @@ export default function DatabasePage() {
                             <SelectContent>
                               <SelectItem value="Masculino">Masculino</SelectItem>
                               <SelectItem value="Feminino">Feminino</SelectItem>
-                              <SelectItem value="Outro">Outro</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -2691,71 +2476,12 @@ export default function DatabasePage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
+                              <SelectItem value="Criança">Criança</SelectItem>
                               <SelectItem value="Jovem">Jovem</SelectItem>
                               <SelectItem value="Adulto">Adulto</SelectItem>
-                              <SelectItem value="Idoso">Idoso</SelectItem>
+                              <SelectItem value="Madura">Madura</SelectItem>
                             </SelectContent>
                           </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={editLocutorForm.control}
-                    name="idadePorVoz"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Idade por Voz</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Ex: 25-35 anos"
-                            {...field}
-                            value={field.value || ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={editLocutorForm.control}
-                      name="regiao"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Região *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Sul">Sul</SelectItem>
-                              <SelectItem value="Sudeste">Sudeste</SelectItem>
-                              <SelectItem value="Norte">Norte</SelectItem>
-                              <SelectItem value="Nordeste">Nordeste</SelectItem>
-                              <SelectItem value="Centro-Oeste">Centro-Oeste</SelectItem>
-                              <SelectItem value="Nacional">Nacional</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={editLocutorForm.control}
-                      name="sotaque"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Sotaque *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: Neutro, Carioca..." {...field} />
-                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -2784,69 +2510,25 @@ export default function DatabasePage() {
 
                 {/* Valores */}
                 <div className="space-y-4 pt-4 border-t">
-                  <h3 className="font-medium text-sm">Valores (em Reais)</h3>
+                  <h3 className="font-medium text-sm">Valores</h3>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={editLocutorForm.control}
-                      name="valorPorPalavra"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Por Palavra</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={field.value ? (field.value / 100).toFixed(2) : ""}
-                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={editLocutorForm.control}
-                      name="valorMinimo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Valor Mínimo</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={field.value ? (field.value / 100).toFixed(2) : ""}
-                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={editLocutorForm.control}
-                      name="valorPorMinuto"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Por Minuto</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={field.value ? (field.value / 100).toFixed(2) : ""}
-                              onChange={(e) => field.onChange(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={editLocutorForm.control}
+                    name="valorPorMinuto"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Valor por Minuto</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: R$ 50,00 ou Sob consulta"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 {/* Contato */}
@@ -2910,49 +2592,6 @@ export default function DatabasePage() {
                     />
                   </div>
                 </div>
-
-                {/* Status */}
-                <div className="space-y-4 pt-4 border-t">
-                  <h3 className="font-medium text-sm">Status</h3>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={editLocutorForm.control}
-                      name="disponivel"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                          <div className="space-y-0.5">
-                            <FormLabel>Disponível</FormLabel>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={editLocutorForm.control}
-                      name="ativo"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                          <div className="space-y-0.5">
-                            <FormLabel>Ativo</FormLabel>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
               </div>
 
               <DialogFooter>
@@ -2978,7 +2617,7 @@ export default function DatabasePage() {
       }}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Amostras de Áudio - {selectedLocutorForAudio?.nome}</DialogTitle>
+            <DialogTitle>Amostras de Áudio - {selectedLocutorForAudio?.nomeFicticio}</DialogTitle>
             <DialogDescription>
               Gerencie as amostras de áudio do locutor. Faça upload de novos arquivos ou ouça as amostras existentes.
             </DialogDescription>
