@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Mic, Plus, Trash2, Play, Pause } from "lucide-react";
+import { Mic, Plus, Trash2, Play, Pause, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { ProjetoLocutorWithRelations, LocutorWithRelations } from "@shared/schema";
@@ -15,11 +19,56 @@ interface ProjetoLocutoresProps {
   projetoId: string;
 }
 
+// Interface para os filtros de locutores
+interface LocutorFilters {
+  generos: string[];       // ["Masculino", "Feminino"]
+  faixasEtarias: string[]; // ["Criança", "Jovem", "Adulto", "Madura"]
+  valorBusca: string;      // texto livre para filtrar por valorPorMinuto
+}
+
 export function ProjetoLocutores({ projetoId }: ProjetoLocutoresProps) {
   const { toast } = useToast();
   const [locutorSelecionado, setLocutorSelecionado] = useState<string>("");
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const [audioElements, setAudioElements] = useState<{ [key: string]: HTMLAudioElement }>({});
+
+  // Estado dos filtros
+  const [filtros, setFiltros] = useState<LocutorFilters>({
+    generos: [],
+    faixasEtarias: [],
+    valorBusca: "",
+  });
+
+  // Funções auxiliares para manipular filtros
+  const toggleGenero = (genero: string) => {
+    setFiltros(prev => ({
+      ...prev,
+      generos: prev.generos.includes(genero)
+        ? prev.generos.filter(g => g !== genero)
+        : [...prev.generos, genero]
+    }));
+  };
+
+  const toggleFaixaEtaria = (faixa: string) => {
+    setFiltros(prev => ({
+      ...prev,
+      faixasEtarias: prev.faixasEtarias.includes(faixa)
+        ? prev.faixasEtarias.filter(f => f !== faixa)
+        : [...prev.faixasEtarias, faixa]
+    }));
+  };
+
+  const updateValorBusca = (valor: string) => {
+    setFiltros(prev => ({ ...prev, valorBusca: valor }));
+  };
+
+  const limparFiltros = () => {
+    setFiltros({
+      generos: [],
+      faixasEtarias: [],
+      valorBusca: "",
+    });
+  };
 
   // Query para buscar todos os locutores disponíveis
   const { data: locutoresDisponiveis = [] } = useQuery<LocutorWithRelations[]>({
@@ -136,9 +185,33 @@ export function ProjetoLocutores({ projetoId }: ProjetoLocutoresProps) {
   };
 
   // Filtrar locutores disponíveis (não adicionados ao projeto)
-  const locutoresDisponiveisFiltrados = locutoresDisponiveis.filter(
-    (locutor) => !locutoresProjeto.some((pl) => pl.locutorId === locutor.id)
-  );
+  const locutoresDisponiveisFiltrados = locutoresDisponiveis
+    .filter((locutor) => !locutoresProjeto.some((pl) => pl.locutorId === locutor.id))
+    .filter((locutor) => {
+      // Filtro de gênero
+      if (filtros.generos.length > 0 && !filtros.generos.includes(locutor.genero)) {
+        return false;
+      }
+
+      // Filtro de faixa etária
+      if (filtros.faixasEtarias.length > 0 && !filtros.faixasEtarias.includes(locutor.faixaEtaria)) {
+        return false;
+      }
+
+      // Filtro de valor (busca no texto de valorPorMinuto)
+      if (filtros.valorBusca && locutor.valorPorMinuto) {
+        const valorLower = locutor.valorPorMinuto.toLowerCase();
+        const buscaLower = filtros.valorBusca.toLowerCase();
+        if (!valorLower.includes(buscaLower)) {
+          return false;
+        }
+      } else if (filtros.valorBusca && !locutor.valorPorMinuto) {
+        // Se tem busca mas o locutor não tem valor, filtrar
+        return false;
+      }
+
+      return true;
+    });
 
   return (
     <div>
@@ -146,6 +219,175 @@ export function ProjetoLocutores({ projetoId }: ProjetoLocutoresProps) {
         <Mic className="h-5 w-5" />
         Locutores do Projeto
       </h3>
+
+      {/* Filtros de Locutores */}
+      <Card className="p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="h-4 w-4" />
+          <h4 className="font-medium">Filtrar Locutores</h4>
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          {/* Filtro de Gênero */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                Gênero
+                {filtros.generos.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {filtros.generos.length}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56">
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm">Gênero</h4>
+                <div className="space-y-2">
+                  {["Masculino", "Feminino"].map((genero) => (
+                    <div key={genero} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`genero-${genero}`}
+                        checked={filtros.generos.includes(genero)}
+                        onCheckedChange={() => toggleGenero(genero)}
+                      />
+                      <Label
+                        htmlFor={`genero-${genero}`}
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        {genero}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Filtro de Faixa Etária */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                Faixa Etária
+                {filtros.faixasEtarias.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {filtros.faixasEtarias.length}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56">
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm">Faixa Etária</h4>
+                <div className="space-y-2">
+                  {["Criança", "Jovem", "Adulto", "Madura"].map((faixa) => (
+                    <div key={faixa} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`faixa-${faixa}`}
+                        checked={filtros.faixasEtarias.includes(faixa)}
+                        onCheckedChange={() => toggleFaixaEtaria(faixa)}
+                      />
+                      <Label
+                        htmlFor={`faixa-${faixa}`}
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        {faixa}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Filtro de Valor */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                Valor
+                {filtros.valorBusca && (
+                  <Badge variant="secondary" className="ml-2">
+                    1
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64">
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm">Buscar por Valor</h4>
+                <Input
+                  placeholder="Ex: R$ 50, 100/min..."
+                  value={filtros.valorBusca}
+                  onChange={(e) => updateValorBusca(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Digite qualquer texto para buscar no campo valor
+                </p>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Botão Limpar Filtros */}
+          {(filtros.generos.length > 0 || filtros.faixasEtarias.length > 0 || filtros.valorBusca) && (
+            <Button variant="ghost" size="sm" onClick={limparFiltros}>
+              <X className="h-4 w-4 mr-1" />
+              Limpar
+            </Button>
+          )}
+        </div>
+
+        {/* Badges de filtros ativos */}
+        {(filtros.generos.length > 0 || filtros.faixasEtarias.length > 0 || filtros.valorBusca) && (
+          <div className="mt-3 pt-3 border-t">
+            <div className="flex gap-2 flex-wrap">
+              {/* Badges de Gênero */}
+              {filtros.generos.map((genero) => (
+                <Badge key={genero} variant="secondary" className="flex items-center gap-1 pr-1">
+                  <span className="text-xs">Gênero: {genero}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-4 w-4 p-0 hover:bg-transparent"
+                    onClick={() => toggleGenero(genero)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+
+              {/* Badges de Faixa Etária */}
+              {filtros.faixasEtarias.map((faixa) => (
+                <Badge key={faixa} variant="secondary" className="flex items-center gap-1 pr-1">
+                  <span className="text-xs">Faixa: {faixa}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-4 w-4 p-0 hover:bg-transparent"
+                    onClick={() => toggleFaixaEtaria(faixa)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+
+              {/* Badge de Valor */}
+              {filtros.valorBusca && (
+                <Badge variant="secondary" className="flex items-center gap-1 pr-1">
+                  <span className="text-xs">Valor: {filtros.valorBusca}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-4 w-4 p-0 hover:bg-transparent"
+                    onClick={() => updateValorBusca("")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Formulário para adicionar locutor */}
       <Card className="p-4 mb-4">
