@@ -685,80 +685,83 @@ export default function PortalUnificado() {
                 </div>
                 <div>
                   <CardTitle className="text-base">Músicas para Aprovação</CardTitle>
-                  <CardDescription className="text-xs">Clique para expandir e ouvir cada música</CardDescription>
+                  <CardDescription className="text-xs">Clique no play para ouvir cada música</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <Accordion type="single" collapsible className="w-full space-y-2">
-                {projeto.musicas.map((musica, index) => (
-                  <AccordionItem
+              <div className="space-y-3">
+                {projeto.musicas.map((musica) => (
+                  <div
                     key={musica.id}
-                    value={`musica-${index}`}
-                    className={`border rounded-lg px-4 transition-all ${musicaSelecionada === musica.id ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20' : ''}`}
+                    className={`border rounded-lg p-4 transition-all ${
+                      musicaSelecionada === musica.id
+                        ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20'
+                        : 'border-border'
+                    }`}
                   >
-                    <AccordionTrigger className="hover:no-underline py-3">
-                      <div className="flex items-center gap-3 flex-1 text-left">
-                        {/* Checkbox visual para seleção */}
-                        {musica.aprovada === null && (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Toggle: se já está selecionada, desmarca; senão, seleciona
-                              setMusicaSelecionada(musicaSelecionada === musica.id ? null : musica.id);
-                            }}
-                            className={`
-                              w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all
-                              ${musicaSelecionada === musica.id
-                                ? 'border-green-500 bg-green-500'
-                                : 'border-gray-300 hover:border-green-400'
-                              }
-                            `}
-                          >
-                            {musicaSelecionada === musica.id && (
-                              <CheckCircle2 className="h-4 w-4 text-white" />
-                            )}
-                          </div>
-                        )}
-                        <Music className="h-4 w-4 text-primary flex-shrink-0" />
-                        <span className="font-medium text-sm">{musica.titulo}</span>
-                        <ApprovalStatus approved={musica.aprovada} />
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-4 pt-2">
-                      <div className="space-y-3">
-                        {/* Link da música */}
-                        <div className="bg-muted/50 rounded-lg p-2 space-y-1">
-                          <button
-                            onClick={() => abrirMusicaPopup(musica.musicaUrl)}
-                            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                          >
-                            <Music className="h-3 w-3" />
-                            Ouvir música
-                          </button>
+                    <div className="flex items-center gap-3">
+                      {/* Checkbox visual para seleção */}
+                      {musica.aprovada === null && (
+                        <div
+                          onClick={() => {
+                            // Toggle: se já está selecionada, desmarca; senão, seleciona
+                            setMusicaSelecionada(musicaSelecionada === musica.id ? null : musica.id);
+                          }}
+                          className={`
+                            w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0
+                            ${musicaSelecionada === musica.id
+                              ? 'border-green-500 bg-green-500'
+                              : 'border-gray-300 hover:border-green-400'
+                            }
+                          `}
+                        >
+                          {musicaSelecionada === musica.id && (
+                            <CheckCircle2 className="h-4 w-4 text-white" />
+                          )}
                         </div>
+                      )}
 
-                        {musica.aprovada !== null && (
-                          <div className="space-y-2">
-                            {musica.feedback && (
-                              <Alert className="p-3">
-                                <FileText className="h-3 w-3" />
-                                <AlertTitle className="text-sm">Seu comentário</AlertTitle>
-                                <AlertDescription className="text-xs">{musica.feedback}</AlertDescription>
-                              </Alert>
-                            )}
-                            {musica.dataAprovacao && (
-                              <p className="text-xs text-muted-foreground text-center">
-                                Resposta enviada em {format(new Date(musica.dataAprovacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                              </p>
-                            )}
-                          </div>
+                      {/* Info da música */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Music className="h-4 w-4 text-primary flex-shrink-0" />
+                          <span className="font-medium text-sm truncate">{musica.titulo}</span>
+                          <ApprovalStatus approved={musica.aprovada} />
+                        </div>
+                      </div>
+
+                      {/* Botão de Play - no canto direito */}
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => abrirMusicaPopup(musica.musicaUrl)}
+                        className="h-9 w-9 flex-shrink-0"
+                      >
+                        <Play className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Feedback e data (se já foi aprovado) */}
+                    {musica.aprovada !== null && (
+                      <div className="mt-3 space-y-2 pt-3 border-t">
+                        {musica.feedback && (
+                          <Alert className="p-3">
+                            <FileText className="h-3 w-3" />
+                            <AlertTitle className="text-sm">Seu comentário</AlertTitle>
+                            <AlertDescription className="text-xs">{musica.feedback}</AlertDescription>
+                          </Alert>
+                        )}
+                        {musica.dataAprovacao && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            Resposta enviada em {format(new Date(musica.dataAprovacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </p>
                         )}
                       </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                    )}
+                  </div>
                 ))}
-              </Accordion>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -773,106 +776,116 @@ export default function PortalUnificado() {
                 </div>
                 <div>
                   <CardTitle className="text-base">Locutores para Aprovação</CardTitle>
-                  <CardDescription className="text-xs">Clique para expandir e ouvir cada locutor</CardDescription>
+                  <CardDescription className="text-xs">Clique no play para ouvir cada locutor</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <Accordion type="single" collapsible className="w-full space-y-2">
-                {projeto.locutores.map((projetoLocutor, index) => {
+              <div className="space-y-3">
+                {projeto.locutores.map((projetoLocutor) => {
                   const locutor = projetoLocutor.locutor;
                   const amostraDestaque = locutor.amostras?.find(a => a.destaque) || locutor.amostras?.[0];
 
                   return (
-                    <AccordionItem
+                    <div
                       key={projetoLocutor.id}
-                      value={`locutor-${index}`}
-                      className={`border rounded-lg px-4 transition-all ${locutorSelecionado === projetoLocutor.id ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20' : ''}`}
+                      className={`border rounded-lg p-4 transition-all ${
+                        locutorSelecionado === projetoLocutor.id
+                          ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20'
+                          : 'border-border'
+                      }`}
                     >
-                      <AccordionTrigger className="hover:no-underline py-3">
-                        <div className="flex items-center gap-3 flex-1 text-left flex-wrap">
-                          {/* Checkbox visual para seleção */}
-                          {projetoLocutor.aprovado === null && (
-                            <div
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // Toggle: se já está selecionado, desmarca; senão, seleciona
-                                setLocutorSelecionado(locutorSelecionado === projetoLocutor.id ? null : projetoLocutor.id);
-                              }}
-                              className={`
-                                w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0
-                                ${locutorSelecionado === projetoLocutor.id
-                                  ? 'border-green-500 bg-green-500'
-                                  : 'border-gray-300 hover:border-green-400'
-                                }
-                              `}
-                            >
-                              {locutorSelecionado === projetoLocutor.id && (
-                                <CheckCircle2 className="h-4 w-4 text-white" />
-                              )}
-                            </div>
-                          )}
-                          <Mic className="h-4 w-4 text-primary flex-shrink-0" />
-                          <span className="font-medium text-sm">{locutor.nome}</span>
-                          <Badge variant="outline" className="text-xs">{locutor.genero}</Badge>
-                          <Badge variant="outline" className="text-xs">{locutor.regiao}</Badge>
-                          <ApprovalStatus approved={projetoLocutor.aprovado} />
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-4 pt-2">
-                        <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        {/* Checkbox visual para seleção */}
+                        {projetoLocutor.aprovado === null && (
+                          <div
+                            onClick={() => {
+                              // Toggle: se já está selecionado, desmarca; senão, seleciona
+                              setLocutorSelecionado(locutorSelecionado === projetoLocutor.id ? null : projetoLocutor.id);
+                            }}
+                            className={`
+                              w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0 mt-1
+                              ${locutorSelecionado === projetoLocutor.id
+                                ? 'border-green-500 bg-green-500'
+                                : 'border-gray-300 hover:border-green-400'
+                              }
+                            `}
+                          >
+                            {locutorSelecionado === projetoLocutor.id && (
+                              <CheckCircle2 className="h-4 w-4 text-white" />
+                            )}
+                          </div>
+                        )}
+
+                        {/* Info do locutor */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-2">
+                            <Mic className="h-4 w-4 text-primary flex-shrink-0" />
+                            <span className="font-medium text-sm">{locutor.nome}</span>
+                            <Badge variant="outline" className="text-xs">{locutor.genero}</Badge>
+                            <Badge variant="outline" className="text-xs">{locutor.regiao}</Badge>
+                            <ApprovalStatus approved={projetoLocutor.aprovado} />
+                          </div>
+
+                          {/* Biografia */}
                           {locutor.biografia && (
-                            <p className="text-xs text-gray-600">{locutor.biografia}</p>
+                            <p className="text-xs text-muted-foreground mb-2">{locutor.biografia}</p>
                           )}
 
-                          {/* Amostra de áudio */}
+                          {/* Título da amostra */}
                           {amostraDestaque && (
-                            <div className="bg-muted/50 rounded-lg p-2">
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant={playingAudio === `locutor-${projetoLocutor.id}` ? "default" : "secondary"}
-                                  size="sm"
-                                  onClick={() => handlePlayAudio(`locutor-${projetoLocutor.id}`, amostraDestaque.arquivoUrl)}
-                                >
-                                  {playingAudio === `locutor-${projetoLocutor.id}` ? (
-                                    <Pause className="h-3 w-3" />
-                                  ) : (
-                                    <Play className="h-3 w-3" />
-                                  )}
-                                </Button>
-                                <span className="text-xs font-medium">{amostraDestaque.titulo}</span>
-                              </div>
-                              <audio
-                                id={`audio-locutor-${projetoLocutor.id}`}
-                                src={getLocutorAudioUrl(amostraDestaque.arquivoUrl)}
-                                onEnded={() => setPlayingAudio(null)}
-                                className="hidden"
-                              />
-                            </div>
-                          )}
-
-                          {projetoLocutor.aprovado !== null && (
-                            <div className="space-y-2">
-                              {projetoLocutor.feedback && (
-                                <Alert className="p-3">
-                                  <FileText className="h-3 w-3" />
-                                  <AlertTitle className="text-sm">Seu comentário</AlertTitle>
-                                  <AlertDescription className="text-xs">{projetoLocutor.feedback}</AlertDescription>
-                                </Alert>
-                              )}
-                              {projetoLocutor.dataAprovacao && (
-                                <p className="text-xs text-muted-foreground text-center">
-                                  Resposta enviada em {format(new Date(projetoLocutor.dataAprovacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                                </p>
-                              )}
-                            </div>
+                            <p className="text-xs font-medium text-primary">{amostraDestaque.titulo}</p>
                           )}
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
+
+                        {/* Botão de Play para áudio - no canto direito */}
+                        {amostraDestaque && (
+                          <Button
+                            variant={playingAudio === `locutor-${projetoLocutor.id}` ? "default" : "outline"}
+                            size="icon"
+                            onClick={() => handlePlayAudio(`locutor-${projetoLocutor.id}`, amostraDestaque.arquivoUrl)}
+                            className="h-9 w-9 flex-shrink-0"
+                          >
+                            {playingAudio === `locutor-${projetoLocutor.id}` ? (
+                              <Pause className="h-4 w-4" />
+                            ) : (
+                              <Play className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+
+                        {/* Audio element (hidden) */}
+                        {amostraDestaque && (
+                          <audio
+                            id={`audio-locutor-${projetoLocutor.id}`}
+                            src={getLocutorAudioUrl(amostraDestaque.arquivoUrl)}
+                            onEnded={() => setPlayingAudio(null)}
+                            className="hidden"
+                          />
+                        )}
+                      </div>
+
+                      {/* Feedback e data (se já foi aprovado) */}
+                      {projetoLocutor.aprovado !== null && (
+                        <div className="mt-3 space-y-2 pt-3 border-t">
+                          {projetoLocutor.feedback && (
+                            <Alert className="p-3">
+                              <FileText className="h-3 w-3" />
+                              <AlertTitle className="text-sm">Seu comentário</AlertTitle>
+                              <AlertDescription className="text-xs">{projetoLocutor.feedback}</AlertDescription>
+                            </Alert>
+                          )}
+                          {projetoLocutor.dataAprovacao && (
+                            <p className="text-xs text-muted-foreground text-center">
+                              Resposta enviada em {format(new Date(projetoLocutor.dataAprovacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
-              </Accordion>
+              </div>
             </CardContent>
           </Card>
         )}
