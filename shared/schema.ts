@@ -272,8 +272,9 @@ export const respostasNps = pgTable("respostas_nps", {
 export const tokensAcesso = pgTable("tokens_acesso", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   token: text("token").unique().notNull(),
-  tipo: text("tipo").default("finalizados").notNull(), // Tipo de acesso que o token fornece
-  descricao: text("descricao"), // Descrição do token (ex: "Time Comercial")
+  tipo: text("tipo").default("api").notNull(), // Tipo: "api", "finalizados"
+  papel: userRoleEnum("papel").notNull().default("Membro"), // Nível de acesso do token
+  descricao: text("descricao"), // Descrição do token (ex: "ClawdBot", "Time Comercial")
   ativo: boolean("ativo").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -870,7 +871,8 @@ export type InsertVideoPasta = z.infer<typeof insertVideoPastaSchema>;
 // Token de Acesso schemas
 export const insertTokenAcessoSchema = z.object({
   token: z.string().min(1),
-  tipo: z.string().default("finalizados"),
+  tipo: z.string().default("api"),
+  papel: z.enum(["Admin", "Gestor", "Membro"]).default("Membro"),
   descricao: z.string().optional(),
   ativo: z.boolean().default(true),
 });

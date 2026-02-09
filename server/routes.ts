@@ -16,12 +16,48 @@ import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import { uploadLocutorAudioToSupabase, deleteLocutorAudioFromSupabase } from "./storage-helpers";
+import { nanoid } from "nanoid";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Não autorizado" });
   }
   next();
+}
+
+// Middleware que aceita autenticação por sessão (navegador) OU Bearer token (API/ClawdBot)
+async function requireAuthOrToken(req: any, res: any, next: any) {
+  // 1. Tenta sessão normal (Passport.js)
+  if (req.isAuthenticated()) {
+    return next();
+  }
+
+  // 2. Tenta Bearer token no header Authorization
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    try {
+      const tokenRecord = await storage.getTokenAcessoByToken(token);
+      if (tokenRecord && tokenRecord.ativo) {
+        // Injeta um usuário virtual com o papel do token
+        req.user = {
+          id: `api-token:${tokenRecord.id}`,
+          nome: tokenRecord.descricao || 'API Token',
+          email: 'api@token',
+          papel: tokenRecord.papel,
+          ativo: true,
+          fotoUrl: null,
+          createdAt: tokenRecord.createdAt,
+          _isApiToken: true,
+        };
+        return next();
+      }
+    } catch (error) {
+      console.error('[Auth] Erro ao validar API token:', error);
+    }
+  }
+
+  return res.status(401).json({ message: "Não autorizado" });
 }
 
 function requireRole(roles: string[]) {
@@ -59,7 +95,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Configuração do Supabase para realtime (apenas usuários autenticados)
-  app.get("/api/config/supabase", requireAuth, (req, res) => {
+  app.get("/api/config/supabase", requireAuthOrToken, (req, res) => {
     // Extrair informações da DATABASE_URL
     const databaseUrl = process.env.DATABASE_URL || '';
 
@@ -91,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Users routes
-  app.get("/api/users", requireAuth, async (req, res, next) => {
+  app.get("/api/users", requireAuthOrToken, async (req, res, next) => {
     try {
       const users = await storage.getUsers();
       res.json(users);
@@ -100,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/user/profile", requireAuth, async (req, res, next) => {
+  app.patch("/api/user/profile", requireAuthOrToken, async (req, res, next) => {
     try {
       const { nome, email, senha, fotoUrl } = req.body;
       const updates: any = { nome, email, fotoUrl };
@@ -116,7 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.post("/api/users", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const { nome, email, senha, papel, fotoUrl } = req.body;
       const user = await storage.createUser({
@@ -133,7 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.patch("/api/users/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const { nome, email, senha, papel, fotoUrl } = req.body;
       const updates: any = { nome, email, papel, fotoUrl };
@@ -149,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.delete("/api/users/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       // Prevent deleting yourself
       if (req.params.id === req.user!.id) {
@@ -177,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Caso contrário, Express vai capturar "light" como um :id e retornar 404.
   // Ordem correta: /light → /api/projetos → /:id
   // NÃO mova esta rota sem verificar a ordem das rotas dinâmicas abaixo!
-  app.get("/api/projetos/light", requireAuth, async (req, res, next) => {
+  app.get("/api/projetos/light", requireAuthOrToken, async (req, res, next) => {
     try {
       const filters = {
         status: req.query.status as string,
@@ -203,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   // ========================================================
 
-  app.get("/api/projetos", requireAuth, async (req, res, next) => {
+  app.get("/api/projetos", requireAuthOrToken, async (req, res, next) => {
     try {
       const filters = {
         status: req.query.status as string,
@@ -257,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projetos/:id", requireAuth, async (req, res, next) => {
+  app.get("/api/projetos/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const projeto = await storage.getProjeto(req.params.id);
       if (!projeto) {
@@ -270,7 +306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PDF Export endpoint
-  app.get("/api/relatorios/pdf", requireAuth, async (req, res, next) => {
+  app.get("/api/relatorios/pdf", requireAuthOrToken, async (req, res, next) => {
     try {
       const filters = {
         status: req.query.status as string,
@@ -463,7 +499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projetos", requireAuth, async (req, res, next) => {
+  app.post("/api/projetos", requireAuthOrToken, async (req, res, next) => {
     try {
       console.log("[POST /api/projetos] req.body:", JSON.stringify(req.body, null, 2));
       const validatedData = insertProjetoSchema.parse(req.body);
@@ -490,7 +526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projetos/:id/duplicar", requireAuth, async (req, res, next) => {
+  app.post("/api/projetos/:id/duplicar", requireAuthOrToken, async (req, res, next) => {
     try {
       const projetoOriginal = await storage.getProjeto(req.params.id);
       if (!projetoOriginal) {
@@ -513,7 +549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/projetos/:id", requireAuth, requireRole(["Admin", "Gestor"]), async (req, res, next) => {
+  app.patch("/api/projetos/:id", requireAuthOrToken, requireRole(["Admin", "Gestor"]), async (req, res, next) => {
     try {
       const projetoExistente = await storage.getProjeto(req.params.id);
       if (!projetoExistente) {
@@ -562,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/projetos/:id", requireAuth, requireRole(["Admin", "Gestor"]), async (req, res, next) => {
+  app.delete("/api/projetos/:id", requireAuthOrToken, requireRole(["Admin", "Gestor"]), async (req, res, next) => {
     try {
       const projeto = await storage.getProjeto(req.params.id);
       if (!projeto) {
@@ -584,7 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // NPS route
-  app.put("/api/projetos/:id/nps", requireAuth, async (req, res, next) => {
+  app.put("/api/projetos/:id/nps", requireAuthOrToken, async (req, res, next) => {
     try {
       // Define NPS validation schema
       const npsSchema = z.object({
@@ -608,7 +644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Marcar aprovações como visualizadas
-  app.put("/api/projetos/:id/marcar-aprovacoes-visualizadas", requireAuth, async (req, res, next) => {
+  app.put("/api/projetos/:id/marcar-aprovacoes-visualizadas", requireAuthOrToken, async (req, res, next) => {
     try {
       const now = new Date();
 
@@ -631,7 +667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tipos de video routes
-  app.get("/api/tipos-video", requireAuth, async (req, res, next) => {
+  app.get("/api/tipos-video", requireAuthOrToken, async (req, res, next) => {
     try {
       const tipos = await storage.getTiposDeVideo();
       res.json(tipos);
@@ -640,7 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/tipos-video", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.post("/api/tipos-video", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const tipoData = insertTipoVideoSchema.parse(req.body);
       const tipo = await storage.createTipoVideo(tipoData);
@@ -650,7 +686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/tipos-video/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.put("/api/tipos-video/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const tipoData = insertTipoVideoSchema.parse(req.body);
       const updatedTipo = await storage.updateTipoVideo(req.params.id, tipoData);
@@ -660,7 +696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/tipos-video/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.delete("/api/tipos-video/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       await storage.deleteTipoVideo(req.params.id);
       res.sendStatus(204);
@@ -674,7 +710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tags routes
-  app.get("/api/tags", requireAuth, async (req, res, next) => {
+  app.get("/api/tags", requireAuthOrToken, async (req, res, next) => {
     try {
       const tags = await storage.getTags();
       res.json(tags);
@@ -683,7 +719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/tags", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.post("/api/tags", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const tagData = insertTagSchema.parse(req.body);
       const tag = await storage.createTag(tagData);
@@ -693,7 +729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/tags/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.put("/api/tags/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const tagData = insertTagSchema.parse(req.body);
       const updatedTag = await storage.updateTag(req.params.id, tagData);
@@ -703,7 +739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/tags/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.delete("/api/tags/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       await storage.deleteTag(req.params.id);
       res.sendStatus(204);
@@ -713,7 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clientes routes
-  app.get("/api/clientes", requireAuth, async (req, res, next) => {
+  app.get("/api/clientes", requireAuthOrToken, async (req, res, next) => {
     try {
       const clientes = await storage.getClientes();
       res.json(clientes);
@@ -722,7 +758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/clientes/:id", requireAuth, async (req, res, next) => {
+  app.get("/api/clientes/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const cliente = await storage.getCliente(req.params.id);
       if (!cliente) {
@@ -734,7 +770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/clientes", requireAuth, async (req, res, next) => {
+  app.post("/api/clientes", requireAuthOrToken, async (req, res, next) => {
     try {
       const clienteData = insertClienteSchema.parse(req.body);
       const cliente = await storage.createCliente(clienteData);
@@ -744,7 +780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/clientes/:id", requireAuth, async (req, res, next) => {
+  app.put("/api/clientes/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const cliente = await storage.getCliente(req.params.id);
       if (!cliente) {
@@ -759,7 +795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/clientes/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/clientes/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const cliente = await storage.getCliente(req.params.id);
       if (!cliente) {
@@ -781,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Empreendimentos routes
-  app.get("/api/empreendimentos", requireAuth, async (req, res, next) => {
+  app.get("/api/empreendimentos", requireAuthOrToken, async (req, res, next) => {
     try {
       const empreendimentos = await storage.getEmpreendimentos();
       res.json(empreendimentos);
@@ -790,7 +826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/empreendimentos/:id", requireAuth, async (req, res, next) => {
+  app.get("/api/empreendimentos/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const empreendimento = await storage.getEmpreendimento(req.params.id);
       if (!empreendimento) {
@@ -802,7 +838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/empreendimentos", requireAuth, async (req, res, next) => {
+  app.post("/api/empreendimentos", requireAuthOrToken, async (req, res, next) => {
     try {
       const empreendimentoData = insertEmpreendimentoSchema.parse(req.body);
       const empreendimento = await storage.createEmpreendimento(empreendimentoData);
@@ -812,7 +848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/empreendimentos/:id", requireAuth, async (req, res, next) => {
+  app.put("/api/empreendimentos/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const empreendimento = await storage.getEmpreendimento(req.params.id);
       if (!empreendimento) {
@@ -827,7 +863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/empreendimentos/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/empreendimentos/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const empreendimento = await storage.getEmpreendimento(req.params.id);
       if (!empreendimento) {
@@ -842,7 +878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Logs routes
-  app.get("/api/projetos/:id/logs", requireAuth, async (req, res, next) => {
+  app.get("/api/projetos/:id/logs", requireAuthOrToken, async (req, res, next) => {
     try {
       const logs = await storage.getLogsByProjeto(req.params.id);
       res.json(logs);
@@ -852,7 +888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Comentários routes
-  app.get("/api/projetos/:id/comentarios", requireAuth, async (req, res, next) => {
+  app.get("/api/projetos/:id/comentarios", requireAuthOrToken, async (req, res, next) => {
     try {
       const comentarios = await storage.getComentariosByProjeto(req.params.id);
       res.json(comentarios);
@@ -861,7 +897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/comentarios", requireAuth, async (req, res, next) => {
+  app.post("/api/comentarios", requireAuthOrToken, async (req, res, next) => {
     try {
       const comentarioData = insertComentarioSchema.parse({
         ...req.body,
@@ -874,7 +910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/comentarios/:id", requireAuth, async (req, res, next) => {
+  app.put("/api/comentarios/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const comentarioData = insertComentarioSchema.partial().parse(req.body);
       const updatedComentario = await storage.updateComentario(req.params.id, comentarioData);
@@ -884,7 +920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/comentarios/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/comentarios/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       await storage.deleteComentario(req.params.id);
       res.sendStatus(204);
@@ -894,7 +930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Notas routes
-  app.get("/api/notas", requireAuth, async (req, res, next) => {
+  app.get("/api/notas", requireAuthOrToken, async (req, res, next) => {
     try {
       const { tipo, categoria, favorito } = req.query;
       const filters: any = {};
@@ -910,7 +946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/notas/:id", requireAuth, async (req, res, next) => {
+  app.get("/api/notas/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const nota = await storage.getNota(req.params.id);
       if (!nota) {
@@ -923,7 +959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notas", requireAuth, async (req, res, next) => {
+  app.post("/api/notas", requireAuthOrToken, async (req, res, next) => {
     try {
       const notaData = insertNotaSchema.parse({
         ...req.body,
@@ -959,7 +995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/notas/:id", requireAuth, async (req, res, next) => {
+  app.patch("/api/notas/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const nota = await storage.getNota(req.params.id);
       if (!nota) {
@@ -982,7 +1018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/notas/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/notas/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const nota = await storage.getNota(req.params.id);
       if (!nota) {
@@ -1005,7 +1041,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Timelapse routes
-  app.get("/api/timelapses", requireAuth, async (req, res, next) => {
+  app.get("/api/timelapses", requireAuthOrToken, async (req, res, next) => {
     try {
       const timelapses = await storage.getTimelapses();
       res.json(timelapses);
@@ -1014,7 +1050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/timelapses/:id", requireAuth, async (req, res, next) => {
+  app.get("/api/timelapses/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const timelapse = await storage.getTimelapseById(req.params.id);
       if (!timelapse) {
@@ -1026,7 +1062,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/timelapses", requireAuth, async (req, res, next) => {
+  app.post("/api/timelapses", requireAuthOrToken, async (req, res, next) => {
     try {
       log("[POST /api/timelapses] req.body:", JSON.stringify(req.body, null, 2));
 
@@ -1049,7 +1085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/timelapses/:id", requireAuth, async (req, res, next) => {
+  app.patch("/api/timelapses/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const timelapse = await storage.getTimelapseById(req.params.id);
       if (!timelapse) {
@@ -1071,7 +1107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/timelapses/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/timelapses/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const timelapse = await storage.getTimelapseById(req.params.id);
       if (!timelapse) {
@@ -1087,7 +1123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Object Storage routes (for file uploads in notas)
   // Reference: blueprint:javascript_object_storage
-  app.post("/api/objects/upload", requireAuth, async (req, res, next) => {
+  app.post("/api/objects/upload", requireAuthOrToken, async (req, res, next) => {
     try {
       const { contentType } = req.body;
       const objectStorageService = new ObjectStorageService();
@@ -1099,7 +1135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/objects/:objectPath(*)", requireAuth, async (req, res, next) => {
+  app.get("/objects/:objectPath(*)", requireAuthOrToken, async (req, res, next) => {
     try {
       const userId = req.user!.id;
       const objectStorageService = new ObjectStorageService();
@@ -1126,7 +1162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Locutores routes
-  app.get("/api/locutores", requireAuth, async (req, res, next) => {
+  app.get("/api/locutores", requireAuthOrToken, async (req, res, next) => {
     try {
       const { genero, faixaEtaria, idioma } = req.query;
       const filters: any = {};
@@ -1142,7 +1178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/locutores/:id", requireAuth, async (req, res, next) => {
+  app.get("/api/locutores/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const locutor = await storage.getLocutor(req.params.id);
       if (!locutor) {
@@ -1154,7 +1190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/locutores", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.post("/api/locutores", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const novoLocutor = await storage.createLocutor(req.body);
       res.status(201).json(novoLocutor);
@@ -1163,7 +1199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/locutores/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.put("/api/locutores/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const locutor = await storage.updateLocutor(req.params.id, req.body);
       res.json(locutor);
@@ -1172,7 +1208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/locutores/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.delete("/api/locutores/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       await storage.deleteLocutor(req.params.id);
       res.status(204).send();
@@ -1182,7 +1218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Estilos de Locução routes
-  app.get("/api/estilos-locucao", requireAuth, async (req, res, next) => {
+  app.get("/api/estilos-locucao", requireAuthOrToken, async (req, res, next) => {
     try {
       const estilos = await storage.getEstilosLocucao();
       res.json(estilos);
@@ -1191,7 +1227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/estilos-locucao", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.post("/api/estilos-locucao", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const novoEstilo = await storage.createEstiloLocucao(req.body);
       res.status(201).json(novoEstilo);
@@ -1200,7 +1236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/estilos-locucao/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.put("/api/estilos-locucao/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const estilo = await storage.updateEstiloLocucao(req.params.id, req.body);
       res.json(estilo);
@@ -1209,7 +1245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/estilos-locucao/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.delete("/api/estilos-locucao/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       await storage.deleteEstiloLocucao(req.params.id);
       res.status(204).send();
@@ -1219,7 +1255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Amostras de Locutores routes
-  app.get("/api/locutores/:locutorId/amostras", requireAuth, async (req, res, next) => {
+  app.get("/api/locutores/:locutorId/amostras", requireAuthOrToken, async (req, res, next) => {
     try {
       const amostras = await storage.getAmostrasLocutor(req.params.locutorId);
       res.json(amostras);
@@ -1228,7 +1264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/locutores/:locutorId/amostras", requireAuth, requireRole(["Admin"]), audioUpload.single('audio'), async (req, res, next) => {
+  app.post("/api/locutores/:locutorId/amostras", requireAuthOrToken, requireRole(["Admin"]), audioUpload.single('audio'), async (req, res, next) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "Nenhum arquivo foi enviado" });
@@ -1281,7 +1317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/amostras/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.put("/api/amostras/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const amostra = await storage.updateAmostraLocutor(req.params.id, req.body);
       res.json(amostra);
@@ -1290,7 +1326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/amostras/:id", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.delete("/api/amostras/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       // 1. Buscar amostra no banco
       const amostra = await storage.getAmostraLocutor(req.params.id);
@@ -1325,7 +1361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MÚSICAS DO PROJETO
   // ==========================================
 
-  app.get("/api/projetos/:projetoId/musicas", requireAuth, async (req, res, next) => {
+  app.get("/api/projetos/:projetoId/musicas", requireAuthOrToken, async (req, res, next) => {
     try {
       const musicas = await storage.getProjetoMusicas(req.params.projetoId);
       res.json(musicas);
@@ -1334,7 +1370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projetos/:projetoId/musicas", requireAuth, async (req, res, next) => {
+  app.post("/api/projetos/:projetoId/musicas", requireAuthOrToken, async (req, res, next) => {
     try {
       console.log("[POST /api/projetos/:projetoId/musicas] projetoId:", req.params.projetoId);
       console.log("[POST /api/projetos/:projetoId/musicas] body:", req.body);
@@ -1350,7 +1386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/musicas/:id", requireAuth, async (req, res, next) => {
+  app.put("/api/musicas/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const musica = await storage.updateProjetoMusica(req.params.id, req.body);
       res.json(musica);
@@ -1359,7 +1395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/musicas/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/musicas/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       await storage.deleteProjetoMusica(req.params.id);
       res.status(204).send();
@@ -1372,7 +1408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // LOCUTORES DO PROJETO
   // ==========================================
 
-  app.get("/api/projetos/:projetoId/locutores", requireAuth, async (req, res, next) => {
+  app.get("/api/projetos/:projetoId/locutores", requireAuthOrToken, async (req, res, next) => {
     try {
       const locutores = await storage.getProjetoLocutores(req.params.projetoId);
       res.json(locutores);
@@ -1381,7 +1417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projetos/:projetoId/locutores", requireAuth, async (req, res, next) => {
+  app.post("/api/projetos/:projetoId/locutores", requireAuthOrToken, async (req, res, next) => {
     try {
       console.log("[POST /api/projetos/:projetoId/locutores] projetoId:", req.params.projetoId);
       console.log("[POST /api/projetos/:projetoId/locutores] body:", req.body);
@@ -1397,7 +1433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/projeto-locutores/:id", requireAuth, async (req, res, next) => {
+  app.put("/api/projeto-locutores/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const locutor = await storage.updateProjetoLocutor(req.params.id, req.body);
       res.json(locutor);
@@ -1406,7 +1442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/projeto-locutores/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/projeto-locutores/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       await storage.deleteProjetoLocutor(req.params.id);
       res.status(204).send();
@@ -1846,7 +1882,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Regenerar token do cliente (rota protegida para admin)
-  app.post("/api/projetos/:id/regenerar-token", requireAuth, requireRole(["Admin"]), async (req, res, next) => {
+  app.post("/api/projetos/:id/regenerar-token", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
     try {
       const novoToken = await storage.regenerarClientToken(req.params.id);
       res.json({ clientToken: novoToken });
@@ -1858,7 +1894,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========== ROTAS DE PASTAS DE VÍDEOS (Sistema Frame.io-like) ==========
 
   // Listar todos os clientes com estatísticas de vídeos (Grid de Clientes)
-  app.get("/api/videos/clientes", requireAuth, async (req, res, next) => {
+  app.get("/api/videos/clientes", requireAuthOrToken, async (req, res, next) => {
     try {
       const clientes = await storage.getClientesComEstatisticasVideos();
       res.json(clientes);
@@ -1868,7 +1904,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Criar nova pasta em um cliente
-  app.post("/api/clientes/:clienteId/pastas", requireAuth, async (req, res, next) => {
+  app.post("/api/clientes/:clienteId/pastas", requireAuthOrToken, async (req, res, next) => {
     try {
       const pastaData = {
         ...req.body,
@@ -1890,7 +1926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Listar pastas de um cliente
-  app.get("/api/clientes/:clienteId/pastas", requireAuth, async (req, res, next) => {
+  app.get("/api/clientes/:clienteId/pastas", requireAuthOrToken, async (req, res, next) => {
     try {
       const includeSubpastas = req.query.includeSubpastas !== 'false';
       const pastas = await storage.getVideoPastasByClienteId(req.params.clienteId, includeSubpastas);
@@ -1901,7 +1937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Obter pasta por ID (com vídeos e subpastas)
-  app.get("/api/pastas/:pastaId", requireAuth, async (req, res, next) => {
+  app.get("/api/pastas/:pastaId", requireAuthOrToken, async (req, res, next) => {
     try {
       const pasta = await storage.getVideoPastaById(req.params.pastaId);
       if (!pasta) {
@@ -1914,7 +1950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Atualizar pasta
-  app.patch("/api/pastas/:pastaId", requireAuth, async (req, res, next) => {
+  app.patch("/api/pastas/:pastaId", requireAuthOrToken, async (req, res, next) => {
     try {
       const pasta = await storage.updateVideoPasta(req.params.pastaId, req.body);
 
@@ -1931,7 +1967,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Deletar pasta
-  app.delete("/api/pastas/:pastaId", requireAuth, async (req, res, next) => {
+  app.delete("/api/pastas/:pastaId", requireAuthOrToken, async (req, res, next) => {
     try {
       await storage.deleteVideoPasta(req.params.pastaId);
 
@@ -1948,7 +1984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Buscar breadcrumb de uma pasta
-  app.get("/api/pastas/:pastaId/breadcrumb", requireAuth, async (req, res, next) => {
+  app.get("/api/pastas/:pastaId/breadcrumb", requireAuthOrToken, async (req, res, next) => {
     try {
       const breadcrumb = await storage.getVideoPastaBreadcrumb(req.params.pastaId);
       res.json(breadcrumb);
@@ -1958,7 +1994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mover vídeo para outra pasta
-  app.patch("/api/videos/:videoId/mover", requireAuth, async (req, res, next) => {
+  app.patch("/api/videos/:videoId/mover", requireAuthOrToken, async (req, res, next) => {
     try {
       const { novaPastaId } = req.body;
       if (!novaPastaId) {
@@ -1982,7 +2018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========== ROTAS DE VÍDEOS (Sistema Frame.io-like) ==========
 
   // Criar novo vídeo em um projeto
-  app.post("/api/projetos/:id/videos", requireAuth, async (req, res, next) => {
+  app.post("/api/projetos/:id/videos", requireAuthOrToken, async (req, res, next) => {
     try {
       const { id: projetoId } = req.params;
       const videoData = {
@@ -2006,7 +2042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Listar vídeos de um projeto
-  app.get("/api/projetos/:id/videos", requireAuth, async (req, res, next) => {
+  app.get("/api/projetos/:id/videos", requireAuthOrToken, async (req, res, next) => {
     try {
       const videos = await storage.getVideosByProjetoId(req.params.id);
       res.json(videos);
@@ -2016,7 +2052,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Obter vídeo por ID (com comentários)
-  app.get("/api/videos/:id", requireAuth, async (req, res, next) => {
+  app.get("/api/videos/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const video = await storage.getVideoById(req.params.id);
       if (!video) {
@@ -2029,7 +2065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Atualizar vídeo (status, aprovação, etc.)
-  app.patch("/api/videos/:id", requireAuth, async (req, res, next) => {
+  app.patch("/api/videos/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       const video = await storage.updateVideoProjeto(req.params.id, req.body);
 
@@ -2046,7 +2082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Deletar vídeo
-  app.delete("/api/videos/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/videos/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       await storage.deleteVideoProjeto(req.params.id);
 
@@ -2063,7 +2099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Criar comentário em vídeo
-  app.post("/api/videos/:id/comentarios", requireAuth, async (req, res, next) => {
+  app.post("/api/videos/:id/comentarios", requireAuthOrToken, async (req, res, next) => {
     try {
       const comentarioData = {
         ...req.body,
@@ -2089,7 +2125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Toggle resolvido em comentário
-  app.patch("/api/videos/comentarios/:id/toggle-resolvido", requireAuth, async (req, res, next) => {
+  app.patch("/api/videos/comentarios/:id/toggle-resolvido", requireAuthOrToken, async (req, res, next) => {
     try {
       const comentario = await storage.toggleResolverComentario(
         req.params.id,
@@ -2112,7 +2148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Deletar comentário
-  app.delete("/api/videos/comentarios/:id", requireAuth, async (req, res, next) => {
+  app.delete("/api/videos/comentarios/:id", requireAuthOrToken, async (req, res, next) => {
     try {
       await storage.deleteVideoComentario(req.params.id);
 
@@ -2131,7 +2167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========== ROTAS DE UPLOAD DE VÍDEO (Bunny.net) ==========
 
   // Iniciar upload de vídeo em uma pasta
-  app.post("/api/pastas/:pastaId/videos/upload-init", requireAuth, async (req, res, next) => {
+  app.post("/api/pastas/:pastaId/videos/upload-init", requireAuthOrToken, async (req, res, next) => {
     try {
       const { pastaId } = req.params;
       const { titulo, descricao } = req.body;
@@ -2172,7 +2208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Atualizar status do vídeo após upload
-  app.patch("/api/videos/:videoId/status", requireAuth, async (req, res, next) => {
+  app.patch("/api/videos/:videoId/status", requireAuthOrToken, async (req, res, next) => {
     try {
       const { videoId } = req.params;
       const { status } = req.body;
@@ -2224,7 +2260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Listar vídeos de uma pasta
-  app.get("/api/pastas/:pastaId/videos", requireAuth, async (req, res, next) => {
+  app.get("/api/pastas/:pastaId/videos", requireAuthOrToken, async (req, res, next) => {
     try {
       const videos = await storage.getVideosByPastaId(req.params.pastaId);
       res.json(videos);
@@ -2234,7 +2270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Deletar um vídeo
-  app.delete("/api/videos/:videoId", requireAuth, async (req, res, next) => {
+  app.delete("/api/videos/:videoId", requireAuthOrToken, async (req, res, next) => {
     try {
       const { videoId } = req.params;
 
@@ -2272,10 +2308,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Metrics routes
-  app.get("/api/metricas", requireAuth, async (req, res, next) => {
+  app.get("/api/metricas", requireAuthOrToken, async (req, res, next) => {
     try {
       const metricas = await storage.getMetricas();
       res.json(metricas);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ==========================================
+  // TOKENS DE ACESSO (API)
+  // ==========================================
+
+  // Listar todos os tokens
+  app.get("/api/tokens", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const tokens = await storage.getTokensAcesso();
+      // Mascarar o valor do token na listagem (mostra só os primeiros 8 chars)
+      const tokensMascarados = tokens.map(t => ({
+        ...t,
+        token: t.token.substring(0, 8) + '...',
+        tokenCompleto: t.token, // Enviamos completo para o admin poder copiar
+      }));
+      res.json(tokensMascarados);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Criar novo token
+  app.post("/api/tokens", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const { descricao, papel, tipo } = req.body;
+      const token = nanoid(48); // Token seguro de 48 caracteres
+
+      const novoToken = await storage.createTokenAcesso({
+        token,
+        descricao: descricao || 'API Token',
+        papel: papel || 'Membro',
+        tipo: tipo || 'api',
+        ativo: true,
+      });
+
+      res.status(201).json({
+        ...novoToken,
+        mensagem: 'Token criado! Copie o valor abaixo — ele não será exibido novamente.',
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Atualizar token (ativar/desativar, editar descrição)
+  app.patch("/api/tokens/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const { descricao, papel, ativo } = req.body;
+      const updates: any = {};
+      if (descricao !== undefined) updates.descricao = descricao;
+      if (papel !== undefined) updates.papel = papel;
+      if (ativo !== undefined) updates.ativo = ativo;
+
+      const token = await storage.updateTokenAcesso(req.params.id, updates);
+      res.json(token);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Deletar token
+  app.delete("/api/tokens/:id", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      await storage.deleteTokenAcesso(req.params.id);
+      res.sendStatus(204);
     } catch (error) {
       next(error);
     }

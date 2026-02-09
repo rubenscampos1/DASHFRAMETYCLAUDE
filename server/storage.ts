@@ -65,7 +65,10 @@ import {
   type VideoPasta,
   type InsertVideoPasta,
   type VideoPastaWithRelations,
-  type ProjetoKanbanLight // FASE 2B: Tipo leve para Kanban
+  type ProjetoKanbanLight, // FASE 2B: Tipo leve para Kanban
+  tokensAcesso,
+  type TokenAcesso,
+  type InsertTokenAcesso,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, asc, sql, gte, lte, lt, max, inArray } from "drizzle-orm";
@@ -214,6 +217,13 @@ export interface IStorage {
   aprovarLocucao(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
   aprovarVideoFinal(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
   regenerarClientToken(projetoId: string): Promise<string>;
+
+  // Tokens de Acesso (API)
+  getTokensAcesso(): Promise<TokenAcesso[]>;
+  getTokenAcessoByToken(token: string): Promise<TokenAcesso | undefined>;
+  createTokenAcesso(data: InsertTokenAcesso): Promise<TokenAcesso>;
+  updateTokenAcesso(id: string, data: Partial<InsertTokenAcesso>): Promise<TokenAcesso>;
+  deleteTokenAcesso(id: string): Promise<void>;
 
   // Seeds
   seedData(): Promise<void>;
@@ -1994,6 +2004,35 @@ export class DatabaseStorage implements IStorage {
       orderBy: (videos, { desc }) => [desc(videos.createdAt)],
     });
     return videos;
+  }
+  // ==========================================
+  // TOKENS DE ACESSO (API)
+  // ==========================================
+
+  async getTokensAcesso(): Promise<TokenAcesso[]> {
+    return await db.select().from(tokensAcesso).orderBy(desc(tokensAcesso.createdAt));
+  }
+
+  async getTokenAcessoByToken(token: string): Promise<TokenAcesso | undefined> {
+    const [result] = await db.select().from(tokensAcesso).where(eq(tokensAcesso.token, token));
+    return result;
+  }
+
+  async createTokenAcesso(data: InsertTokenAcesso): Promise<TokenAcesso> {
+    const [result] = await db.insert(tokensAcesso).values(data).returning();
+    return result;
+  }
+
+  async updateTokenAcesso(id: string, data: Partial<InsertTokenAcesso>): Promise<TokenAcesso> {
+    const [result] = await db.update(tokensAcesso)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(tokensAcesso.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteTokenAcesso(id: string): Promise<void> {
+    await db.delete(tokensAcesso).where(eq(tokensAcesso.id, id));
   }
 }
 

@@ -47,6 +47,18 @@ export async function uploadLocutorAudioToSupabase(
 ): Promise<UploadLocutorAudioResult> {
   const { locutorId, amostraId, originalName, buffer, contentType } = params;
 
+  // Verificar se Supabase está configurado
+  if (!supabaseAdmin) {
+    console.warn('[Supabase Upload] ⚠️  Supabase not configured (development mode)');
+    // Retornar um path local mockado
+    const ext = path.extname(originalName).toLowerCase();
+    const storagePath = `locutores/${locutorId}/${amostraId}${ext}`;
+    return {
+      storagePath,
+      publicUrl: `/uploads/${storagePath}`,
+    };
+  }
+
   // Extrair extensão do arquivo original (.mp3, .wav, .ogg, etc)
   const ext = path.extname(originalName).toLowerCase();
 
@@ -109,6 +121,12 @@ export async function deleteLocutorAudioFromSupabase(
   storagePath: string
 ): Promise<void> {
   console.log('[Supabase Delete] Deleting:', storagePath);
+
+  // Verificar se Supabase está configurado
+  if (!supabaseAdmin) {
+    console.warn('[Supabase Delete] ⚠️  Supabase not configured (development mode) - skipping delete');
+    return;
+  }
 
   const { data, error } = await supabaseAdmin.storage
     .from(LOCUTORES_AUDIO_BUCKET)

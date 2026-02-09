@@ -542,209 +542,302 @@ export default function ClientePortal() {
         )}
 
         {/* Músicas para aprovação (novo sistema) */}
-        {projeto.musicas && projeto.musicas.length > 0 && (
-          <Card>
-            <CardHeader className="p-4 space-y-1">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-primary/10">
-                  <Music className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Músicas para Aprovação</CardTitle>
-                  <CardDescription className="text-xs">Clique no play para ouvir cada música</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="space-y-3">
-                {projeto.musicas.map((musica) => (
-                  <div
-                    key={musica.id}
-                    className={`border rounded-lg p-4 transition-all ${
-                      musicaSelecionada === musica.id
-                        ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20'
-                        : 'border-border'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {/* Checkbox visual para seleção */}
-                      {musica.aprovada === null && (
-                        <div
-                          onClick={() => {
-                            // Toggle: se já está selecionada, desmarca; senão, seleciona
-                            setMusicaSelecionada(musicaSelecionada === musica.id ? null : musica.id);
-                          }}
-                          className={`
-                            w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0
-                            ${musicaSelecionada === musica.id
-                              ? 'border-green-500 bg-green-500'
-                              : 'border-gray-300 hover:border-green-400'
-                            }
-                          `}
-                        >
-                          {musicaSelecionada === musica.id && (
-                            <CheckCircle2 className="h-4 w-4 text-white" />
-                          )}
+        {projeto.musicas && projeto.musicas.length > 0 && (() => {
+          const musicaAprovada = projeto.musicas.find(m => m.aprovada === true);
+          const algumRespondido = projeto.musicas.some(m => m.aprovada !== null);
+
+          // Se já tem alguma música aprovada/respondida, colapsa em accordion
+          if (algumRespondido) {
+            return (
+              <Card>
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="musicas" className="border-none">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-green-100 dark:bg-green-950/30">
+                          <Music className="h-4 w-4 text-green-600" />
                         </div>
-                      )}
-
-                      {/* Info da música */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Music className="h-4 w-4 text-primary flex-shrink-0" />
-                          <span className="font-medium text-sm truncate">{musica.titulo}</span>
-                          <ApprovalStatus approved={musica.aprovada} />
-                        </div>
-                      </div>
-
-                      {/* Botão de Play - no canto direito */}
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => abrirMusicaPopup(musica.musicaUrl)}
-                        className="h-9 w-9 flex-shrink-0"
-                      >
-                        <Play className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    {/* Feedback e data (se já foi aprovado) */}
-                    {musica.aprovada !== null && (
-                      <div className="mt-3 space-y-2 pt-3 border-t">
-                        {musica.feedback && (
-                          <Alert className="p-3">
-                            <FileText className="h-3 w-3" />
-                            <AlertTitle className="text-sm">Seu comentário</AlertTitle>
-                            <AlertDescription className="text-xs">{musica.feedback}</AlertDescription>
-                          </Alert>
-                        )}
-                        {musica.dataAprovacao && (
-                          <p className="text-xs text-muted-foreground text-center">
-                            Resposta enviada em {format(new Date(musica.dataAprovacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                          </p>
+                        <span className="font-semibold text-sm">Músicas</span>
+                        {musicaAprovada ? (
+                          <Badge className="bg-green-500 text-white gap-1 text-xs">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Escolha enviada
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="gap-1 text-xs">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Respondido
+                          </Badge>
                         )}
                       </div>
-                    )}
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <div className="space-y-3">
+                        {projeto.musicas.map((musica) => (
+                          <div key={musica.id} className="border rounded-lg p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Music className="h-4 w-4 text-primary flex-shrink-0" />
+                                  <span className="font-medium text-sm truncate">{musica.titulo}</span>
+                                  <ApprovalStatus approved={musica.aprovada} />
+                                </div>
+                              </div>
+                              <Button variant="outline" size="icon" onClick={() => abrirMusicaPopup(musica.musicaUrl)} className="h-9 w-9 flex-shrink-0">
+                                <Play className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {musica.aprovada !== null && (
+                              <div className="mt-3 space-y-2 pt-3 border-t">
+                                {musica.feedback && (
+                                  <Alert className="p-3">
+                                    <FileText className="h-3 w-3" />
+                                    <AlertTitle className="text-sm">Seu comentário</AlertTitle>
+                                    <AlertDescription className="text-xs">{musica.feedback}</AlertDescription>
+                                  </Alert>
+                                )}
+                                {musica.dataAprovacao && (
+                                  <p className="text-xs text-muted-foreground text-center">
+                                    Resposta enviada em {format(new Date(musica.dataAprovacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </Card>
+            );
+          }
+
+          // Se nenhuma foi respondida ainda, mostra aberto normalmente
+          return (
+            <Card>
+              <CardHeader className="p-4 space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-primary/10">
+                    <Music className="h-4 w-4 text-primary" />
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Locutores para aprovação (novo sistema) */}
-        {projeto.locutores && projeto.locutores.length > 0 && (
-          <Card>
-            <CardHeader className="p-4 space-y-1">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-primary/10">
-                  <Mic className="h-4 w-4 text-primary" />
+                  <div>
+                    <CardTitle className="text-base">Músicas para Aprovação</CardTitle>
+                    <CardDescription className="text-xs">Clique no play para ouvir cada música</CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-base">Locutores para Aprovação</CardTitle>
-                  <CardDescription className="text-xs">Clique no play para ouvir cada locutor</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="space-y-3">
-                {projeto.locutores.map((projetoLocutor) => {
-                  const locutor = projetoLocutor.locutor;
-                  const amostraDestaque = locutor.amostras?.find(a => a.destaque) || locutor.amostras?.[0];
-
-                  return (
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="space-y-3">
+                  {projeto.musicas.map((musica) => (
                     <div
-                      key={projetoLocutor.id}
+                      key={musica.id}
                       className={`border rounded-lg p-4 transition-all ${
-                        locutorSelecionado === projetoLocutor.id
+                        musicaSelecionada === musica.id
                           ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20'
                           : 'border-border'
                       }`}
                     >
-                      <div className="flex items-start gap-3">
-                        {/* Checkbox visual para seleção */}
-                        {projetoLocutor.aprovado === null && (
+                      <div className="flex items-center gap-3">
+                        {musica.aprovada === null && (
                           <div
-                            onClick={() => {
-                              // Toggle: se já está selecionado, desmarca; senão, seleciona
-                              setLocutorSelecionado(locutorSelecionado === projetoLocutor.id ? null : projetoLocutor.id);
-                            }}
+                            onClick={() => setMusicaSelecionada(musicaSelecionada === musica.id ? null : musica.id)}
                             className={`
-                              w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0 mt-1
-                              ${locutorSelecionado === projetoLocutor.id
+                              w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0
+                              ${musicaSelecionada === musica.id
                                 ? 'border-green-500 bg-green-500'
                                 : 'border-gray-300 hover:border-green-400'
                               }
                             `}
                           >
-                            {locutorSelecionado === projetoLocutor.id && (
+                            {musicaSelecionada === musica.id && (
                               <CheckCircle2 className="h-4 w-4 text-white" />
                             )}
                           </div>
                         )}
-
-                        {/* Info do locutor */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Mic className="h-4 w-4 text-primary flex-shrink-0" />
-                            <span className="font-medium text-sm">{locutor.nomeFicticio}</span>
-                            <Badge variant="outline" className="text-xs">{locutor.genero}</Badge>
-                            <Badge variant="outline" className="text-xs">{locutor.faixaEtaria}</Badge>
-                            <ApprovalStatus approved={projetoLocutor.aprovado} />
+                            <Music className="h-4 w-4 text-primary flex-shrink-0" />
+                            <span className="font-medium text-sm truncate">{musica.titulo}</span>
+                            <ApprovalStatus approved={musica.aprovada} />
                           </div>
                         </div>
+                        <Button variant="outline" size="icon" onClick={() => abrirMusicaPopup(musica.musicaUrl)} className="h-9 w-9 flex-shrink-0">
+                          <Play className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
-                        {/* Botão de Play para áudio - no canto direito */}
-                        {amostraDestaque && (
-                          <Button
-                            variant={playingAudio === `locutor-${projetoLocutor.id}` ? "default" : "outline"}
-                            size="icon"
-                            onClick={() => handlePlayAudio(`locutor-${projetoLocutor.id}`, amostraDestaque.arquivoUrl)}
-                            className="h-9 w-9 flex-shrink-0"
-                          >
-                            {playingAudio === `locutor-${projetoLocutor.id}` ? (
-                              <Pause className="h-4 w-4" />
-                            ) : (
-                              <Play className="h-4 w-4" />
-                            )}
-                          </Button>
-                        )}
+        {/* Locutores para aprovação (novo sistema) */}
+        {projeto.locutores && projeto.locutores.length > 0 && (() => {
+          const locutorAprovado = projeto.locutores.find(l => l.aprovado === true);
+          const algumRespondido = projeto.locutores.some(l => l.aprovado !== null);
 
-                        {/* Audio element (hidden) */}
-                        {amostraDestaque && (
-                          <audio
-                            id={`audio-locutor-${projetoLocutor.id}`}
-                            src={getLocutorAudioUrl(amostraDestaque.arquivoUrl)}
-                            onEnded={() => setPlayingAudio(null)}
-                            className="hidden"
-                          />
+          // Se já tem algum locutor aprovado/respondido, colapsa em accordion
+          if (algumRespondido) {
+            return (
+              <Card>
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="locutores" className="border-none">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-green-100 dark:bg-green-950/30">
+                          <Mic className="h-4 w-4 text-green-600" />
+                        </div>
+                        <span className="font-semibold text-sm">Locutores</span>
+                        {locutorAprovado ? (
+                          <Badge className="bg-green-500 text-white gap-1 text-xs">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Escolha enviada
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="gap-1 text-xs">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Respondido
+                          </Badge>
                         )}
                       </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <div className="space-y-3">
+                        {projeto.locutores.map((projetoLocutor) => {
+                          const locutor = projetoLocutor.locutor;
+                          const amostraDestaque = locutor.amostras?.find(a => a.destaque) || locutor.amostras?.[0];
+                          return (
+                            <div key={projetoLocutor.id} className="border rounded-lg p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Mic className="h-4 w-4 text-primary flex-shrink-0" />
+                                    <span className="font-medium text-sm">{locutor.nomeFicticio}</span>
+                                    <Badge variant="outline" className="text-xs">{locutor.genero}</Badge>
+                                    <Badge variant="outline" className="text-xs">{locutor.faixaEtaria}</Badge>
+                                    <ApprovalStatus approved={projetoLocutor.aprovado} />
+                                  </div>
+                                </div>
+                                {amostraDestaque && (
+                                  <Button
+                                    variant={playingAudio === `locutor-${projetoLocutor.id}` ? "default" : "outline"}
+                                    size="icon"
+                                    onClick={() => handlePlayAudio(`locutor-${projetoLocutor.id}`, amostraDestaque.arquivoUrl)}
+                                    className="h-9 w-9 flex-shrink-0"
+                                  >
+                                    {playingAudio === `locutor-${projetoLocutor.id}` ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                                  </Button>
+                                )}
+                                {amostraDestaque && (
+                                  <audio id={`audio-locutor-${projetoLocutor.id}`} src={getLocutorAudioUrl(amostraDestaque.arquivoUrl)} onEnded={() => setPlayingAudio(null)} className="hidden" />
+                                )}
+                              </div>
+                              {projetoLocutor.aprovado !== null && (
+                                <div className="mt-3 space-y-2 pt-3 border-t">
+                                  {projetoLocutor.feedback && (
+                                    <Alert className="p-3">
+                                      <FileText className="h-3 w-3" />
+                                      <AlertTitle className="text-sm">Seu comentário</AlertTitle>
+                                      <AlertDescription className="text-xs">{projetoLocutor.feedback}</AlertDescription>
+                                    </Alert>
+                                  )}
+                                  {projetoLocutor.dataAprovacao && (
+                                    <p className="text-xs text-muted-foreground text-center">
+                                      Resposta enviada em {format(new Date(projetoLocutor.dataAprovacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </Card>
+            );
+          }
 
-                      {/* Feedback e data (se já foi aprovado) */}
-                      {projetoLocutor.aprovado !== null && (
-                        <div className="mt-3 space-y-2 pt-3 border-t">
-                          {projetoLocutor.feedback && (
-                            <Alert className="p-3">
-                              <FileText className="h-3 w-3" />
-                              <AlertTitle className="text-sm">Seu comentário</AlertTitle>
-                              <AlertDescription className="text-xs">{projetoLocutor.feedback}</AlertDescription>
-                            </Alert>
+          // Se nenhum foi respondido ainda, mostra aberto normalmente
+          return (
+            <Card>
+              <CardHeader className="p-4 space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-primary/10">
+                    <Mic className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Locutores para Aprovação</CardTitle>
+                    <CardDescription className="text-xs">Clique no play para ouvir cada locutor</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="space-y-3">
+                  {projeto.locutores.map((projetoLocutor) => {
+                    const locutor = projetoLocutor.locutor;
+                    const amostraDestaque = locutor.amostras?.find(a => a.destaque) || locutor.amostras?.[0];
+                    return (
+                      <div
+                        key={projetoLocutor.id}
+                        className={`border rounded-lg p-4 transition-all ${
+                          locutorSelecionado === projetoLocutor.id
+                            ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20'
+                            : 'border-border'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {projetoLocutor.aprovado === null && (
+                            <div
+                              onClick={() => setLocutorSelecionado(locutorSelecionado === projetoLocutor.id ? null : projetoLocutor.id)}
+                              className={`
+                                w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0 mt-1
+                                ${locutorSelecionado === projetoLocutor.id
+                                  ? 'border-green-500 bg-green-500'
+                                  : 'border-gray-300 hover:border-green-400'
+                                }
+                              `}
+                            >
+                              {locutorSelecionado === projetoLocutor.id && (
+                                <CheckCircle2 className="h-4 w-4 text-white" />
+                              )}
+                            </div>
                           )}
-                          {projetoLocutor.dataAprovacao && (
-                            <p className="text-xs text-muted-foreground text-center">
-                              Resposta enviada em {format(new Date(projetoLocutor.dataAprovacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                            </p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Mic className="h-4 w-4 text-primary flex-shrink-0" />
+                              <span className="font-medium text-sm">{locutor.nomeFicticio}</span>
+                              <Badge variant="outline" className="text-xs">{locutor.genero}</Badge>
+                              <Badge variant="outline" className="text-xs">{locutor.faixaEtaria}</Badge>
+                              <ApprovalStatus approved={projetoLocutor.aprovado} />
+                            </div>
+                          </div>
+                          {amostraDestaque && (
+                            <Button
+                              variant={playingAudio === `locutor-${projetoLocutor.id}` ? "default" : "outline"}
+                              size="icon"
+                              onClick={() => handlePlayAudio(`locutor-${projetoLocutor.id}`, amostraDestaque.arquivoUrl)}
+                              className="h-9 w-9 flex-shrink-0"
+                            >
+                              {playingAudio === `locutor-${projetoLocutor.id}` ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                            </Button>
+                          )}
+                          {amostraDestaque && (
+                            <audio id={`audio-locutor-${projetoLocutor.id}`} src={getLocutorAudioUrl(amostraDestaque.arquivoUrl)} onEnded={() => setPlayingAudio(null)} className="hidden" />
                           )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Botão de envio de respostas (novo sistema) */}
         {/* Só mostra o botão se: */}
