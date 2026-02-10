@@ -1013,6 +1013,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Notificar cliente via Áudio WhatsApp (TTS + OpenClaw)
+  app.post("/api/projetos/:id/notificar-audio", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const { mensagem } = req.body;
+      if (!mensagem || !mensagem.trim()) {
+        return res.status(400).json({ message: "Mensagem é obrigatória" });
+      }
+
+      const projeto = await storage.getProjeto(req.params.id);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      const numeros = projeto.contatosWhatsapp || [];
+      if (numeros.length === 0) {
+        return res.status(400).json({ message: "Projeto não possui contatos WhatsApp cadastrados" });
+      }
+
+      const OPENCLAW_URL = process.env.OPENCLAW_URL || "https://framety.tail81fe5d.ts.net";
+      const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || "57bf11589000632b2c0009387429a69db0ad17c08802dd1b";
+
+      // Ajustar pronúncia: "Framety" → "Freymeti" para TTS brasileiro
+      const textoTTS = mensagem.trim().replace(/Framety/gi, "Freymeti");
+
+      // 1. Gerar áudio via TTS
+      const ttsResponse = await fetch(`${OPENCLAW_URL}/tools/invoke`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENCLAW_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tool: "tts",
+          action: "speak",
+          args: { text: textoTTS },
+        }),
+      });
+
+      if (!ttsResponse.ok) {
+        return res.status(502).json({ message: "Falha ao gerar áudio TTS" });
+      }
+
+      const ttsData = await ttsResponse.json() as any;
+      const audioPath = ttsData.result?.details?.audioPath;
+      if (!audioPath) {
+        return res.status(502).json({ message: "TTS não retornou caminho do áudio" });
+      }
+
+      // 2. Enviar áudio para cada contato
+      const enviados: string[] = [];
+      const erros: { numero: string; erro: string }[] = [];
+
+      for (const numero of numeros) {
+        try {
+          const target = numero.startsWith("+") ? numero : `+${numero.replace(/\D/g, "")}`;
+          const response = await fetch(`${OPENCLAW_URL}/tools/invoke`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${OPENCLAW_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              tool: "message",
+              action: "send",
+              args: {
+                channel: "whatsapp",
+                target,
+                message: ".",
+                media: audioPath,
+              },
+            }),
+          });
+
+          if (response.ok) {
+            console.log(`[Áudio] Enviado para ${target} - Projeto: ${projeto.titulo}`);
+            enviados.push(target);
+          } else {
+            const errorText = await response.text();
+            console.error(`[Áudio] Erro para ${target}:`, errorText);
+            erros.push({ numero: target, erro: errorText });
+          }
+        } catch (err: any) {
+          console.error(`[Áudio] Falha para ${numero}:`, err.message);
+          erros.push({ numero, erro: err.message });
+        }
+      }
+
+      if (enviados.length === 0) {
+        return res.status(502).json({ message: "Falha ao enviar áudio para todos os contatos", erros });
+      }
+
+      res.json({
+        message: `Áudio enviado para ${enviados.length} contato(s)`,
+        enviados,
+        erros: erros.length > 0 ? erros : undefined,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Notificar cliente via Email (Gmail SMTP)
   app.post("/api/projetos/:id/notificar-email", requireAuthOrToken, async (req, res, next) => {
     try {

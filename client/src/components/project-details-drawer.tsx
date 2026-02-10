@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getApprovalDetails } from "@/lib/approval-utils";
-import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2, Copy, ExternalLink, FileText, Mail, Phone, Users as UsersIcon, Plus, Minus, Eye, CheckCircle, XCircle, Loader2, Send } from "lucide-react";
+import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2, Copy, ExternalLink, FileText, Mail, Phone, Users as UsersIcon, Plus, Minus, Eye, CheckCircle, XCircle, Loader2, Send, Mic } from "lucide-react";
 
 import {
   Drawer,
@@ -72,7 +72,7 @@ export function ProjectDetailsDrawer({
   const [contatosGruposLocal, setContatosGruposLocal] = useState<string[]>([]);
   const [showNotificarDialog, setShowNotificarDialog] = useState(false);
   const [mensagemNotificacao, setMensagemNotificacao] = useState("");
-  const [notificarCanais, setNotificarCanais] = useState<{ whatsapp: boolean; email: boolean }>({ whatsapp: true, email: true });
+  const [notificarCanais, setNotificarCanais] = useState<{ whatsapp: boolean; email: boolean; audio: boolean }>({ whatsapp: true, email: true, audio: false });
   const [assuntoEmail, setAssuntoEmail] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
@@ -370,8 +370,8 @@ export function ProjectDetailsDrawer({
 
   // Mutation para notificar cliente (WhatsApp + Email)
   const notificarClienteMutation = useMutation({
-    mutationFn: async ({ projetoId, mensagem, assunto, canais }: { projetoId: string; mensagem: string; assunto?: string; canais: { whatsapp: boolean; email: boolean } }) => {
-      const resultados: { whatsapp?: any; email?: any } = {};
+    mutationFn: async ({ projetoId, mensagem, assunto, canais }: { projetoId: string; mensagem: string; assunto?: string; canais: { whatsapp: boolean; email: boolean; audio: boolean } }) => {
+      const resultados: { whatsapp?: any; email?: any; audio?: any } = {};
       const errosGerais: string[] = [];
 
       if (canais.whatsapp) {
@@ -392,6 +392,15 @@ export function ProjectDetailsDrawer({
         }
       }
 
+      if (canais.audio) {
+        try {
+          const res = await apiRequest("POST", `/api/projetos/${projetoId}/notificar-audio`, { mensagem });
+          resultados.audio = await res.json();
+        } catch (err: any) {
+          errosGerais.push("Áudio: " + (err.message || "Falha no envio"));
+        }
+      }
+
       return { resultados, errosGerais };
     },
     onSuccess: ({ resultados, errosGerais }) => {
@@ -399,6 +408,7 @@ export function ProjectDetailsDrawer({
       const sucessos: string[] = [];
       if (resultados.whatsapp) sucessos.push(resultados.whatsapp.message);
       if (resultados.email) sucessos.push(resultados.email.message);
+      if (resultados.audio) sucessos.push(resultados.audio.message);
 
       if (sucessos.length > 0) {
         toast({ title: "Notificação enviada!", description: sucessos.join(" | ") });
@@ -1693,6 +1703,7 @@ export function ProjectDetailsDrawer({
                         setNotificarCanais({
                           whatsapp: !!(projetoAtual.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0),
                           email: !!(projetoAtual.contatosEmail && projetoAtual.contatosEmail.length > 0),
+                          audio: false,
                         });
                         setShowNotificarDialog(true);
                       }}
@@ -1945,6 +1956,16 @@ export function ProjectDetailsDrawer({
                     <span className="text-sm">Email</span>
                   </label>
                 )}
+                {projetoAtual?.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0 && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={notificarCanais.audio}
+                      onCheckedChange={(checked) => setNotificarCanais(prev => ({ ...prev, audio: !!checked }))}
+                    />
+                    <Mic className="h-4 w-4 text-purple-600" />
+                    <span className="text-sm">Áudio</span>
+                  </label>
+                )}
               </div>
             </div>
 
@@ -2003,7 +2024,7 @@ export function ProjectDetailsDrawer({
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-white"
               onClick={() => {
-                if (projetoAtual?.id && mensagemNotificacao.trim() && (notificarCanais.whatsapp || notificarCanais.email)) {
+                if (projetoAtual?.id && mensagemNotificacao.trim() && (notificarCanais.whatsapp || notificarCanais.email || notificarCanais.audio)) {
                   notificarClienteMutation.mutate({
                     projetoId: projetoAtual.id,
                     mensagem: mensagemNotificacao,
@@ -2012,7 +2033,7 @@ export function ProjectDetailsDrawer({
                   });
                 }
               }}
-              disabled={notificarClienteMutation.isPending || !mensagemNotificacao.trim() || (!notificarCanais.whatsapp && !notificarCanais.email)}
+              disabled={notificarClienteMutation.isPending || !mensagemNotificacao.trim() || (!notificarCanais.whatsapp && !notificarCanais.email && !notificarCanais.audio)}
             >
               {notificarClienteMutation.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
