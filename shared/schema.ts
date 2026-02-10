@@ -764,7 +764,7 @@ export const updateProjetoSchema = z.object({
   roteiroLink: z.string().url().optional().or(z.literal("")),
 
   // Contatos do projeto
-  contatosEmail: z.array(z.string().email()).optional(),
+  contatosEmail: z.array(z.string().min(3)).optional(),
   contatosWhatsapp: z.array(z.string()).optional(),
   contatosGrupos: z.array(z.string()).optional(),
 }).partial();

@@ -954,8 +954,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Projeto não possui contatos WhatsApp cadastrados" });
       }
 
-      const OPENCLAW_URL = "https://framety.tail81fe5d.ts.net";
-      const OPENCLAW_TOKEN = "57bf11589000632b2c0009387429a69db0ad17c08802dd1b";
+      const OPENCLAW_URL = process.env.OPENCLAW_URL || "https://framety.tail81fe5d.ts.net";
+      const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || "57bf11589000632b2c0009387429a69db0ad17c08802dd1b";
 
       const enviados: string[] = [];
       const erros: { numero: string; erro: string }[] = [];
@@ -2561,10 +2561,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat", requireAuthOrToken, async (req, res, next) => {
     try {
       console.log("[Chat Proxy] Enviando para OpenClaw:", JSON.stringify(req.body).slice(0, 200));
-      const response = await fetch("https://framety.tail81fe5d.ts.net/v1/chat/completions", {
+      const openclawUrl = process.env.OPENCLAW_URL || "https://framety.tail81fe5d.ts.net";
+      const openclawToken = process.env.OPENCLAW_TOKEN || "57bf11589000632b2c0009387429a69db0ad17c08802dd1b";
+      const response = await fetch(`${openclawUrl}/v1/chat/completions`, {
         method: "POST",
         headers: {
-          "Authorization": "Bearer 57bf11589000632b2c0009387429a69db0ad17c08802dd1b",
+          "Authorization": `Bearer ${openclawToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(req.body),
