@@ -1046,17 +1046,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const subjectLine = assunto?.trim() || `Atualização - Projeto ${projeto.titulo}`;
 
+      const seq = projeto.sequencialId ? `#SKY${projeto.sequencialId}` : "";
+      const statusLabel = projeto.status || "Em andamento";
+
       const htmlBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Framety</h1>
-            <p style="color: #a0a0b0; margin: 4px 0 0; font-size: 13px;">Produção Audiovisual</p>
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8f8f8;">
+          <!-- Header -->
+          <div style="background: #ffffff; padding: 36px 24px; text-align: center; border-bottom: 3px solid #E81B60;">
+            <img src="https://frametyboard.com/assets/Framety%20-%20PNG%20-%20%2001_1759177448673-BYQ2DGYc.png" alt="Framety" style="height: 80px;" />
           </div>
-          <div style="background: #ffffff; padding: 24px; border: 1px solid #e0e0e0; border-top: none;">
-            <p style="color: #333; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${mensagem.trim()}</p>
+
+          <!-- Project Info Bar -->
+          <div style="background: #1a1a2e; padding: 14px 24px; display: flex;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="color: rgba(255,255,255,0.6); font-size: 12px;">Projeto</td>
+              <td style="color: rgba(255,255,255,0.6); font-size: 12px; text-align: right;">Status</td>
+            </tr><tr>
+              <td style="color: #ffffff; font-size: 15px; font-weight: 600; padding-top: 2px;">${projeto.titulo} ${seq}</td>
+              <td style="text-align: right; padding-top: 2px;">
+                <span style="background: rgba(232,27,96,0.2); color: #E81B60; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">${statusLabel}</span>
+              </td>
+            </tr></table>
           </div>
-          <div style="background: #f5f5f5; padding: 16px; border-radius: 0 0 12px 12px; border: 1px solid #e0e0e0; border-top: none; text-align: center;">
-            <p style="color: #888; font-size: 11px; margin: 0;">Este email foi enviado automaticamente pela plataforma Framety.</p>
+
+          <!-- Message Body -->
+          <div style="background: #ffffff; padding: 28px 24px; border-left: 1px solid #e8e8e8; border-right: 1px solid #e8e8e8;">
+            <div style="width: 40px; height: 3px; background: #E81B60; border-radius: 2px; margin-bottom: 20px;"></div>
+            <p style="color: #333333; font-size: 15px; line-height: 1.7; white-space: pre-wrap; margin: 0;">${mensagem.trim()}</p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background: #1a1a2e; padding: 20px 24px; text-align: center;">
+            <p style="color: rgba(255,255,255,0.5); font-size: 11px; margin: 0 0 8px;">Este email foi enviado pela plataforma <strong style="color: #E81B60;">Framety</strong></p>
+            <p style="color: rgba(255,255,255,0.3); font-size: 10px; margin: 0;">Grupo Skyline &bull; Produção Audiovisual</p>
           </div>
         </div>
       `;
