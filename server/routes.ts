@@ -13,6 +13,7 @@ import PDFDocument from "pdfkit";
 import { log } from "./vite";
 import multer from "multer";
 import path from "path";
+import nodemailer from "nodemailer";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import { uploadLocutorAudioToSupabase, deleteLocutorAudioFromSupabase } from "./storage-helpers";
@@ -1004,6 +1005,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         message: `WhatsApp enviado para ${enviados.length} contato(s)`,
+        enviados,
+        erros: erros.length > 0 ? erros : undefined,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Notificar cliente via Email (Gmail SMTP)
+  app.post("/api/projetos/:id/notificar-email", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const { mensagem, assunto } = req.body;
+      if (!mensagem || !mensagem.trim()) {
+        return res.status(400).json({ message: "Mensagem é obrigatória" });
+      }
+
+      const projeto = await storage.getProjeto(req.params.id);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      const emails = projeto.contatosEmail || [];
+      if (emails.length === 0) {
+        return res.status(400).json({ message: "Projeto não possui contatos de email cadastrados" });
+      }
+
+      const SMTP_USER = process.env.SMTP_USER || "gustavo@skylineip.com.br";
+      const SMTP_PASS = process.env.SMTP_PASS || "oqjavawt ecgq mgiu";
+
+      const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
+        auth: {
+          user: SMTP_USER,
+          pass: SMTP_PASS,
+        },
+      });
+
+      const subjectLine = assunto?.trim() || `Atualização - Projeto ${projeto.titulo}`;
+
+      const htmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Framety</h1>
+            <p style="color: #a0a0b0; margin: 4px 0 0; font-size: 13px;">Produção Audiovisual</p>
+          </div>
+          <div style="background: #ffffff; padding: 24px; border: 1px solid #e0e0e0; border-top: none;">
+            <p style="color: #333; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${mensagem.trim()}</p>
+          </div>
+          <div style="background: #f5f5f5; padding: 16px; border-radius: 0 0 12px 12px; border: 1px solid #e0e0e0; border-top: none; text-align: center;">
+            <p style="color: #888; font-size: 11px; margin: 0;">Este email foi enviado automaticamente pela plataforma Framety.</p>
+          </div>
+        </div>
+      `;
+
+      const enviados: string[] = [];
+      const erros: { email: string; erro: string }[] = [];
+
+      for (const email of emails) {
+        try {
+          await transporter.sendMail({
+            from: `"Framety" <${SMTP_USER}>`,
+            to: email,
+            subject: subjectLine,
+            text: mensagem.trim(),
+            html: htmlBody,
+          });
+          console.log(`[Email] Enviado para ${email} - Projeto: ${projeto.titulo}`);
+          enviados.push(email);
+        } catch (err: any) {
+          console.error(`[Email] Falha para ${email}:`, err.message);
+          erros.push({ email, erro: err.message });
+        }
+      }
+
+      if (enviados.length === 0) {
+        return res.status(502).json({
+          message: "Falha ao enviar para todos os emails",
+          erros,
+        });
+      }
+
+      res.json({
+        message: `Email enviado para ${enviados.length} contato(s)`,
         enviados,
         erros: erros.length > 0 ? erros : undefined,
       });

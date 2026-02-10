@@ -72,6 +72,8 @@ export function ProjectDetailsDrawer({
   const [contatosGruposLocal, setContatosGruposLocal] = useState<string[]>([]);
   const [showNotificarDialog, setShowNotificarDialog] = useState(false);
   const [mensagemNotificacao, setMensagemNotificacao] = useState("");
+  const [notificarCanais, setNotificarCanais] = useState<{ whatsapp: boolean; email: boolean }>({ whatsapp: true, email: true });
+  const [assuntoEmail, setAssuntoEmail] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -366,25 +368,47 @@ export function ProjectDetailsDrawer({
     },
   });
 
-  // Mutation para notificar cliente via WhatsApp
-  const notificarWhatsappMutation = useMutation({
-    mutationFn: async ({ projetoId, mensagem }: { projetoId: string; mensagem: string }) => {
-      const response = await apiRequest("POST", `/api/projetos/${projetoId}/notificar-whatsapp`, { mensagem });
-      return response.json();
+  // Mutation para notificar cliente (WhatsApp + Email)
+  const notificarClienteMutation = useMutation({
+    mutationFn: async ({ projetoId, mensagem, assunto, canais }: { projetoId: string; mensagem: string; assunto?: string; canais: { whatsapp: boolean; email: boolean } }) => {
+      const resultados: { whatsapp?: any; email?: any } = {};
+      const errosGerais: string[] = [];
+
+      if (canais.whatsapp) {
+        try {
+          const res = await apiRequest("POST", `/api/projetos/${projetoId}/notificar-whatsapp`, { mensagem });
+          resultados.whatsapp = await res.json();
+        } catch (err: any) {
+          errosGerais.push("WhatsApp: " + (err.message || "Falha no envio"));
+        }
+      }
+
+      if (canais.email) {
+        try {
+          const res = await apiRequest("POST", `/api/projetos/${projetoId}/notificar-email`, { mensagem, assunto });
+          resultados.email = await res.json();
+        } catch (err: any) {
+          errosGerais.push("Email: " + (err.message || "Falha no envio"));
+        }
+      }
+
+      return { resultados, errosGerais };
     },
-    onSuccess: (data) => {
+    onSuccess: ({ resultados, errosGerais }) => {
       setShowNotificarDialog(false);
-      toast({
-        title: "WhatsApp enviado!",
-        description: data.message,
-      });
+      const sucessos: string[] = [];
+      if (resultados.whatsapp) sucessos.push(resultados.whatsapp.message);
+      if (resultados.email) sucessos.push(resultados.email.message);
+
+      if (sucessos.length > 0) {
+        toast({ title: "Notificação enviada!", description: sucessos.join(" | ") });
+      }
+      if (errosGerais.length > 0) {
+        toast({ title: "Alguns envios falharam", description: errosGerais.join(" | "), variant: "destructive" });
+      }
     },
     onError: () => {
-      toast({
-        title: "Erro ao enviar WhatsApp",
-        description: "Verifique se o ClawdBot está online e tente novamente.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao notificar", description: "Verifique a conexão e tente novamente.", variant: "destructive" });
     },
   });
 
@@ -1657,19 +1681,24 @@ export function ProjectDetailsDrawer({
                     </div>
                   )}
 
-                  {/* Botão Notificar Cliente via WhatsApp */}
-                  {!isEditing && projetoAtual.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0 && (
+                  {/* Botão Notificar Cliente */}
+                  {!isEditing && ((projetoAtual.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0) || (projetoAtual.contatosEmail && projetoAtual.contatosEmail.length > 0)) && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full mt-3 text-green-700 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
+                      className="w-full mt-3 text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-950"
                       onClick={() => {
                         setMensagemNotificacao(gerarMensagemPadrao(projetoAtual));
+                        setAssuntoEmail(`Atualização - Projeto ${projetoAtual.titulo}`);
+                        setNotificarCanais({
+                          whatsapp: !!(projetoAtual.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0),
+                          email: !!(projetoAtual.contatosEmail && projetoAtual.contatosEmail.length > 0),
+                        });
                         setShowNotificarDialog(true);
                       }}
                     >
                       <Send className="h-4 w-4 mr-2" />
-                      Notificar Cliente via WhatsApp
+                      Notificar Cliente
                     </Button>
                   )}
                 </div>
@@ -1881,29 +1910,75 @@ export function ProjectDetailsDrawer({
       </DrawerContent>
     </Drawer>
 
-      {/* Dialog de Notificação WhatsApp */}
+      {/* Dialog de Notificação Cliente */}
       <Dialog open={showNotificarDialog} onOpenChange={setShowNotificarDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5 text-green-600" />
-              Notificar Cliente via WhatsApp
+              <Send className="h-5 w-5 text-blue-600" />
+              Notificar Cliente
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Canais */}
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Enviar por:</label>
+              <div className="mt-2 flex gap-4">
+                {projetoAtual?.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0 && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={notificarCanais.whatsapp}
+                      onCheckedChange={(checked) => setNotificarCanais(prev => ({ ...prev, whatsapp: !!checked }))}
+                    />
+                    <Phone className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">WhatsApp</span>
+                  </label>
+                )}
+                {projetoAtual?.contatosEmail && projetoAtual.contatosEmail.length > 0 && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={notificarCanais.email}
+                      onCheckedChange={(checked) => setNotificarCanais(prev => ({ ...prev, email: !!checked }))}
+                    />
+                    <Mail className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm">Email</span>
+                  </label>
+                )}
+              </div>
+            </div>
+
             {/* Destinatários */}
             <div>
               <label className="text-sm font-medium text-muted-foreground">Destinatários:</label>
               <div className="mt-1 space-y-1">
-                {projetoAtual?.contatosWhatsapp?.map((num, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
+                {notificarCanais.whatsapp && projetoAtual?.contatosWhatsapp?.map((num, i) => (
+                  <div key={`w-${i}`} className="flex items-center gap-2 text-sm">
                     <Phone className="h-3.5 w-3.5 text-green-600" />
                     <span>{num}</span>
                   </div>
                 ))}
+                {notificarCanais.email && projetoAtual?.contatosEmail?.map((email, i) => (
+                  <div key={`e-${i}`} className="flex items-center gap-2 text-sm">
+                    <Mail className="h-3.5 w-3.5 text-blue-600" />
+                    <span>{email}</span>
+                  </div>
+                ))}
               </div>
             </div>
+
+            {/* Assunto (só se email selecionado) */}
+            {notificarCanais.email && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Assunto do email:</label>
+                <Input
+                  className="mt-1"
+                  value={assuntoEmail}
+                  onChange={(e) => setAssuntoEmail(e.target.value)}
+                  placeholder="Assunto do email..."
+                />
+              </div>
+            )}
 
             {/* Mensagem */}
             <div>
@@ -1921,28 +1996,30 @@ export function ProjectDetailsDrawer({
             <Button
               variant="outline"
               onClick={() => setShowNotificarDialog(false)}
-              disabled={notificarWhatsappMutation.isPending}
+              disabled={notificarClienteMutation.isPending}
             >
               Cancelar
             </Button>
             <Button
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
               onClick={() => {
-                if (projetoAtual?.id && mensagemNotificacao.trim()) {
-                  notificarWhatsappMutation.mutate({
+                if (projetoAtual?.id && mensagemNotificacao.trim() && (notificarCanais.whatsapp || notificarCanais.email)) {
+                  notificarClienteMutation.mutate({
                     projetoId: projetoAtual.id,
                     mensagem: mensagemNotificacao,
+                    assunto: assuntoEmail,
+                    canais: notificarCanais,
                   });
                 }
               }}
-              disabled={notificarWhatsappMutation.isPending || !mensagemNotificacao.trim()}
+              disabled={notificarClienteMutation.isPending || !mensagemNotificacao.trim() || (!notificarCanais.whatsapp && !notificarCanais.email)}
             >
-              {notificarWhatsappMutation.isPending ? (
+              {notificarClienteMutation.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Send className="h-4 w-4 mr-2" />
               )}
-              Enviar WhatsApp
+              Enviar Notificação
             </Button>
           </DialogFooter>
         </DialogContent>
