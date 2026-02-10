@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getApprovalDetails } from "@/lib/approval-utils";
-import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2, Copy, ExternalLink } from "lucide-react";
+import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2, Copy, ExternalLink, FileText, Mail, Phone, Users as UsersIcon, Plus, Minus, Eye, CheckCircle, XCircle, Loader2, Send } from "lucide-react";
 
 import {
   Drawer,
@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 import {
   insertProjetoSchema,
@@ -66,6 +67,11 @@ export function ProjectDetailsDrawer({
 }: ProjectDetailsDrawerProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [newComment, setNewComment] = useState("");
+  const [contatosEmailLocal, setContatosEmailLocal] = useState<string[]>([]);
+  const [contatosWhatsappLocal, setContatosWhatsappLocal] = useState<string[]>([]);
+  const [contatosGruposLocal, setContatosGruposLocal] = useState<string[]>([]);
+  const [showNotificarDialog, setShowNotificarDialog] = useState(false);
+  const [mensagemNotificacao, setMensagemNotificacao] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -106,6 +112,21 @@ export function ProjectDetailsDrawer({
     enabled: !!projeto?.id,
   });
 
+  // Query para comentários do roteiro (feitos pelo cliente)
+  const { data: roteiroComentarios = [] } = useQuery<Array<{ id: string; secao: string; comentario: string; sugestao?: string; criadoEm: string }>>({
+    queryKey: ["/api/projetos", projeto?.id, "roteiro-comentarios"],
+    enabled: !!projeto?.id,
+  });
+
+  // Sincronizar contatos locais quando projetoAtual muda
+  useEffect(() => {
+    if (projetoAtual) {
+      setContatosEmailLocal(projetoAtual.contatosEmail || []);
+      setContatosWhatsappLocal(projetoAtual.contatosWhatsapp || []);
+      setContatosGruposLocal(projetoAtual.contatosGrupos || []);
+    }
+  }, [projetoAtual]);
+
   // Marcar aprovações como visualizadas ao abrir o drawer
   useEffect(() => {
     // Detectar se o drawer ACABOU DE ABRIR (transição de fechado para aberto)
@@ -132,6 +153,7 @@ export function ProjectDetailsDrawer({
                 musicaVisualizadaEm: projeto.musicaAprovada ? now : projeto.musicaVisualizadaEm,
                 locucaoVisualizadaEm: projeto.locucaoAprovada ? now : projeto.locucaoVisualizadaEm,
                 videoFinalVisualizadoEm: projeto.videoFinalAprovado ? now : projeto.videoFinalVisualizadoEm,
+                roteiroVisualizadoEm: (projeto.roteiroAprovado !== null && projeto.roteiroAprovado !== undefined) ? now : projeto.roteiroVisualizadoEm,
               };
             }
             return projeto;
@@ -152,6 +174,7 @@ export function ProjectDetailsDrawer({
                 musicaVisualizadaEm: projeto.musicaAprovada ? now : projeto.musicaVisualizadaEm,
                 locucaoVisualizadaEm: projeto.locucaoAprovada ? now : projeto.locucaoVisualizadaEm,
                 videoFinalVisualizadoEm: projeto.videoFinalAprovado ? now : projeto.videoFinalVisualizadoEm,
+                roteiroVisualizadoEm: (projeto.roteiroAprovado !== null && projeto.roteiroAprovado !== undefined) ? now : projeto.roteiroVisualizadoEm,
               };
             }
             return projeto;
@@ -167,6 +190,7 @@ export function ProjectDetailsDrawer({
           musicaVisualizadaEm: old.musicaAprovada ? now : old.musicaVisualizadaEm,
           locucaoVisualizadaEm: old.locucaoAprovada ? now : old.locucaoVisualizadaEm,
           videoFinalVisualizadoEm: old.videoFinalAprovado ? now : old.videoFinalVisualizadoEm,
+          roteiroVisualizadoEm: (old.roteiroAprovado !== null && old.roteiroAprovado !== undefined) ? now : old.roteiroVisualizadoEm,
         };
       });
 
@@ -178,6 +202,17 @@ export function ProjectDetailsDrawer({
       }).catch((error) => {
         console.error('[Approval Sync] Erro ao sincronizar:', error);
       });
+
+      // 4. Sincronizar visualização do roteiro
+      if (projetoAtual.roteiroAprovado !== null && projetoAtual.roteiroAprovado !== undefined) {
+        fetch(`/api/projetos/${projetoAtual.id}/roteiro-visualizado`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        }).catch((error) => {
+          console.error('[Roteiro Visualizado Sync] Erro ao sincronizar:', error);
+        });
+      }
     }
   }, [isOpen, projetoAtual?.id, queryClient]);
 
@@ -203,6 +238,7 @@ export function ProjectDetailsDrawer({
       dataPrevistaEntrega: projetoAtual?.dataPrevistaEntrega ? format(new Date(projetoAtual.dataPrevistaEntrega), "yyyy-MM-dd") : "",
       linkFrameIo: projetoAtual?.linkFrameIo || "",
       linkYoutube: projetoAtual?.linkYoutube || "",
+      roteiroLink: projetoAtual?.roteiroLink || "",
       caminho: projetoAtual?.caminho || "",
       referencias: projetoAtual?.referencias || "",
       informacoesAdicionais: projetoAtual?.informacoesAdicionais || "",
@@ -231,6 +267,7 @@ export function ProjectDetailsDrawer({
         dataPrevistaEntrega: projetoAtual.dataPrevistaEntrega ? format(new Date(projetoAtual.dataPrevistaEntrega), "yyyy-MM-dd") : "",
         linkFrameIo: projetoAtual.linkFrameIo || "",
         linkYoutube: projetoAtual.linkYoutube || "",
+        roteiroLink: projetoAtual.roteiroLink || "",
         caminho: projetoAtual.caminho || "",
         referencias: projetoAtual.referencias || "",
         informacoesAdicionais: projetoAtual.informacoesAdicionais || "",
@@ -306,6 +343,75 @@ export function ProjectDetailsDrawer({
     },
   });
 
+  // Mutation para reenviar roteiro para aprovação
+  const reenviarRoteiroMutation = useMutation({
+    mutationFn: async (projetoId: string) => {
+      const response = await apiRequest("POST", `/api/projetos/${projetoId}/reenviar-roteiro`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos/light"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos", projetoAtual?.id] });
+      refetchProjeto();
+      toast({
+        title: "Roteiro reenviado para aprovação",
+        description: "O cliente poderá revisar e comentar novamente.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao reenviar roteiro",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para notificar cliente via WhatsApp
+  const notificarWhatsappMutation = useMutation({
+    mutationFn: async ({ projetoId, mensagem }: { projetoId: string; mensagem: string }) => {
+      const response = await apiRequest("POST", `/api/projetos/${projetoId}/notificar-whatsapp`, { mensagem });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setShowNotificarDialog(false);
+      toast({
+        title: "WhatsApp enviado!",
+        description: data.message,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao enviar WhatsApp",
+        description: "Verifique se o ClawdBot está online e tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Gerar mensagem padrão baseada no status do projeto
+  function gerarMensagemPadrao(proj: ProjetoWithRelations): string {
+    const nome = proj.titulo || "Sem título";
+    const seq = proj.sequencialId ? `#SKY${proj.sequencialId}` : "";
+    const status = proj.status || "";
+
+    if (proj.roteiroAprovado === null && proj.roteiroLink) {
+      return `Olá! O roteiro do projeto "${nome}" ${seq} está disponível para sua aprovação. Por favor, acesse o portal para revisar e nos enviar seu feedback.\n\nEquipe Framety`;
+    }
+
+    const statusMessages: Record<string, string> = {
+      "Briefing": `Olá! Informamos que o projeto "${nome}" ${seq} está em fase de Briefing. Em breve iniciaremos a produção.\n\nEquipe Framety`,
+      "Roteiro": `Olá! O roteiro do projeto "${nome}" ${seq} está sendo elaborado. Enviaremos para aprovação em breve.\n\nEquipe Framety`,
+      "Captacao": `Olá! O projeto "${nome}" ${seq} está em fase de Captação. As gravações estão em andamento.\n\nEquipe Framety`,
+      "Edicao": `Olá! Informamos que o projeto "${nome}" ${seq} está em fase de Edição. Em breve enviaremos o vídeo para sua revisão.\n\nEquipe Framety`,
+      "Entrega": `Olá! O vídeo do projeto "${nome}" ${seq} foi finalizado e está disponível para sua revisão.\n\nEquipe Framety`,
+      "Revisao": `Olá! O projeto "${nome}" ${seq} está em fase de Revisão. Estamos ajustando conforme seu feedback.\n\nEquipe Framety`,
+      "Aguardando Aprovacao": `Olá! O projeto "${nome}" ${seq} está aguardando sua aprovação. Por favor, acesse o portal para avaliar.\n\nEquipe Framety`,
+      "Aprovado": `Olá! O projeto "${nome}" ${seq} foi aprovado com sucesso! Obrigado pela parceria.\n\nEquipe Framety`,
+    };
+
+    return statusMessages[status] || `Olá! Segue uma atualização sobre o projeto "${nome}" ${seq}. Status atual: ${status}.\n\nEquipe Framety`;
+  }
+
   // Mutation para criar comentário
   const createCommentMutation = useMutation({
     mutationFn: async (data: InsertComentario) => {
@@ -374,10 +480,24 @@ export function ProjectDetailsDrawer({
       }
       // O schema já converte as strings de data para Date corretamente
 
+      // Incluir contatos do estado local
+      submitData.contatosEmail = contatosEmailLocal.filter(e => e.trim());
+      submitData.contatosWhatsapp = contatosWhatsappLocal.filter(w => w.trim());
+      submitData.contatosGrupos = contatosGruposLocal.filter(g => g.trim());
+
+      console.log("[Drawer Save] Enviando dados:", JSON.stringify({ contatosWhatsapp: submitData.contatosWhatsapp, contatosEmail: submitData.contatosEmail }));
+
       // Adiciona o ID do projeto para garantir que o projeto correto seja atualizado
       updateProjectMutation.mutate({
         ...submitData,
         projectId: projetoAtual.id,
+      });
+    }, (errors) => {
+      console.error("[Drawer Save] Erros de validação:", errors);
+      toast({
+        title: "Erro ao salvar",
+        description: "Verifique os campos obrigatórios do formulário.",
+        variant: "destructive",
       });
     })();
   };
@@ -646,6 +766,7 @@ export function ProjectDetailsDrawer({
   if (!projetoAtual) return null;
 
   return (
+    <>
     <Drawer open={isOpen} onOpenChange={onClose}>
       <DrawerContent className="max-h-[90vh] max-w-4xl mx-auto glass">
         <DrawerHeader className="flex items-center justify-between border-b px-6 py-4">
@@ -1267,6 +1388,290 @@ export function ProjectDetailsDrawer({
                       </p>
                     )}
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Link do Roteiro
+                    </label>
+                    {isEditing ? (
+                      <FormField
+                        control={form.control}
+                        name="roteiroLink"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input
+                                placeholder="https://docs.google.com/document/d/..."
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ) : (
+                      <p className="mt-1">
+                        {projetoAtual.roteiroLink ? (
+                          <a
+                            href={projetoAtual.roteiroLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline"
+                          >
+                            {projetoAtual.roteiroLink}
+                          </a>
+                        ) : "—"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status do Roteiro (somente visualização) */}
+                {projetoAtual.roteiroAprovado !== null && projetoAtual.roteiroAprovado !== undefined && (
+                  <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Status do Roteiro
+                      </h3>
+                      {projetoAtual.roteiroAprovado === true ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                          <CheckCircle className="h-3 w-3 mr-1" /> Aprovado
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                          <XCircle className="h-3 w-3 mr-1" /> Alteracoes solicitadas
+                        </Badge>
+                      )}
+                    </div>
+
+                    {projetoAtual.roteiroDataAprovacao && (
+                      <p className="text-xs text-muted-foreground">
+                        Respondido em {format(new Date(projetoAtual.roteiroDataAprovacao), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR })}
+                      </p>
+                    )}
+
+                    {projetoAtual.roteiroFeedback && (
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Feedback do cliente:</label>
+                        <p className="text-sm mt-1 whitespace-pre-wrap">{projetoAtual.roteiroFeedback}</p>
+                      </div>
+                    )}
+
+                    {roteiroComentarios.length > 0 && (
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Comentarios por secao:</label>
+                        <div className="space-y-2 mt-1">
+                          {roteiroComentarios.map((c) => (
+                            <div key={c.id} className="bg-white dark:bg-gray-900 rounded-md p-2 border border-gray-100 dark:border-gray-700">
+                              <p className="text-xs font-semibold text-primary">{c.secao}</p>
+                              <p className="text-sm">{c.comentario}</p>
+                              {c.sugestao && (
+                                <p className="text-xs text-muted-foreground mt-1 italic">Sugestao: {c.sugestao}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {!projetoAtual.roteiroVisualizadoEm && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Nao visualizado pela equipe</span>
+                      </div>
+                    )}
+
+                    {/* Botão para reenviar roteiro para nova rodada de aprovação */}
+                    {projetoAtual.roteiroAprovado === false && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-2"
+                        onClick={() => {
+                          if (window.confirm("Reenviar o roteiro para o cliente revisar novamente? Os comentários anteriores serão mantidos como histórico.")) {
+                            reenviarRoteiroMutation.mutate(projetoAtual.id);
+                          }
+                        }}
+                        disabled={reenviarRoteiroMutation.isPending}
+                      >
+                        {reenviarRoteiroMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <FileText className="h-4 w-4 mr-2" />
+                        )}
+                        Reenviar para aprovação
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* Contatos do Projeto */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <UsersIcon className="h-4 w-4" />
+                    Contatos do Projeto
+                  </h3>
+
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      {/* Emails */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-2">
+                          <Mail className="h-3 w-3" /> Emails
+                        </label>
+                        {contatosEmailLocal.map((email, idx) => (
+                          <div key={idx} className="flex gap-2 mb-2">
+                            <Input
+                              type="email"
+                              placeholder="email@exemplo.com"
+                              value={email}
+                              onChange={(e) => {
+                                const updated = [...contatosEmailLocal];
+                                updated[idx] = e.target.value;
+                                setContatosEmailLocal(updated);
+                              }}
+                              className="text-sm"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0 text-red-500 hover:text-red-700 shrink-0"
+                              onClick={() => setContatosEmailLocal(contatosEmailLocal.filter((_, i) => i !== idx))}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setContatosEmailLocal([...contatosEmailLocal, ""])}
+                          className="text-xs"
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Adicionar email
+                        </Button>
+                      </div>
+
+                      {/* WhatsApp */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-2">
+                          <Phone className="h-3 w-3" /> WhatsApp
+                        </label>
+                        {contatosWhatsappLocal.map((num, idx) => (
+                          <div key={idx} className="flex gap-2 mb-2">
+                            <Input
+                              type="tel"
+                              placeholder="+55 11 99999-0000"
+                              value={num}
+                              onChange={(e) => {
+                                const updated = [...contatosWhatsappLocal];
+                                updated[idx] = e.target.value;
+                                setContatosWhatsappLocal(updated);
+                              }}
+                              className="text-sm"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0 text-red-500 hover:text-red-700 shrink-0"
+                              onClick={() => setContatosWhatsappLocal(contatosWhatsappLocal.filter((_, i) => i !== idx))}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setContatosWhatsappLocal([...contatosWhatsappLocal, ""])}
+                          className="text-xs"
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Adicionar numero
+                        </Button>
+                      </div>
+
+                      {/* Grupos WhatsApp */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-2">
+                          <UsersIcon className="h-3 w-3" /> Grupos WhatsApp
+                        </label>
+                        {contatosGruposLocal.map((grupo, idx) => (
+                          <div key={idx} className="flex gap-2 mb-2">
+                            <Input
+                              placeholder="Nome do grupo"
+                              value={grupo}
+                              onChange={(e) => {
+                                const updated = [...contatosGruposLocal];
+                                updated[idx] = e.target.value;
+                                setContatosGruposLocal(updated);
+                              }}
+                              className="text-sm"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0 text-red-500 hover:text-red-700 shrink-0"
+                              onClick={() => setContatosGruposLocal(contatosGruposLocal.filter((_, i) => i !== idx))}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setContatosGruposLocal([...contatosGruposLocal, ""])}
+                          className="text-xs"
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Adicionar grupo
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-start gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                        <span>
+                          {projetoAtual.contatosEmail && projetoAtual.contatosEmail.length > 0
+                            ? projetoAtual.contatosEmail.join(", ")
+                            : <span className="text-muted-foreground">Nenhum email cadastrado</span>}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Phone className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                        <span>
+                          {projetoAtual.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0
+                            ? projetoAtual.contatosWhatsapp.join(", ")
+                            : <span className="text-muted-foreground">Nenhum WhatsApp cadastrado</span>}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <UsersIcon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                        <span>
+                          {projetoAtual.contatosGrupos && projetoAtual.contatosGrupos.length > 0
+                            ? projetoAtual.contatosGrupos.join(", ")
+                            : <span className="text-muted-foreground">Nenhum grupo cadastrado</span>}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Botão Notificar Cliente via WhatsApp */}
+                  {!isEditing && projetoAtual.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-3 text-green-700 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
+                      onClick={() => {
+                        setMensagemNotificacao(gerarMensagemPadrao(projetoAtual));
+                        setShowNotificarDialog(true);
+                      }}
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Notificar Cliente via WhatsApp
+                    </Button>
+                  )}
                 </div>
 
                 {/* Caminho */}
@@ -1475,5 +1880,73 @@ export function ProjectDetailsDrawer({
         </div>
       </DrawerContent>
     </Drawer>
+
+      {/* Dialog de Notificação WhatsApp */}
+      <Dialog open={showNotificarDialog} onOpenChange={setShowNotificarDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-green-600" />
+              Notificar Cliente via WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Destinatários */}
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Destinatários:</label>
+              <div className="mt-1 space-y-1">
+                {projetoAtual?.contatosWhatsapp?.map((num, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <Phone className="h-3.5 w-3.5 text-green-600" />
+                    <span>{num}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Mensagem */}
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Mensagem:</label>
+              <Textarea
+                className="mt-1 min-h-[140px]"
+                value={mensagemNotificacao}
+                onChange={(e) => setMensagemNotificacao(e.target.value)}
+                placeholder="Digite a mensagem para o cliente..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowNotificarDialog(false)}
+              disabled={notificarWhatsappMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => {
+                if (projetoAtual?.id && mensagemNotificacao.trim()) {
+                  notificarWhatsappMutation.mutate({
+                    projetoId: projetoAtual.id,
+                    mensagem: mensagemNotificacao,
+                  });
+                }
+              }}
+              disabled={notificarWhatsappMutation.isPending || !mensagemNotificacao.trim()}
+            >
+              {notificarWhatsappMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              Enviar WhatsApp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

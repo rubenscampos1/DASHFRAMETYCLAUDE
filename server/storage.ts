@@ -53,6 +53,9 @@ import {
   type ProjetoLocutorWithRelations,
   type RespostaNps,
   type InsertRespostaNps,
+  roteiroComentarios,
+  type RoteiroComentario,
+  type InsertRoteiroComentario,
   videosProjeto,
   videoComentarios,
   videoPastas,
@@ -210,12 +213,18 @@ export interface IStorage {
   getProjetosMusicasForProjetos(projetoIds: string[]): Promise<Record<string, ProjetoMusica[]>>;
   getProjetosLocutoresForProjetos(projetoIds: string[]): Promise<Record<string, ProjetoLocutorWithRelations[]>>;
 
+  // Roteiro Comentários
+  getRoteiroComentarios(projetoId: string): Promise<RoteiroComentario[]>;
+  createRoteiroComentarios(projetoId: string, comentarios: Array<{ secao: string; comentario: string; sugestao?: string }>): Promise<RoteiroComentario[]>;
+
   // Portal do Cliente
   getProjetoByClientToken(token: string): Promise<ProjetoWithRelations | undefined>;
   getClienteByPortalToken(token: string): Promise<{ cliente: Cliente; projetos: ProjetoWithRelations[] } | undefined>;
   aprovarMusica(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
   aprovarLocucao(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
   aprovarVideoFinal(token: string, aprovado: boolean, feedback?: string): Promise<Projeto>;
+  aprovarRoteiro(token: string, aprovado: boolean, feedback?: string, comentariosData?: Array<{ secao: string; comentario: string; sugestao?: string }>): Promise<Projeto>;
+  reenviarRoteiro(projetoId: string): Promise<Projeto>;
   regenerarClientToken(projetoId: string): Promise<string>;
 
   // Tokens de Acesso (API)
@@ -425,6 +434,16 @@ export class DatabaseStorage implements IStorage {
       videoFinalDataAprovacao: projetos.videoFinalDataAprovacao,
       videoFinalVisualizadoEm: projetos.videoFinalVisualizadoEm,
       enviadoCliente: projetos.enviadoCliente,
+      // Roteiro
+      roteiroLink: projetos.roteiroLink,
+      roteiroAprovado: projetos.roteiroAprovado,
+      roteiroFeedback: projetos.roteiroFeedback,
+      roteiroDataAprovacao: projetos.roteiroDataAprovacao,
+      roteiroVisualizadoEm: projetos.roteiroVisualizadoEm,
+      // Contatos
+      contatosEmail: projetos.contatosEmail,
+      contatosWhatsapp: projetos.contatosWhatsapp,
+      contatosGrupos: projetos.contatosGrupos,
     };
 
     let query = db
@@ -563,6 +582,8 @@ export class DatabaseStorage implements IStorage {
         locucaoVisualizadaEm: projetos.locucaoVisualizadaEm,
         videoFinalAprovado: projetos.videoFinalAprovado,
         videoFinalVisualizadoEm: projetos.videoFinalVisualizadoEm,
+        roteiroAprovado: projetos.roteiroAprovado,
+        roteiroVisualizadoEm: projetos.roteiroVisualizadoEm,
 
         // Tipo de vídeo (apenas nome e cores)
         tipoVideoNome: tiposDeVideo.nome,
@@ -597,7 +618,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`⏱️ [SQL Performance] getProjetosKanbanLight: ${duration}ms (${result.length} projetos, ${conditions.length} filtros)`);
 
     // 🔔 DEBUG SININHO: Verificar se campos de aprovação estão vindo do banco
-    const projetosComAprovacao = result.filter(r => r.musicaAprovada || r.locucaoAprovada || r.videoFinalAprovado);
+    const projetosComAprovacao = result.filter(r => r.musicaAprovada || r.locucaoAprovada || r.videoFinalAprovado || r.roteiroAprovado);
 
     // Mapear resultados para o tipo ProjetoKanbanLight
     return result.map(row => ({
@@ -615,6 +636,8 @@ export class DatabaseStorage implements IStorage {
       locucaoVisualizadaEm: row.locucaoVisualizadaEm,
       videoFinalAprovado: row.videoFinalAprovado,
       videoFinalVisualizadoEm: row.videoFinalVisualizadoEm,
+      roteiroAprovado: row.roteiroAprovado,
+      roteiroVisualizadoEm: row.roteiroVisualizadoEm,
       tipoVideo: {
         nome: row.tipoVideoNome!,
         backgroundColor: row.tipoVideoBackgroundColor!,
@@ -1540,6 +1563,97 @@ export class DatabaseStorage implements IStorage {
     console.log(`⏱️ [SQL Performance - Batch] getProjetosLocutoresForProjetos - TOTAL: ${totalDuration}ms (2 queries para ${projetoIds.length} projetos)`);
 
     return locutoresPorProjeto;
+  }
+
+  // ========== ROTEIRO COMENTÁRIOS ==========
+
+  async getRoteiroComentarios(projetoId: string): Promise<RoteiroComentario[]> {
+    return await db
+      .select()
+      .from(roteiroComentarios)
+      .where(eq(roteiroComentarios.projetoId, projetoId))
+      .orderBy(asc(roteiroComentarios.criadoEm));
+  }
+
+  async createRoteiroComentarios(
+    projetoId: string,
+    comentariosData: Array<{ secao: string; comentario: string; sugestao?: string }>
+  ): Promise<RoteiroComentario[]> {
+    if (comentariosData.length === 0) return [];
+
+    const values = comentariosData.map(c => ({
+      projetoId,
+      secao: c.secao,
+      comentario: c.comentario,
+      sugestao: c.sugestao || null,
+    }));
+
+    const result = await db
+      .insert(roteiroComentarios)
+      .values(values)
+      .returning();
+
+    return result;
+  }
+
+  async aprovarRoteiro(
+    token: string,
+    aprovado: boolean,
+    feedback?: string,
+    comentariosData?: Array<{ secao: string; comentario: string; sugestao?: string }>
+  ): Promise<Projeto> {
+    // Buscar projeto pelo token
+    const [projeto] = await db
+      .select()
+      .from(projetos)
+      .where(eq(projetos.clientToken, token))
+      .limit(1);
+
+    if (!projeto) {
+      throw new Error("Projeto não encontrado");
+    }
+
+    // Atualizar campos de aprovação do roteiro
+    const [updatedProjeto] = await db
+      .update(projetos)
+      .set({
+        roteiroAprovado: aprovado,
+        roteiroFeedback: feedback || null,
+        roteiroDataAprovacao: new Date(),
+      })
+      .where(eq(projetos.clientToken, token))
+      .returning();
+
+    // Criar comentários se houver
+    if (comentariosData && comentariosData.length > 0) {
+      // Limpar comentários anteriores antes de inserir novos
+      await db
+        .delete(roteiroComentarios)
+        .where(eq(roteiroComentarios.projetoId, projeto.id));
+
+      await this.createRoteiroComentarios(projeto.id, comentariosData);
+    }
+
+    return updatedProjeto;
+  }
+
+  async reenviarRoteiro(projetoId: string): Promise<Projeto> {
+    const [updatedProjeto] = await db
+      .update(projetos)
+      .set({
+        roteiroAprovado: sql`NULL`,
+        roteiroFeedback: sql`NULL`,
+        roteiroDataAprovacao: sql`NULL`,
+        roteiroVisualizadoEm: sql`NULL`,
+      } as any)
+      .where(eq(projetos.id, projetoId))
+      .returning();
+
+    if (!updatedProjeto) {
+      throw new Error("Projeto não encontrado");
+    }
+
+    return updatedProjeto;
   }
 
   // Métodos de NPS

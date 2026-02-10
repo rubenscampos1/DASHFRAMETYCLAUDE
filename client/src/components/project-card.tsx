@@ -248,7 +248,9 @@ const arePropsEqual = (
     prevProps.projeto.videoFinalVisualizadoEm !== nextProps.projeto.videoFinalVisualizadoEm ||
     prevProps.projeto.musicaAprovada !== nextProps.projeto.musicaAprovada ||
     prevProps.projeto.locucaoAprovada !== nextProps.projeto.locucaoAprovada ||
-    prevProps.projeto.videoFinalAprovado !== nextProps.projeto.videoFinalAprovado
+    prevProps.projeto.videoFinalAprovado !== nextProps.projeto.videoFinalAprovado ||
+    prevProps.projeto.roteiroAprovado !== nextProps.projeto.roteiroAprovado ||
+    prevProps.projeto.roteiroVisualizadoEm !== nextProps.projeto.roteiroVisualizadoEm
   ) {
     return false;
   }

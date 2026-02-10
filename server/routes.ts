@@ -897,6 +897,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Comentários do roteiro (equipe)
+  app.get("/api/projetos/:id/roteiro-comentarios", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const comentarios = await storage.getRoteiroComentarios(req.params.id);
+      res.json(comentarios);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Marcar roteiro como visualizado (equipe)
+  app.post("/api/projetos/:id/roteiro-visualizado", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const projeto = await storage.updateProjeto(req.params.id, {
+        roteiroVisualizadoEm: new Date(),
+      } as any);
+      res.json(projeto);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Reenviar roteiro para aprovação (reseta status, cliente vê review de novo)
+  app.post("/api/projetos/:id/reenviar-roteiro", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const projeto = await storage.reenviarRoteiro(req.params.id);
+
+      // Emitir WebSocket
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('projeto:updated', { id: projeto.id, projeto });
+      }
+
+      res.json(projeto);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Notificar cliente via WhatsApp (OpenClaw gateway)
+  app.post("/api/projetos/:id/notificar-whatsapp", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const { mensagem } = req.body;
+      if (!mensagem || !mensagem.trim()) {
+        return res.status(400).json({ message: "Mensagem é obrigatória" });
+      }
+
+      const projeto = await storage.getProjeto(req.params.id);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      const numeros = projeto.contatosWhatsapp || [];
+      if (numeros.length === 0) {
+        return res.status(400).json({ message: "Projeto não possui contatos WhatsApp cadastrados" });
+      }
+
+      const OPENCLAW_URL = "https://framety.tail81fe5d.ts.net";
+      const OPENCLAW_TOKEN = "57bf11589000632b2c0009387429a69db0ad17c08802dd1b";
+
+      const enviados: string[] = [];
+      const erros: { numero: string; erro: string }[] = [];
+
+      for (const numero of numeros) {
+        try {
+          const target = numero.startsWith("+") ? numero : `+${numero.replace(/\D/g, "")}`;
+          const response = await fetch(`${OPENCLAW_URL}/tools/invoke`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${OPENCLAW_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              tool: "message",
+              action: "send",
+              args: {
+                channel: "whatsapp",
+                target,
+                message: mensagem.trim(),
+              },
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`[WhatsApp] Enviado para ${target} - Projeto: ${projeto.titulo}`, result);
+            enviados.push(target);
+          } else {
+            const errorText = await response.text();
+            console.error(`[WhatsApp] Erro para ${target}:`, errorText);
+            erros.push({ numero: target, erro: errorText });
+          }
+        } catch (err: any) {
+          console.error(`[WhatsApp] Falha para ${numero}:`, err.message);
+          erros.push({ numero, erro: err.message });
+        }
+      }
+
+      if (enviados.length === 0) {
+        return res.status(502).json({
+          message: "Falha ao enviar para todos os contatos",
+          erros,
+        });
+      }
+
+      res.json({
+        message: `WhatsApp enviado para ${enviados.length} contato(s)`,
+        enviados,
+        erros: erros.length > 0 ? erros : undefined,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/comentarios", requireAuthOrToken, async (req, res, next) => {
     try {
       const comentarioData = insertComentarioSchema.parse({
@@ -1464,9 +1579,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Projeto não encontrado ou link inválido" });
       }
 
-      // Buscar músicas e locutores do projeto
+      // Buscar músicas, locutores e comentários de roteiro do projeto
       const musicas = await storage.getProjetoMusicas(projeto.id);
       const locutores = await storage.getProjetoLocutores(projeto.id);
+      const roteiroComentarios = await storage.getRoteiroComentarios(projeto.id);
 
       // Retornar apenas as informações necessárias para o cliente
       const projetoCliente = {
@@ -1486,6 +1602,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Arrays de músicas e locutores para aprovação
         musicas,
         locutores,
+        // Roteiro
+        roteiroLink: projeto.roteiroLink,
+        roteiroAprovado: projeto.roteiroAprovado,
+        roteiroFeedback: projeto.roteiroFeedback,
+        roteiroDataAprovacao: projeto.roteiroDataAprovacao,
+        roteiroComentarios,
         // URLs antigas para aprovação (mantidas para compatibilidade)
         musicaUrl: projeto.musicaUrl,
         musicaAprovada: projeto.musicaAprovada,
@@ -1534,11 +1656,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const projetoIds = projetos.map(p => p.id);
 
-      // Busca todas as músicas e locutores em lote (batch)
-      const [musicasPorProjeto, locutoresPorProjeto] = await Promise.all([
+      // Busca todas as músicas, locutores e comentários de roteiro em lote (batch)
+      const [musicasPorProjeto, locutoresPorProjeto, ...roteiroComentariosResults] = await Promise.all([
         storage.getProjetosMusicasForProjetos(projetoIds),
         storage.getProjetosLocutoresForProjetos(projetoIds),
+        ...projetoIds.map(id => storage.getRoteiroComentarios(id)),
       ]);
+
+      // Agrupar comentários de roteiro por projetoId
+      const roteiroComentariosPorProjeto: Record<string, any[]> = {};
+      projetoIds.forEach((id, index) => {
+        roteiroComentariosPorProjeto[id] = roteiroComentariosResults[index] || [];
+      });
 
       // Mapeia projetos anexando músicas/locutores do resultado batch
       const projetosComDetalhes = projetos.map(projeto => ({
@@ -1557,6 +1686,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Arrays de músicas e locutores para aprovação (vem do batch)
         musicas: musicasPorProjeto[projeto.id] || [],
         locutores: locutoresPorProjeto[projeto.id] || [],
+        // Roteiro
+        roteiroLink: projeto.roteiroLink,
+        roteiroAprovado: projeto.roteiroAprovado,
+        roteiroFeedback: projeto.roteiroFeedback,
+        roteiroDataAprovacao: projeto.roteiroDataAprovacao,
+        roteiroComentarios: roteiroComentariosPorProjeto[projeto.id] || [],
         // URLs antigas para aprovação (mantidas para compatibilidade)
         musicaUrl: projeto.musicaUrl,
         musicaAprovada: projeto.musicaAprovada,
@@ -1666,6 +1801,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: aprovado ? "Vídeo aprovado com sucesso!" : "Solicitação de alteração enviada",
         videoFinalAprovado: projeto.videoFinalAprovado,
         videoFinalFeedback: projeto.videoFinalFeedback
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Aprovar/Reprovar Roteiro
+  app.post("/api/cliente/projeto/:token/aprovar-roteiro", async (req, res, next) => {
+    try {
+      const { aprovado, feedback, comentarios } = req.body;
+
+      if (typeof aprovado !== 'boolean') {
+        return res.status(400).json({ message: "Campo 'aprovado' é obrigatório e deve ser boolean" });
+      }
+
+      // Validar comentários se enviados
+      if (comentarios && !Array.isArray(comentarios)) {
+        return res.status(400).json({ message: "Campo 'comentarios' deve ser um array" });
+      }
+
+      const projeto = await storage.aprovarRoteiro(req.params.token, aprovado, feedback, comentarios);
+
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      // Emitir WebSocket se disponível
+      const wsServer = (req.app as any).wsServer;
+      if (wsServer) {
+        wsServer.emitChange('projeto:updated', { id: projeto.id, projeto });
+      }
+
+      res.json({
+        message: aprovado ? "Roteiro aprovado com sucesso!" : "Solicitação de alteração enviada",
+        roteiroAprovado: projeto.roteiroAprovado,
+        roteiroFeedback: projeto.roteiroFeedback,
       });
     } catch (error) {
       next(error);
@@ -2381,6 +2552,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await storage.deleteTokenAcesso(req.params.id);
       res.sendStatus(204);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Proxy para o chat do OpenClaw (evita CORS)
+  app.post("/api/chat", requireAuthOrToken, async (req, res, next) => {
+    try {
+      console.log("[Chat Proxy] Enviando para OpenClaw:", JSON.stringify(req.body).slice(0, 200));
+      const response = await fetch("https://framety.tail81fe5d.ts.net/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer 57bf11589000632b2c0009387429a69db0ad17c08802dd1b",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(req.body),
+      });
+
+      console.log("[Chat Proxy] Status OpenClaw:", response.status);
+      const text = await response.text();
+      console.log("[Chat Proxy] Resposta:", text.slice(0, 300));
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: "Erro no OpenClaw gateway", detail: text });
+      }
+
+      const data = JSON.parse(text);
+      res.json(data);
+    } catch (error: any) {
+      console.error("[Chat Proxy] ERRO:", error.message);
+      res.status(502).json({ error: "Falha ao conectar com OpenClaw", detail: error.message });
+    }
+  });
+
+  // ==========================================
+  // ENVIAR EMAIL (Tool do bot via Resend)
+  // ==========================================
+  app.post("/api/enviar-email", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const { projetoId, assunto, mensagem } = req.body;
+
+      if (!projetoId || !assunto || !mensagem) {
+        return res.status(400).json({ message: "Campos projetoId, assunto e mensagem são obrigatórios" });
+      }
+
+      // Buscar projeto para pegar os contatos
+      const projeto = await storage.getProjeto(projetoId);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      const emails = projeto.contatosEmail || [];
+      if (emails.length === 0) {
+        return res.status(400).json({ message: "Projeto não possui emails de contato cadastrados" });
+      }
+
+      // Verificar se Resend está configurado
+      const resendApiKey = process.env.RESEND_API_KEY;
+      if (!resendApiKey) {
+        return res.status(503).json({ message: "Serviço de email não configurado (RESEND_API_KEY ausente)" });
+      }
+
+      // Enviar email via Resend API
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: process.env.RESEND_FROM_EMAIL || "Framety <noreply@frametyboard.com>",
+          to: emails,
+          subject: assunto,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: #1a1a2e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                <h2 style="margin: 0;">Framety</h2>
+              </div>
+              <div style="padding: 20px; border: 1px solid #eee; border-top: none; border-radius: 0 0 8px 8px;">
+                <p style="font-size: 14px; color: #333;">${mensagem.replace(/\n/g, '<br>')}</p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                <p style="font-size: 12px; color: #999;">Projeto: ${projeto.titulo} (#SKY${projeto.sequencialId})</p>
+              </div>
+            </div>
+          `,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[Email] Erro Resend:", errorText);
+        return res.status(502).json({ message: "Erro ao enviar email", detail: errorText });
+      }
+
+      const result = await response.json();
+      console.log(`[Email] ✅ Enviado para ${emails.join(", ")} - Projeto: ${projeto.titulo}`);
+
+      res.json({
+        message: `Email enviado com sucesso para ${emails.length} destinatário(s)`,
+        destinatarios: emails,
+        resendId: result.id,
+      });
     } catch (error) {
       next(error);
     }

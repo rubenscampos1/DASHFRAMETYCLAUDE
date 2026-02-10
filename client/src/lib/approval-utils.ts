@@ -22,6 +22,11 @@ export function countClientApprovals(projeto: ProjetoWithRelations): number {
     count++;
   }
 
+  // Roteiro aprovado/rejeitado e não visualizado
+  if (projeto.roteiroAprovado !== null && projeto.roteiroAprovado !== undefined && !projeto.roteiroVisualizadoEm) {
+    count++;
+  }
+
   return count;
 }
 
@@ -77,6 +82,15 @@ export function getApprovalDetails(projeto: ProjetoWithRelations) {
       icon: '🎬',
       date: projeto.videoFinalDataAprovacao,
       feedback: projeto.videoFinalFeedback,
+    });
+  }
+
+  if (projeto.roteiroAprovado === true) {
+    approvals.push({
+      type: 'Roteiro',
+      icon: '📝',
+      date: projeto.roteiroDataAprovacao,
+      feedback: projeto.roteiroFeedback,
     });
   }
 

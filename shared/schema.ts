@@ -127,6 +127,16 @@ export const projetos = pgTable("projetos", {
   videoFinalVisualizadoEm: timestamp("video_final_visualizado_em"), // quando a aprovação foi visualizada pela equipe
   // Controle de envio
   enviadoCliente: boolean("enviado_cliente").default(false), // marca se o projeto foi enviado ao cliente
+  // Aprovação de Roteiro (Portal do Cliente)
+  roteiroLink: text("roteiro_link"), // Link do Google Docs / externo
+  roteiroAprovado: boolean("roteiro_aprovado"), // null=pendente, true=aprovado, false=alterações
+  roteiroFeedback: text("roteiro_feedback"), // Feedback geral do cliente
+  roteiroDataAprovacao: timestamp("roteiro_data_aprovacao"), // Data da aprovação/rejeição
+  roteiroVisualizadoEm: timestamp("roteiro_visualizado_em"), // Quando a equipe visualizou
+  // Contatos do Projeto (para notificações via IA)
+  contatosEmail: text("contatos_email").array().default([]),
+  contatosWhatsapp: text("contatos_whatsapp").array().default([]),
+  contatosGrupos: text("contatos_grupos").array().default([]),
 });
 
 export const logsDeStatus = pgTable("logs_de_status", {
@@ -220,6 +230,16 @@ export const amostrasLocutores = pgTable("amostras_locutores", {
   ordem: integer("ordem").default(0), // para ordenação
   destaque: boolean("destaque").default(false), // amostra principal
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Comentários do cliente sobre seções do roteiro
+export const roteiroComentarios = pgTable("roteiro_comentarios", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projetoId: varchar("projeto_id").references(() => projetos.id, { onDelete: "cascade" }).notNull(),
+  secao: text("secao").notNull(), // Nome/número da seção (ex: "Cena 1", "Introdução")
+  comentario: text("comentario").notNull(), // Observação do cliente
+  sugestao: text("sugestao"), // Sugestão de alteração (opcional)
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
 });
 
 // Tabela para múltiplas músicas de um projeto
@@ -392,6 +412,7 @@ export const projetosRelations = relations(projetos, ({ one, many }) => ({
   }),
   logsDeStatus: many(logsDeStatus),
   comentarios: many(comentarios),
+  roteiroComentarios: many(roteiroComentarios),
   musicas: many(projetoMusicas),
   locutores: many(projetoLocutores),
   respostasNps: many(respostasNps),
@@ -455,6 +476,13 @@ export const amostrasLocutoresRelations = relations(amostrasLocutores, ({ one })
   estilo: one(estilosLocucao, {
     fields: [amostrasLocutores.estiloId],
     references: [estilosLocucao.id],
+  }),
+}));
+
+export const roteiroComentariosRelations = relations(roteiroComentarios, ({ one }) => ({
+  projeto: one(projetos, {
+    fields: [roteiroComentarios.projetoId],
+    references: [projetos.id],
   }),
 }));
 
@@ -731,6 +759,14 @@ export const updateProjetoSchema = z.object({
 
   // Controle de envio ao cliente
   enviadoCliente: z.boolean().optional(),
+
+  // Roteiro
+  roteiroLink: z.string().url().optional().or(z.literal("")),
+
+  // Contatos do projeto
+  contatosEmail: z.array(z.string().email()).optional(),
+  contatosWhatsapp: z.array(z.string()).optional(),
+  contatosGrupos: z.array(z.string()).optional(),
 }).partial();
 
 export const insertLogStatusSchema = createInsertSchema(logsDeStatus).omit({
@@ -787,6 +823,11 @@ export const insertLocutorSchema = createInsertSchema(locutores).omit({
 export const insertAmostraLocutorSchema = createInsertSchema(amostrasLocutores).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertRoteiroComentarioSchema = createInsertSchema(roteiroComentarios).omit({
+  id: true,
+  criadoEm: true,
 });
 
 export const insertProjetoMusicaSchema = createInsertSchema(projetoMusicas).omit({
@@ -855,6 +896,8 @@ export type Locutor = typeof locutores.$inferSelect;
 export type InsertLocutor = z.infer<typeof insertLocutorSchema>;
 export type AmostraLocutor = typeof amostrasLocutores.$inferSelect;
 export type InsertAmostraLocutor = z.infer<typeof insertAmostraLocutorSchema>;
+export type RoteiroComentario = typeof roteiroComentarios.$inferSelect;
+export type InsertRoteiroComentario = z.infer<typeof insertRoteiroComentarioSchema>;
 export type ProjetoMusica = typeof projetoMusicas.$inferSelect;
 export type InsertProjetoMusica = z.infer<typeof insertProjetoMusicaSchema>;
 export type ProjetoLocutor = typeof projetoLocutores.$inferSelect;
@@ -976,6 +1019,8 @@ export type ProjetoKanbanLight = {
   locucaoVisualizadaEm: Date | null;
   videoFinalAprovado: boolean | null;
   videoFinalVisualizadoEm: Date | null;
+  roteiroAprovado: boolean | null;
+  roteiroVisualizadoEm: Date | null;
 
   // CAMPOS REMOVIDOS (presentes em ProjetoWithRelations mas não necessários no Kanban):
   // ❌ descricao - não exibida no card
