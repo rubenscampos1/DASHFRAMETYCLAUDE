@@ -7,7 +7,7 @@ import { AuthProvider } from "./hooks/use-auth";
 import { ThemeProvider } from "./components/ui/theme-provider";
 import { SidebarProvider } from "./contexts/sidebar-context";
 import { RealtimeProvider } from "./components/realtime-provider";
-import { WebSocketStatus } from "./components/websocket-status";
+
 import { ProtectedRoute } from "./lib/protected-route";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
@@ -69,8 +69,7 @@ function App() {
             <SidebarProvider>
               <TooltipProvider>
                 <Toaster />
-                <WebSocketStatus />
-                <Router />
+<Router />
               </TooltipProvider>
             </SidebarProvider>
           </RealtimeProvider>
