@@ -19,6 +19,74 @@ import { v4 as uuidv4 } from "uuid";
 import { uploadLocutorAudioToSupabase, deleteLocutorAudioFromSupabase } from "./storage-helpers";
 import { nanoid } from "nanoid";
 
+// Template de email reutilizável (Framety branded)
+function createEmailHtml(projeto: any, mensagem: string): string {
+  const seq = projeto.sequencialId ? `#SKY${projeto.sequencialId}` : "";
+  const statusLabel = projeto.status || "Em andamento";
+  return `
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8f8f8;">
+      <div style="background: #ffffff; padding: 36px 24px; text-align: center; border-bottom: 3px solid #E81B60;">
+        <img src="https://frametyboard.com/assets/Framety%20-%20PNG%20-%20%2001_1759177448673-BYQ2DGYc.png" alt="Framety" style="height: 80px;" />
+      </div>
+      <div style="background: #1a1a2e; padding: 14px 24px; display: flex;">
+        <table width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td style="color: rgba(255,255,255,0.6); font-size: 12px;">Projeto</td>
+          <td style="color: rgba(255,255,255,0.6); font-size: 12px; text-align: right;">Status</td>
+        </tr><tr>
+          <td style="color: #ffffff; font-size: 15px; font-weight: 600; padding-top: 2px;">${projeto.titulo} ${seq}</td>
+          <td style="text-align: right; padding-top: 2px;">
+            <span style="background: rgba(232,27,96,0.2); color: #E81B60; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">${statusLabel}</span>
+          </td>
+        </tr></table>
+      </div>
+      <div style="background: #ffffff; padding: 28px 24px; border-left: 1px solid #e8e8e8; border-right: 1px solid #e8e8e8;">
+        <div style="width: 40px; height: 3px; background: #E81B60; border-radius: 2px; margin-bottom: 20px;"></div>
+        <p style="color: #333333; font-size: 15px; line-height: 1.7; white-space: pre-wrap; margin: 0;">${mensagem.trim()}</p>
+      </div>
+      <div style="background: #1a1a2e; padding: 20px 24px; text-align: center;">
+        <p style="color: rgba(255,255,255,0.5); font-size: 11px; margin: 0 0 8px;">Este email foi enviado pela plataforma <strong style="color: #E81B60;">Framety</strong></p>
+        <p style="color: rgba(255,255,255,0.3); font-size: 10px; margin: 0;">Grupo Skyline &bull; Produção Audiovisual</p>
+      </div>
+    </div>
+  `;
+}
+
+// Enviar email via Nodemailer/Gmail SMTP
+async function sendEmailViaSMTP(emails: string[], assunto: string, mensagem: string, projeto: any): Promise<{ enviados: string[]; erros: { email: string; erro: string }[] }> {
+  const SMTP_USER = process.env.SMTP_USER || "gustavo@skylineip.com.br";
+  const SMTP_PASS = process.env.SMTP_PASS || "oqjavawt ecgq mgiu";
+
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+
+  const htmlBody = createEmailHtml(projeto, mensagem);
+  const enviados: string[] = [];
+  const erros: { email: string; erro: string }[] = [];
+
+  for (const email of emails) {
+    try {
+      await transporter.sendMail({
+        from: `"Framety" <${SMTP_USER}>`,
+        to: email,
+        subject: assunto,
+        text: mensagem.trim(),
+        html: htmlBody,
+      });
+      console.log(`[Email] Enviado para ${email} - Projeto: ${projeto.titulo}`);
+      enviados.push(email);
+    } catch (err: any) {
+      console.error(`[Email] Falha para ${email}:`, err.message);
+      erros.push({ email, erro: err.message });
+    }
+  }
+
+  return { enviados, erros };
+}
+
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Não autorizado" });
@@ -1132,77 +1200,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Projeto não possui contatos de email cadastrados" });
       }
 
-      const SMTP_USER = process.env.SMTP_USER || "gustavo@skylineip.com.br";
-      const SMTP_PASS = process.env.SMTP_PASS || "oqjavawt ecgq mgiu";
-
-      const transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 587,
-        secure: false,
-        auth: {
-          user: SMTP_USER,
-          pass: SMTP_PASS,
-        },
-      });
-
       const subjectLine = assunto?.trim() || `Atualização - Projeto ${projeto.titulo}`;
-
-      const seq = projeto.sequencialId ? `#SKY${projeto.sequencialId}` : "";
-      const statusLabel = projeto.status || "Em andamento";
-
-      const htmlBody = `
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8f8f8;">
-          <!-- Header -->
-          <div style="background: #ffffff; padding: 36px 24px; text-align: center; border-bottom: 3px solid #E81B60;">
-            <img src="https://frametyboard.com/assets/Framety%20-%20PNG%20-%20%2001_1759177448673-BYQ2DGYc.png" alt="Framety" style="height: 80px;" />
-          </div>
-
-          <!-- Project Info Bar -->
-          <div style="background: #1a1a2e; padding: 14px 24px; display: flex;">
-            <table width="100%" cellpadding="0" cellspacing="0"><tr>
-              <td style="color: rgba(255,255,255,0.6); font-size: 12px;">Projeto</td>
-              <td style="color: rgba(255,255,255,0.6); font-size: 12px; text-align: right;">Status</td>
-            </tr><tr>
-              <td style="color: #ffffff; font-size: 15px; font-weight: 600; padding-top: 2px;">${projeto.titulo} ${seq}</td>
-              <td style="text-align: right; padding-top: 2px;">
-                <span style="background: rgba(232,27,96,0.2); color: #E81B60; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">${statusLabel}</span>
-              </td>
-            </tr></table>
-          </div>
-
-          <!-- Message Body -->
-          <div style="background: #ffffff; padding: 28px 24px; border-left: 1px solid #e8e8e8; border-right: 1px solid #e8e8e8;">
-            <div style="width: 40px; height: 3px; background: #E81B60; border-radius: 2px; margin-bottom: 20px;"></div>
-            <p style="color: #333333; font-size: 15px; line-height: 1.7; white-space: pre-wrap; margin: 0;">${mensagem.trim()}</p>
-          </div>
-
-          <!-- Footer -->
-          <div style="background: #1a1a2e; padding: 20px 24px; text-align: center;">
-            <p style="color: rgba(255,255,255,0.5); font-size: 11px; margin: 0 0 8px;">Este email foi enviado pela plataforma <strong style="color: #E81B60;">Framety</strong></p>
-            <p style="color: rgba(255,255,255,0.3); font-size: 10px; margin: 0;">Grupo Skyline &bull; Produção Audiovisual</p>
-          </div>
-        </div>
-      `;
-
-      const enviados: string[] = [];
-      const erros: { email: string; erro: string }[] = [];
-
-      for (const email of emails) {
-        try {
-          await transporter.sendMail({
-            from: `"Framety" <${SMTP_USER}>`,
-            to: email,
-            subject: subjectLine,
-            text: mensagem.trim(),
-            html: htmlBody,
-          });
-          console.log(`[Email] Enviado para ${email} - Projeto: ${projeto.titulo}`);
-          enviados.push(email);
-        } catch (err: any) {
-          console.error(`[Email] Falha para ${email}:`, err.message);
-          erros.push({ email, erro: err.message });
-        }
-      }
+      const { enviados, erros } = await sendEmailViaSMTP(emails, subjectLine, mensagem, projeto);
 
       if (enviados.length === 0) {
         return res.status(502).json({
@@ -2766,19 +2765,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Proxy para o chat do OpenClaw (evita CORS)
+  // Proxy para o chat do OpenClaw (evita CORS) com suporte a email
   app.post("/api/chat", requireAuthOrToken, async (req, res, next) => {
     try {
-      console.log("[Chat Proxy] Enviando para OpenClaw:", JSON.stringify(req.body).slice(0, 200));
       const openclawUrl = process.env.OPENCLAW_URL || "https://framety.tail81fe5d.ts.net";
       const openclawToken = process.env.OPENCLAW_TOKEN || "57bf11589000632b2c0009387429a69db0ad17c08802dd1b";
+
+      // Injetar instrução de sistema para email no início das mensagens
+      const emailSystemMsg = {
+        role: "system",
+        content: `INSTRUÇÃO IMPORTANTE SOBRE EMAIL:
+Você NÃO pode enviar emails usando o tool "message" com channel "gmail" — esse canal não está disponível.
+Para enviar email, inclua na sua resposta um bloco especial no formato:
+[ENVIAR_EMAIL]
+{"projetoId":"ID_DO_PROJETO","assunto":"Assunto do Email","mensagem":"Corpo do email aqui"}
+[/ENVIAR_EMAIL]
+O sistema dashboard processará esse bloco automaticamente e enviará o email via Gmail SMTP para os contatos de email cadastrados no projeto.
+Se não souber o ID do projeto, pergunte ao usuário qual projeto ele se refere.
+WhatsApp continua funcionando normalmente via tool "message" com channel "whatsapp".`
+      };
+
+      const messages = req.body.messages || [];
+      const modifiedBody = {
+        ...req.body,
+        messages: [emailSystemMsg, ...messages],
+      };
+
+      console.log("[Chat Proxy] Enviando para OpenClaw:", JSON.stringify(modifiedBody).slice(0, 300));
       const response = await fetch(`${openclawUrl}/v1/chat/completions`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${openclawToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(modifiedBody),
       });
 
       console.log("[Chat Proxy] Status OpenClaw:", response.status);
@@ -2790,6 +2810,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const data = JSON.parse(text);
+
+      // Verificar se a resposta contém bloco [ENVIAR_EMAIL]
+      let reply = data.choices?.[0]?.message?.content || "";
+      const emailMatch = reply.match(/\[ENVIAR_EMAIL\]([\s\S]*?)\[\/ENVIAR_EMAIL\]/);
+
+      if (emailMatch) {
+        try {
+          const emailData = JSON.parse(emailMatch[1].trim());
+          const { projetoId, assunto, mensagem } = emailData;
+
+          if (projetoId && mensagem) {
+            const projeto = await storage.getProjeto(projetoId);
+            if (projeto) {
+              const emails = projeto.contatosEmail || [];
+              if (emails.length > 0) {
+                const subjectLine = assunto || `Atualização - Projeto ${projeto.titulo}`;
+                const { enviados, erros } = await sendEmailViaSMTP(emails, subjectLine, mensagem, projeto);
+
+                if (enviados.length > 0) {
+                  console.log(`[Chat Email] Enviado para ${enviados.join(", ")} - Projeto: ${projeto.titulo}`);
+                  reply = reply.replace(/\[ENVIAR_EMAIL\][\s\S]*?\[\/ENVIAR_EMAIL\]/, '').trim();
+                  reply += `\n\n✅ **Email enviado com sucesso** para ${enviados.length} contato(s): ${enviados.join(", ")}`;
+                } else {
+                  reply = reply.replace(/\[ENVIAR_EMAIL\][\s\S]*?\[\/ENVIAR_EMAIL\]/, '').trim();
+                  reply += `\n\n❌ **Falha ao enviar email**: ${erros.map(e => e.erro).join(", ")}`;
+                }
+              } else {
+                reply = reply.replace(/\[ENVIAR_EMAIL\][\s\S]*?\[\/ENVIAR_EMAIL\]/, '').trim();
+                reply += "\n\n⚠️ Este projeto não possui contatos de email cadastrados. Adicione emails na aba de contatos do projeto.";
+              }
+            } else {
+              reply = reply.replace(/\[ENVIAR_EMAIL\][\s\S]*?\[\/ENVIAR_EMAIL\]/, '').trim();
+              reply += "\n\n⚠️ Projeto não encontrado. Verifique o ID do projeto.";
+            }
+          }
+
+          data.choices[0].message.content = reply;
+        } catch (e: any) {
+          console.error("[Chat Email] Erro ao processar bloco de email:", e.message);
+          // Remove o bloco malformado e avisa
+          reply = reply.replace(/\[ENVIAR_EMAIL\][\s\S]*?\[\/ENVIAR_EMAIL\]/, '').trim();
+          reply += "\n\n⚠️ Houve um erro ao processar o envio de email. Tente novamente.";
+          data.choices[0].message.content = reply;
+        }
+      }
+
       res.json(data);
     } catch (error: any) {
       console.error("[Chat Proxy] ERRO:", error.message);
@@ -2798,7 +2864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==========================================
-  // ENVIAR EMAIL (Tool do bot via Resend)
+  // ENVIAR EMAIL (Tool do bot via Gmail SMTP)
   // ==========================================
   app.post("/api/enviar-email", requireAuthOrToken, async (req, res, next) => {
     try {
@@ -2808,7 +2874,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Campos projetoId, assunto e mensagem são obrigatórios" });
       }
 
-      // Buscar projeto para pegar os contatos
       const projeto = await storage.getProjeto(projetoId);
       if (!projeto) {
         return res.status(404).json({ message: "Projeto não encontrado" });
@@ -2819,51 +2884,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Projeto não possui emails de contato cadastrados" });
       }
 
-      // Verificar se Resend está configurado
-      const resendApiKey = process.env.RESEND_API_KEY;
-      if (!resendApiKey) {
-        return res.status(503).json({ message: "Serviço de email não configurado (RESEND_API_KEY ausente)" });
+      const { enviados, erros } = await sendEmailViaSMTP(emails, assunto, mensagem, projeto);
+
+      if (enviados.length === 0) {
+        return res.status(502).json({ message: "Falha ao enviar para todos os emails", erros });
       }
 
-      // Enviar email via Resend API
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: process.env.RESEND_FROM_EMAIL || "Framety <noreply@frametyboard.com>",
-          to: emails,
-          subject: assunto,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="background: #1a1a2e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-                <h2 style="margin: 0;">Framety</h2>
-              </div>
-              <div style="padding: 20px; border: 1px solid #eee; border-top: none; border-radius: 0 0 8px 8px;">
-                <p style="font-size: 14px; color: #333;">${mensagem.replace(/\n/g, '<br>')}</p>
-                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-                <p style="font-size: 12px; color: #999;">Projeto: ${projeto.titulo} (#SKY${projeto.sequencialId})</p>
-              </div>
-            </div>
-          `,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[Email] Erro Resend:", errorText);
-        return res.status(502).json({ message: "Erro ao enviar email", detail: errorText });
-      }
-
-      const result = await response.json();
-      console.log(`[Email] ✅ Enviado para ${emails.join(", ")} - Projeto: ${projeto.titulo}`);
+      console.log(`[Email Bot] Enviado para ${enviados.join(", ")} - Projeto: ${projeto.titulo}`);
 
       res.json({
-        message: `Email enviado com sucesso para ${emails.length} destinatário(s)`,
-        destinatarios: emails,
-        resendId: result.id,
+        message: `Email enviado com sucesso para ${enviados.length} destinatário(s)`,
+        destinatarios: enviados,
+        erros: erros.length > 0 ? erros : undefined,
       });
     } catch (error) {
       next(error);
