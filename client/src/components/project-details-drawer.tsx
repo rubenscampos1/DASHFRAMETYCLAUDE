@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getApprovalDetails } from "@/lib/approval-utils";
-import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2, Copy, ExternalLink, FileText, Mail, Phone, Users as UsersIcon, Plus, Minus, Eye, CheckCircle, XCircle, Loader2, Send, Mic } from "lucide-react";
+import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2, Copy, ExternalLink, FileText, Mail, Phone, Users as UsersIcon, Plus, Minus, Eye, CheckCircle, XCircle, Loader2, Send, Mic, Camera } from "lucide-react";
 
 import {
   Drawer,
@@ -457,6 +457,51 @@ export function ProjectDetailsDrawer({
 Para facilitar e evitar erros, siga o passo a passo:
 👉 www.framety.com.br/tutorial`;
   }
+
+  // ===== CAPTADOR =====
+  const [showCaptadorDialog, setShowCaptadorDialog] = useState(false);
+  const [captadorNome, setCaptadorNome] = useState("");
+  const [captadorInstrucoes, setCaptadorInstrucoes] = useState("");
+
+  const { data: captadorLinks = [], refetch: refetchCaptadorLinks } = useQuery<any[]>({
+    queryKey: [`/api/projetos/${projetoAtual?.id}/captador-links`],
+    enabled: !!projetoAtual?.id && isOpen,
+  });
+
+  const { data: captadorUploads = [], refetch: refetchCaptadorUploads } = useQuery<any[]>({
+    queryKey: [`/api/projetos/${projetoAtual?.id}/captador-uploads`],
+    enabled: !!projetoAtual?.id && isOpen,
+  });
+
+  const gerarCaptadorLinkMutation = useMutation({
+    mutationFn: async ({ projetoId, nomeCaptador, instrucoes }: { projetoId: string; nomeCaptador?: string; instrucoes?: string }) => {
+      const res = await apiRequest("POST", `/api/projetos/${projetoId}/captador-link`, { nomeCaptador, instrucoes });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setShowCaptadorDialog(false);
+      setCaptadorNome("");
+      setCaptadorInstrucoes("");
+      refetchCaptadorLinks();
+      const url = data.url || `${window.location.origin}/captador/${data.token}`;
+      navigator.clipboard.writeText(url).catch(() => {});
+      toast({ title: "Link de captador gerado!", description: "Link copiado para a area de transferencia." });
+    },
+    onError: () => {
+      toast({ title: "Erro ao gerar link", variant: "destructive" });
+    },
+  });
+
+  const desativarCaptadorLinkMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      const res = await apiRequest("PATCH", `/api/captador-links/${linkId}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchCaptadorLinks();
+      toast({ title: "Link desativado" });
+    },
+  });
 
   // Mutation para criar comentário
   const createCommentMutation = useMutation({
@@ -1726,6 +1771,131 @@ Para facilitar e evitar erros, siga o passo a passo:
                   )}
                 </div>
 
+                {/* Captações (Portal do Captador) */}
+                {!isEditing && (
+                  <div className="mt-4">
+                    <Separator className="mb-4" />
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                        <Camera className="h-4 w-4" />
+                        Captacoes
+                      </label>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowCaptadorDialog(true)}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Gerar Link
+                      </Button>
+                    </div>
+
+                    {/* Links gerados */}
+                    {captadorLinks.length > 0 && (
+                      <div className="space-y-2 mb-3">
+                        {captadorLinks.map((link: any) => (
+                          <div key={link.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">
+                                {link.nomeCaptador || "Captador"}
+                                {!link.ativo && <Badge variant="secondary" className="ml-2 text-xs">Desativado</Badge>}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(link.createdAt).toLocaleDateString("pt-BR")}
+                                {link.driveFolderUrl && " • Drive OK"}
+                              </p>
+                            </div>
+                            {link.ativo && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => {
+                                    const url = `${window.location.origin}/captador/${link.token}`;
+                                    navigator.clipboard.writeText(url);
+                                    toast({ title: "Link copiado!" });
+                                  }}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => window.open(`/captador/${link.token}`, "_blank")}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-red-500"
+                                  onClick={() => desativarCaptadorLinkMutation.mutate(link.id)}
+                                >
+                                  <XCircle className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
+                            {link.driveFolderUrl && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                onClick={() => window.open(link.driveFolderUrl, "_blank")}
+                                title="Abrir pasta no Drive"
+                              >
+                                <FileText className="h-3 w-3 text-green-600" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Uploads recebidos */}
+                    {captadorUploads.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {captadorUploads.length} arquivo(s) recebido(s)
+                        </p>
+                        <div className="space-y-1">
+                          {captadorUploads.slice(0, 5).map((upload: any) => (
+                            <div key={upload.id} className="flex items-center gap-2 p-1.5 text-xs">
+                              <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                              <span className="truncate flex-1">{upload.nomeOriginal}</span>
+                              <span className="text-muted-foreground flex-shrink-0">
+                                {upload.tamanho ? `${(upload.tamanho / (1024 * 1024)).toFixed(1)}MB` : ""}
+                              </span>
+                              {upload.publicUrl && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 w-5 p-0"
+                                  onClick={() => window.open(upload.publicUrl, "_blank")}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          {captadorUploads.length > 5 && (
+                            <p className="text-xs text-muted-foreground text-center">
+                              +{captadorUploads.length - 5} arquivo(s) mais
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {captadorLinks.length === 0 && captadorUploads.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Nenhum link de captador gerado ainda.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Caminho */}
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -2053,6 +2223,64 @@ Para facilitar e evitar erros, siga o passo a passo:
                 <Send className="h-4 w-4 mr-2" />
               )}
               Enviar Notificação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Gerar Link de Captador */}
+      <Dialog open={showCaptadorDialog} onOpenChange={setShowCaptadorDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="h-5 w-5 text-[#E81B60]" />
+              Gerar Link de Upload
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Nome do Captador (opcional)</label>
+              <Input
+                value={captadorNome}
+                onChange={(e) => setCaptadorNome(e.target.value)}
+                placeholder="Ex: Joao - Camera"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Instrucoes (opcional)</label>
+              <Textarea
+                value={captadorInstrucoes}
+                onChange={(e) => setCaptadorInstrucoes(e.target.value)}
+                placeholder="Ex: Enviar todos os arquivos brutos da gravacao do dia 12/02..."
+                rows={3}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Uma pasta sera criada automaticamente no Google Drive para este projeto.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCaptadorDialog(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (projetoAtual) {
+                  gerarCaptadorLinkMutation.mutate({
+                    projetoId: projetoAtual.id,
+                    nomeCaptador: captadorNome || undefined,
+                    instrucoes: captadorInstrucoes || undefined,
+                  });
+                }
+              }}
+              disabled={gerarCaptadorLinkMutation.isPending}
+            >
+              {gerarCaptadorLinkMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <LinkIcon className="h-4 w-4 mr-2" />
+              )}
+              Gerar Link
             </Button>
           </DialogFooter>
         </DialogContent>

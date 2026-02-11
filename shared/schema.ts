@@ -365,6 +365,36 @@ export const videoPastas = pgTable("video_pastas", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Portal do Captador - Links de upload
+export const captadorLinks = pgTable("captador_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projetoId: varchar("projeto_id").references(() => projetos.id, { onDelete: "cascade" }).notNull(),
+  token: text("token").unique().notNull(),
+  nomeCaptador: text("nome_captador"),
+  instrucoes: text("instrucoes"),
+  driveFolderId: text("drive_folder_id"),
+  driveFolderUrl: text("drive_folder_url"),
+  ativo: boolean("ativo").default(true),
+  expiraEm: timestamp("expira_em"),
+  criadoPorId: varchar("criado_por_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Portal do Captador - Arquivos enviados
+export const captadorUploads = pgTable("captador_uploads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  linkId: varchar("link_id").references(() => captadorLinks.id, { onDelete: "cascade" }).notNull(),
+  projetoId: varchar("projeto_id").references(() => projetos.id, { onDelete: "cascade" }).notNull(),
+  nomeOriginal: text("nome_original").notNull(),
+  storagePath: text("storage_path").notNull(),
+  publicUrl: text("public_url"),
+  tamanho: integer("tamanho"),
+  mimeType: text("mime_type"),
+  nomeCaptador: text("nome_captador"),
+  observacao: text("observacao"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   projetosResponsavel: many(projetos, { relationName: "responsavel" }),
@@ -564,6 +594,29 @@ export const videoPastasRelations = relations(videoPastas, ({ one, many }) => ({
     relationName: "subpastas",
   }),
   videos: many(videosProjeto),
+}));
+
+export const captadorLinksRelations = relations(captadorLinks, ({ one, many }) => ({
+  projeto: one(projetos, {
+    fields: [captadorLinks.projetoId],
+    references: [projetos.id],
+  }),
+  criadoPor: one(users, {
+    fields: [captadorLinks.criadoPorId],
+    references: [users.id],
+  }),
+  uploads: many(captadorUploads),
+}));
+
+export const captadorUploadsRelations = relations(captadorUploads, ({ one }) => ({
+  link: one(captadorLinks, {
+    fields: [captadorUploads.linkId],
+    references: [captadorLinks.id],
+  }),
+  projeto: one(projetos, {
+    fields: [captadorUploads.projetoId],
+    references: [projetos.id],
+  }),
 }));
 
 // Schemas
@@ -868,6 +921,16 @@ export const insertVideoPastaSchema = createInsertSchema(videoPastas).omit({
   totalStorage: true,
 });
 
+export const insertCaptadorLinkSchema = createInsertSchema(captadorLinks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertCaptadorUploadSchema = createInsertSchema(captadorUploads).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -922,6 +985,11 @@ export const insertTokenAcessoSchema = z.object({
 
 export type TokenAcesso = typeof tokensAcesso.$inferSelect;
 export type InsertTokenAcesso = z.infer<typeof insertTokenAcessoSchema>;
+
+export type CaptadorLink = typeof captadorLinks.$inferSelect;
+export type InsertCaptadorLink = z.infer<typeof insertCaptadorLinkSchema>;
+export type CaptadorUpload = typeof captadorUploads.$inferSelect;
+export type InsertCaptadorUpload = z.infer<typeof insertCaptadorUploadSchema>;
 
 // Extended types with relations
 export type ProjetoWithRelations = Projeto & {

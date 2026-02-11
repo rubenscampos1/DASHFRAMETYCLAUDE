@@ -72,6 +72,12 @@ import {
   tokensAcesso,
   type TokenAcesso,
   type InsertTokenAcesso,
+  captadorLinks,
+  captadorUploads,
+  type CaptadorLink,
+  type InsertCaptadorLink,
+  type CaptadorUpload,
+  type InsertCaptadorUpload,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, asc, sql, gte, lte, lt, max, inArray } from "drizzle-orm";
@@ -233,6 +239,19 @@ export interface IStorage {
   createTokenAcesso(data: InsertTokenAcesso): Promise<TokenAcesso>;
   updateTokenAcesso(id: string, data: Partial<InsertTokenAcesso>): Promise<TokenAcesso>;
   deleteTokenAcesso(id: string): Promise<void>;
+
+  // Captador Links
+  getCaptadorLinkByToken(token: string): Promise<CaptadorLink | undefined>;
+  getCaptadorLinksByProjeto(projetoId: string): Promise<CaptadorLink[]>;
+  createCaptadorLink(link: InsertCaptadorLink): Promise<CaptadorLink>;
+  updateCaptadorLink(id: string, data: Partial<InsertCaptadorLink>): Promise<CaptadorLink>;
+  deleteCaptadorLink(id: string): Promise<void>;
+
+  // Captador Uploads
+  getCaptadorUploadsByLink(linkId: string): Promise<CaptadorUpload[]>;
+  getCaptadorUploadsByProjeto(projetoId: string): Promise<CaptadorUpload[]>;
+  createCaptadorUpload(upload: InsertCaptadorUpload): Promise<CaptadorUpload>;
+  deleteCaptadorUpload(id: string): Promise<void>;
 
   // Seeds
   seedData(): Promise<void>;
@@ -1686,6 +1705,75 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(respostasNps)
       .orderBy(respostasNps.dataResposta);
+  }
+
+  // ========== CAPTADOR LINKS ==========
+
+  async getCaptadorLinkByToken(token: string): Promise<CaptadorLink | undefined> {
+    const [link] = await this.db
+      .select()
+      .from(captadorLinks)
+      .where(eq(captadorLinks.token, token));
+    return link;
+  }
+
+  async getCaptadorLinksByProjeto(projetoId: string): Promise<CaptadorLink[]> {
+    return await this.db
+      .select()
+      .from(captadorLinks)
+      .where(eq(captadorLinks.projetoId, projetoId))
+      .orderBy(desc(captadorLinks.createdAt));
+  }
+
+  async createCaptadorLink(link: InsertCaptadorLink): Promise<CaptadorLink> {
+    const [created] = await this.db
+      .insert(captadorLinks)
+      .values(link)
+      .returning();
+    return created;
+  }
+
+  async updateCaptadorLink(id: string, data: Partial<InsertCaptadorLink>): Promise<CaptadorLink> {
+    const [updated] = await this.db
+      .update(captadorLinks)
+      .set(data)
+      .where(eq(captadorLinks.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCaptadorLink(id: string): Promise<void> {
+    await this.db.delete(captadorLinks).where(eq(captadorLinks.id, id));
+  }
+
+  // ========== CAPTADOR UPLOADS ==========
+
+  async getCaptadorUploadsByLink(linkId: string): Promise<CaptadorUpload[]> {
+    return await this.db
+      .select()
+      .from(captadorUploads)
+      .where(eq(captadorUploads.linkId, linkId))
+      .orderBy(desc(captadorUploads.createdAt));
+  }
+
+  async getCaptadorUploadsByProjeto(projetoId: string): Promise<CaptadorUpload[]> {
+    return await this.db
+      .select()
+      .from(captadorUploads)
+      .where(eq(captadorUploads.projetoId, projetoId))
+      .orderBy(desc(captadorUploads.createdAt));
+  }
+
+  async createCaptadorUpload(upload: InsertCaptadorUpload): Promise<CaptadorUpload> {
+    const [created] = await this.db
+      .insert(captadorUploads)
+      .values(upload)
+      .returning();
+    return created;
+  }
+
+  async deleteCaptadorUpload(id: string): Promise<void> {
+    await this.db.delete(captadorUploads).where(eq(captadorUploads.id, id));
   }
 
   async seedData(): Promise<void> {

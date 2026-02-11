@@ -26,6 +26,7 @@ import TestePortal from "@/pages/teste-portal";
 import VideosGrid from "@/pages/videos-grid";
 import VideosCliente from "@/pages/videos-cliente";
 import VideosPasta from "@/pages/videos-pasta";
+import CaptadorPortal from "@/pages/captador-portal";
 
 function Router() {
   return (
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/teste/:token" component={TestePortal} />
       <Route path="/portal/cliente/:clientToken" component={PortalUnificado} />
       <Route path="/cliente/:token" component={ClientePortal} />
+      <Route path="/captador/:token" component={CaptadorPortal} />
 
       {/* Rotas protegidas */}
       <ProtectedRoute path="/" component={Dashboard} />

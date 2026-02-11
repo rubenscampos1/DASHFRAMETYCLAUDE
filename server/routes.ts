@@ -155,6 +155,14 @@ const audioUpload = multer({
   }
 });
 
+// Configuração do Multer para upload de captações (vídeos, imagens, zips)
+const captadorUploadMulter = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 500 * 1024 * 1024, // 500MB max
+  },
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
@@ -1220,6 +1228,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==========================================
+  // PORTAL DO CAPTADOR — Rotas autenticadas
+  // ==========================================
+
+  // Gerar link de upload para captador
+  app.post("/api/projetos/:id/captador-link", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const { nomeCaptador, instrucoes } = req.body;
+      const projeto = await storage.getProjeto(req.params.id);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      const token = nanoid(16);
+      let driveFolderId: string | undefined;
+      let driveFolderUrl: string | undefined;
+
+      // Tentar criar pasta no Google Drive via OpenClaw
+      try {
+        const OPENCLAW_URL = process.env.OPENCLAW_URL || "https://framety.tail81fe5d.ts.net";
+        const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || "57bf11589000632b2c0009387429a69db0ad17c08802dd1b";
+        const folderName = `SKY${projeto.sequencialId} - ${projeto.titulo}`;
+
+        const driveResponse = await fetch(`${OPENCLAW_URL}/tools/invoke`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${OPENCLAW_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            tool: "gog",
+            action: "exec",
+            args: {
+              command: "drive.createFolder",
+              args: [folderName, "--parent", "1Od_u7Eru00NnUZs_GqVOJnIVB88Db994", "--drive", "0ACcXbXZoz_AJUk9PVA"],
+            },
+          }),
+        });
+
+        if (driveResponse.ok) {
+          const driveData = await driveResponse.json() as any;
+          const output = driveData?.result?.output || driveData?.result?.details?.output || "";
+          // Tentar extrair ID da pasta do output
+          const idMatch = output.match(/Id:\s*(\S+)/i) || output.match(/([a-zA-Z0-9_-]{20,})/);
+          if (idMatch) {
+            driveFolderId = idMatch[1];
+            driveFolderUrl = `https://drive.google.com/drive/folders/${driveFolderId}`;
+          }
+          console.log(`[Captador] Pasta criada no Drive: ${folderName}`, driveData);
+        } else {
+          console.warn("[Captador] Falha ao criar pasta no Drive (continuando sem Drive):", await driveResponse.text());
+        }
+      } catch (driveError: any) {
+        console.warn("[Captador] Erro ao criar pasta no Drive (continuando sem Drive):", driveError.message);
+      }
+
+      const link = await storage.createCaptadorLink({
+        projetoId: projeto.id,
+        token,
+        nomeCaptador: nomeCaptador || undefined,
+        instrucoes: instrucoes || undefined,
+        driveFolderId: driveFolderId || undefined,
+        driveFolderUrl: driveFolderUrl || undefined,
+        criadoPorId: req.user?.id,
+        ativo: true,
+      });
+
+      const origin = `${req.protocol}://${req.get("host")}`;
+      res.status(201).json({
+        ...link,
+        url: `${origin}/captador/${token}`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Listar links de captador por projeto
+  app.get("/api/projetos/:id/captador-links", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const links = await storage.getCaptadorLinksByProjeto(req.params.id);
+      res.json(links);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Listar uploads de captador por projeto
+  app.get("/api/projetos/:id/captador-uploads", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const uploads = await storage.getCaptadorUploadsByProjeto(req.params.id);
+      res.json(uploads);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Desativar link de captador
+  app.patch("/api/captador-links/:id", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const updated = await storage.updateCaptadorLink(req.params.id, { ativo: false });
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Deletar link de captador
+  app.delete("/api/captador-links/:id", requireAuthOrToken, async (req, res, next) => {
+    try {
+      await storage.deleteCaptadorLink(req.params.id);
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/comentarios", requireAuthOrToken, async (req, res, next) => {
     try {
       const comentarioData = insertComentarioSchema.parse({
@@ -1769,6 +1894,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await storage.deleteProjetoLocutor(req.params.id);
       res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ==========================================
+  // PORTAL DO CAPTADOR — Rotas públicas
+  // ==========================================
+
+  // Buscar dados do link de captador (público)
+  app.get("/api/captador/:token", async (req, res, next) => {
+    try {
+      const link = await storage.getCaptadorLinkByToken(req.params.token);
+      if (!link) {
+        return res.status(404).json({ message: "Link não encontrado ou inválido" });
+      }
+      if (!link.ativo) {
+        return res.status(410).json({ message: "Este link de upload foi desativado" });
+      }
+      if (link.expiraEm && new Date(link.expiraEm) < new Date()) {
+        return res.status(410).json({ message: "Este link de upload expirou" });
+      }
+
+      const projeto = await storage.getProjeto(link.projetoId);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      const uploads = await storage.getCaptadorUploadsByLink(link.id);
+
+      res.json({
+        link: {
+          id: link.id,
+          token: link.token,
+          nomeCaptador: link.nomeCaptador,
+          instrucoes: link.instrucoes,
+          createdAt: link.createdAt,
+        },
+        projeto: {
+          id: projeto.id,
+          sequencialId: projeto.sequencialId,
+          titulo: projeto.titulo,
+          status: projeto.status,
+          tipoVideo: projeto.tipoVideo?.nome,
+          cliente: projeto.cliente?.nome,
+        },
+        uploads: uploads.map(u => ({
+          id: u.id,
+          nomeOriginal: u.nomeOriginal,
+          tamanho: u.tamanho,
+          mimeType: u.mimeType,
+          nomeCaptador: u.nomeCaptador,
+          observacao: u.observacao,
+          createdAt: u.createdAt,
+        })),
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Upload de arquivo pelo captador (público)
+  app.post("/api/captador/:token/upload", captadorUploadMulter.single("file"), async (req, res, next) => {
+    try {
+      const link = await storage.getCaptadorLinkByToken(req.params.token);
+      if (!link) {
+        return res.status(404).json({ message: "Link não encontrado ou inválido" });
+      }
+      if (!link.ativo) {
+        return res.status(410).json({ message: "Este link de upload foi desativado" });
+      }
+      if (link.expiraEm && new Date(link.expiraEm) < new Date()) {
+        return res.status(410).json({ message: "Este link de upload expirou" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "Nenhum arquivo enviado" });
+      }
+
+      const { nomeCaptador, observacao } = req.body;
+      const file = req.file;
+
+      // Upload para Supabase Storage (bucket captacoes)
+      let storagePath = `captacoes/${link.projetoId}/${link.id}/${Date.now()}-${file.originalname}`;
+      let publicUrl = "";
+
+      try {
+        const { supabaseAdmin, LOCUTORES_AUDIO_BUCKET } = await import("./supabase-client");
+        if (supabaseAdmin) {
+          // Usar bucket captacoes (se existir) ou o bucket padrão
+          const bucketName = "captacoes";
+          const { data, error } = await supabaseAdmin.storage
+            .from(bucketName)
+            .upload(storagePath, file.buffer, {
+              contentType: file.mimetype,
+              upsert: false,
+            });
+
+          if (error) {
+            // Se o bucket não existe, tentar criar
+            if (error.message?.includes("not found") || error.message?.includes("Bucket")) {
+              console.log("[Captador] Criando bucket captacoes...");
+              await supabaseAdmin.storage.createBucket(bucketName, { public: true });
+              const retryResult = await supabaseAdmin.storage
+                .from(bucketName)
+                .upload(storagePath, file.buffer, {
+                  contentType: file.mimetype,
+                  upsert: false,
+                });
+              if (retryResult.error) {
+                throw new Error(`Upload falhou: ${retryResult.error.message}`);
+              }
+            } else {
+              throw new Error(`Upload falhou: ${error.message}`);
+            }
+          }
+
+          publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${bucketName}/${storagePath}`;
+          console.log(`[Captador] Upload OK: ${storagePath} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+        } else {
+          console.warn("[Captador] Supabase não configurado - salvando referência sem upload");
+          publicUrl = `/uploads/${storagePath}`;
+        }
+      } catch (uploadError: any) {
+        console.error("[Captador] Erro no upload para Supabase:", uploadError.message);
+        return res.status(500).json({ message: "Falha ao fazer upload do arquivo" });
+      }
+
+      const upload = await storage.createCaptadorUpload({
+        linkId: link.id,
+        projetoId: link.projetoId,
+        nomeOriginal: file.originalname,
+        storagePath,
+        publicUrl,
+        tamanho: file.size,
+        mimeType: file.mimetype,
+        nomeCaptador: nomeCaptador || link.nomeCaptador || undefined,
+        observacao: observacao || undefined,
+      });
+
+      res.status(201).json({
+        message: "Arquivo enviado com sucesso",
+        upload: {
+          id: upload.id,
+          nomeOriginal: upload.nomeOriginal,
+          tamanho: upload.tamanho,
+          createdAt: upload.createdAt,
+        },
+      });
     } catch (error) {
       next(error);
     }
