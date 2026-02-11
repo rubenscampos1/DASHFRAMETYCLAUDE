@@ -1977,7 +1977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const file = req.file;
 
       // Upload para Supabase Storage (bucket captacoes)
-      let storagePath = `captacoes/${link.projetoId}/${link.id}/${Date.now()}-${file.originalname}`;
+      let storagePath = `${link.projetoId}/${link.id}/${Date.now()}-${file.originalname}`;
       let publicUrl = "";
 
       try {
