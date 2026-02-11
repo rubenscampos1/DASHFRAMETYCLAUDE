@@ -156,8 +156,18 @@ const audioUpload = multer({
 });
 
 // Configuração do Multer para upload de captações (vídeos, imagens, zips)
+// Usa diskStorage para não estourar memória com arquivos grandes
 const captadorUploadMulter = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const tmpDir = path.join(process.cwd(), "tmp-uploads");
+      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+      cb(null, tmpDir);
+    },
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}-${file.originalname}`);
+    },
+  }),
   limits: {
     fileSize: 500 * 1024 * 1024, // 500MB max
   },
@@ -1975,31 +1985,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { nomeCaptador, observacao } = req.body;
       const file = req.file;
+      const filePath = file.path; // disk storage path
 
       // Upload para Supabase Storage (bucket captacoes)
       let storagePath = `${link.projetoId}/${link.id}/${Date.now()}-${file.originalname}`;
       let publicUrl = "";
 
       try {
-        const { supabaseAdmin, LOCUTORES_AUDIO_BUCKET } = await import("./supabase-client");
+        const { supabaseAdmin } = await import("./supabase-client");
         if (supabaseAdmin) {
-          // Usar bucket captacoes (se existir) ou o bucket padrão
           const bucketName = "captacoes";
-          const { data, error } = await supabaseAdmin.storage
+          const fileBuffer = fs.readFileSync(filePath);
+
+          const { data: uploadData, error } = await supabaseAdmin.storage
             .from(bucketName)
-            .upload(storagePath, file.buffer, {
+            .upload(storagePath, fileBuffer, {
               contentType: file.mimetype,
               upsert: false,
             });
 
           if (error) {
-            // Se o bucket não existe, tentar criar
             if (error.message?.includes("not found") || error.message?.includes("Bucket")) {
               console.log("[Captador] Criando bucket captacoes...");
               await supabaseAdmin.storage.createBucket(bucketName, { public: true });
               const retryResult = await supabaseAdmin.storage
                 .from(bucketName)
-                .upload(storagePath, file.buffer, {
+                .upload(storagePath, fileBuffer, {
                   contentType: file.mimetype,
                   upsert: false,
                 });
@@ -2020,6 +2031,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (uploadError: any) {
         console.error("[Captador] Erro no upload para Supabase:", uploadError.message);
         return res.status(500).json({ message: "Falha ao fazer upload do arquivo" });
+      } finally {
+        // Limpar arquivo temporário do disco
+        try { fs.unlinkSync(filePath); } catch {}
       }
 
       const upload = await storage.createCaptadorUpload({

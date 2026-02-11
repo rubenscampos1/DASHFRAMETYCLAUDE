@@ -97,9 +97,16 @@ export default function CaptadorPortal() {
     setUploading(true);
     setUploadProgress(0);
     const newUploaded: string[] = [];
+    const failed: string[] = [];
 
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
+
+      // Aguardar entre uploads para não sobrecarregar o servidor
+      if (i > 0) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
       const formData = new FormData();
       formData.append("file", file);
       if (nomeCaptador.trim()) formData.append("nomeCaptador", nomeCaptador.trim());
@@ -108,6 +115,11 @@ export default function CaptadorPortal() {
       try {
         const xhr = new XMLHttpRequest();
         await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            xhr.abort();
+            reject(new Error(`Timeout ao enviar ${file.name}`));
+          }, 10 * 60 * 1000); // 10 min timeout
+
           xhr.upload.addEventListener("progress", (e) => {
             if (e.lengthComputable) {
               const fileProgress = (e.loaded / e.total) * 100;
@@ -117,21 +129,34 @@ export default function CaptadorPortal() {
           });
 
           xhr.addEventListener("load", () => {
+            clearTimeout(timeout);
             if (xhr.status >= 200 && xhr.status < 300) {
               newUploaded.push(file.name);
               resolve();
             } else {
-              reject(new Error(`Erro ao enviar ${file.name}`));
+              let msg = `Erro ao enviar ${file.name}`;
+              try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+              reject(new Error(msg));
             }
           });
 
-          xhr.addEventListener("error", () => reject(new Error(`Falha no upload de ${file.name}`)));
+          xhr.addEventListener("error", () => {
+            clearTimeout(timeout);
+            reject(new Error(`Falha de conexão ao enviar ${file.name}`));
+          });
+
+          xhr.addEventListener("abort", () => {
+            clearTimeout(timeout);
+            reject(new Error(`Upload de ${file.name} cancelado`));
+          });
+
           xhr.open("POST", `/api/captador/${token}/upload`);
           xhr.send(formData);
         });
       } catch (err: any) {
+        failed.push(file.name);
         toast({
-          title: "Erro no upload",
+          title: `Erro: ${file.name}`,
           description: err.message,
           variant: "destructive",
         });
@@ -144,13 +169,14 @@ export default function CaptadorPortal() {
     if (newUploaded.length > 0) {
       setUploadedFiles(prev => [...prev, ...newUploaded]);
       toast({
-        title: "Upload concluido!",
-        description: `${newUploaded.length} arquivo(s) enviado(s) com sucesso`,
+        title: "Upload concluído!",
+        description: `${newUploaded.length} arquivo(s) enviado(s)${failed.length > 0 ? `, ${failed.length} falharam` : ""}`,
       });
       refetch();
     }
 
-    // Reset
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setTimeout(() => setUploadProgress(0), 2000);
   }, [data, uploading, nomeCaptador, observacao, token, toast, refetch]);
 
