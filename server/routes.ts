@@ -1255,40 +1255,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let driveFolderId: string | undefined;
       let driveFolderUrl: string | undefined;
 
-      // Tentar criar pasta no Google Drive via OpenClaw
+      // Criar pasta no Google Drive via API direta
       try {
-        const OPENCLAW_URL = process.env.OPENCLAW_URL || "https://framety.tail81fe5d.ts.net";
-        const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || "57bf11589000632b2c0009387429a69db0ad17c08802dd1b";
-        const folderName = `SKY${projeto.sequencialId} - ${projeto.titulo}`;
-
-        const driveResponse = await fetch(`${OPENCLAW_URL}/tools/invoke`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${OPENCLAW_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            tool: "gog",
-            action: "exec",
-            args: {
-              command: "drive.createFolder",
-              args: [folderName, "--parent", "1Od_u7Eru00NnUZs_GqVOJnIVB88Db994", "--drive", "0ACcXbXZoz_AJUk9PVA"],
-            },
-          }),
-        });
-
-        if (driveResponse.ok) {
-          const driveData = await driveResponse.json() as any;
-          const output = driveData?.result?.output || driveData?.result?.details?.output || "";
-          // Tentar extrair ID da pasta do output
-          const idMatch = output.match(/Id:\s*(\S+)/i) || output.match(/([a-zA-Z0-9_-]{20,})/);
-          if (idMatch) {
-            driveFolderId = idMatch[1];
-            driveFolderUrl = `https://drive.google.com/drive/folders/${driveFolderId}`;
+        const { createDriveFolder, isDriveConfigured } = await import("./google-drive");
+        if (isDriveConfigured()) {
+          const folderName = `SKY${projeto.sequencialId} - ${projeto.titulo}`;
+          const folder = await createDriveFolder(folderName);
+          if (folder) {
+            driveFolderId = folder.id;
+            driveFolderUrl = folder.url;
+            console.log(`[Captador] Pasta criada no Drive: ${folderName} (${folder.id})`);
           }
-          console.log(`[Captador] Pasta criada no Drive: ${folderName}`, driveData);
         } else {
-          console.warn("[Captador] Falha ao criar pasta no Drive (continuando sem Drive):", await driveResponse.text());
+          console.warn("[Captador] Google Drive não configurado — pasta não será criada");
         }
       } catch (driveError: any) {
         console.warn("[Captador] Erro ao criar pasta no Drive (continuando sem Drive):", driveError.message);
@@ -1987,49 +1966,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const file = req.file;
       const filePath = file.path; // disk storage path
 
-      // Upload para Supabase Storage (bucket captacoes)
-      let storagePath = `${link.projetoId}/${link.id}/${Date.now()}-${file.originalname}`;
+      // Upload para Google Drive (pasta do projeto)
+      let storagePath = "";
       let publicUrl = "";
 
       try {
-        const { supabaseAdmin } = await import("./supabase-client");
-        if (supabaseAdmin) {
-          const bucketName = "captacoes";
-          const fileBuffer = fs.readFileSync(filePath);
+        const { uploadToCaptacoes, isDriveConfigured } = await import("./google-drive");
 
-          const { data: uploadData, error } = await supabaseAdmin.storage
-            .from(bucketName)
-            .upload(storagePath, fileBuffer, {
-              contentType: file.mimetype,
-              upsert: false,
-            });
+        if (isDriveConfigured()) {
+          // Buscar info do projeto para nome da pasta
+          const projeto = await storage.getProjeto(link.projetoId);
+          const folderName = projeto
+            ? `SKY${projeto.sequencialId} - ${projeto.titulo}`
+            : undefined;
 
-          if (error) {
-            if (error.message?.includes("not found") || error.message?.includes("Bucket")) {
-              console.log("[Captador] Criando bucket captacoes...");
-              await supabaseAdmin.storage.createBucket(bucketName, { public: true });
-              const retryResult = await supabaseAdmin.storage
-                .from(bucketName)
-                .upload(storagePath, fileBuffer, {
-                  contentType: file.mimetype,
-                  upsert: false,
-                });
-              if (retryResult.error) {
-                throw new Error(`Upload falhou: ${retryResult.error.message}`);
-              }
-            } else {
-              throw new Error(`Upload falhou: ${error.message}`);
+          const result = await uploadToCaptacoes(
+            filePath,
+            file.originalname,
+            file.mimetype,
+            folderName
+          );
+
+          if (result) {
+            storagePath = `drive:${result.fileId}`;
+            publicUrl = result.fileUrl;
+
+            // Atualizar link com pasta do Drive se ainda não tem
+            if (result.folderId && !link.driveFolderId) {
+              await storage.updateCaptadorLink(link.id, {
+                driveFolderId: result.folderId,
+                driveFolderUrl: result.folderUrl || undefined,
+              });
             }
-          }
 
-          publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${bucketName}/${storagePath}`;
-          console.log(`[Captador] Upload OK: ${storagePath} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+            console.log(`[Captador] Upload Drive OK: ${file.originalname} → ${result.fileId} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+          } else {
+            throw new Error("Upload para Google Drive falhou");
+          }
         } else {
-          console.warn("[Captador] Supabase não configurado - salvando referência sem upload");
-          publicUrl = `/uploads/${storagePath}`;
+          // Fallback: Supabase Storage se Drive não configurado
+          const { supabaseAdmin } = await import("./supabase-client");
+          if (supabaseAdmin) {
+            const bucketName = "captacoes";
+            storagePath = `${link.projetoId}/${link.id}/${Date.now()}-${file.originalname}`;
+            const fileBuffer = fs.readFileSync(filePath);
+
+            const { error } = await supabaseAdmin.storage
+              .from(bucketName)
+              .upload(storagePath, fileBuffer, {
+                contentType: file.mimetype,
+                upsert: false,
+              });
+
+            if (error) throw new Error(`Upload Supabase falhou: ${error.message}`);
+            publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${bucketName}/${storagePath}`;
+            console.log(`[Captador] Upload Supabase OK: ${storagePath}`);
+          } else {
+            throw new Error("Nenhum storage configurado (Drive ou Supabase)");
+          }
         }
       } catch (uploadError: any) {
-        console.error("[Captador] Erro no upload para Supabase:", uploadError.message);
+        console.error("[Captador] Erro no upload:", uploadError.message);
         return res.status(500).json({ message: "Falha ao fazer upload do arquivo" });
       } finally {
         // Limpar arquivo temporário do disco
