@@ -425,25 +425,37 @@ export function ProjectDetailsDrawer({
   // Gerar mensagem padrão baseada no status do projeto
   function gerarMensagemPadrao(proj: ProjetoWithRelations): string {
     const nome = proj.titulo || "Sem título";
-    const seq = proj.sequencialId ? `#SKY${proj.sequencialId}` : "";
-    const status = proj.status || "";
+    const status = proj.status || "Em andamento";
 
-    if (proj.roteiroAprovado === null && proj.roteiroLink) {
-      return `Olá! O roteiro do projeto "${nome}" ${seq} está disponível para sua aprovação. Por favor, acesse o portal para revisar e nos enviar seu feedback.\n\nEquipe Framety`;
+    // Formatar data da última mudança de status
+    let ultimaAtualizacao = "—";
+    if (proj.statusChangedAt) {
+      const data = new Date(proj.statusChangedAt);
+      ultimaAtualizacao = data.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
     }
 
-    const statusMessages: Record<string, string> = {
-      "Briefing": `Olá! Informamos que o projeto "${nome}" ${seq} está em fase de Briefing. Em breve iniciaremos a produção.\n\nEquipe Framety`,
-      "Roteiro": `Olá! O roteiro do projeto "${nome}" ${seq} está sendo elaborado. Enviaremos para aprovação em breve.\n\nEquipe Framety`,
-      "Captacao": `Olá! O projeto "${nome}" ${seq} está em fase de Captação. As gravações estão em andamento.\n\nEquipe Framety`,
-      "Edicao": `Olá! Informamos que o projeto "${nome}" ${seq} está em fase de Edição. Em breve enviaremos o vídeo para sua revisão.\n\nEquipe Framety`,
-      "Entrega": `Olá! O vídeo do projeto "${nome}" ${seq} foi finalizado e está disponível para sua revisão.\n\nEquipe Framety`,
-      "Revisao": `Olá! O projeto "${nome}" ${seq} está em fase de Revisão. Estamos ajustando conforme seu feedback.\n\nEquipe Framety`,
-      "Aguardando Aprovacao": `Olá! O projeto "${nome}" ${seq} está aguardando sua aprovação. Por favor, acesse o portal para avaliar.\n\nEquipe Framety`,
-      "Aprovado": `Olá! O projeto "${nome}" ${seq} foi aprovado com sucesso! Obrigado pela parceria.\n\nEquipe Framety`,
-    };
+    // Link do portal do cliente
+    let linkPortal = "[INSERIR LINK AQUI]";
+    if (proj.cliente?.portalToken) {
+      linkPortal = `${window.location.origin}/portal/cliente/${proj.cliente.portalToken}`;
+    }
 
-    return statusMessages[status] || `Olá! Segue uma atualização sobre o projeto "${nome}" ${seq}. Status atual: ${status}.\n\nEquipe Framety`;
+    return `🎬 *LINK DE ACESSO PARA SEU VÍDEO*
+
+📁 *Projeto:* ${nome}
+📌 *Etapa atual:* ${status}
+🕒 *Última atualização:* ${ultimaAtualizacao}
+
+🎥 *Acesse o vídeo e deixe seus comentários:*
+👉 ${linkPortal}
+
+🛠️ *Vai solicitar ajustes?*
+Para facilitar e evitar erros, siga o passo a passo:
+👉 www.framety.com.br/tutorial`;
   }
 
   // Mutation para criar comentário
