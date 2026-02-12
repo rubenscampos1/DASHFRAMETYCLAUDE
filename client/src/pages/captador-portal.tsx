@@ -432,14 +432,25 @@ export default function CaptadorPortal() {
     e.preventDefault();
     setIsDragging(false);
 
+    // IMPORTANTE: coletar entries SINCRONAMENTE antes de qualquer await
+    // O DataTransfer é limpo pelo browser após o event handler ceder controle
+    const entries: FileSystemEntry[] = [];
     const items = e.dataTransfer.items;
     if (items && items.length > 0) {
-      const allFiles: File[] = [];
       for (let i = 0; i < items.length; i++) {
         const entry = items[i].webkitGetAsEntry?.();
-        if (entry) {
-          allFiles.push(...(await getFilesFromEntry(entry)));
-        }
+        if (entry) entries.push(entry);
+      }
+    }
+
+    // Também copiar files sincronamente como fallback
+    const fallbackFiles = Array.from(e.dataTransfer.files);
+
+    // Agora sim processar async
+    if (entries.length > 0) {
+      const allFiles: File[] = [];
+      for (const entry of entries) {
+        allFiles.push(...(await getFilesFromEntry(entry)));
       }
       if (allFiles.length > 0) {
         handleUpload(allFiles);
@@ -447,8 +458,8 @@ export default function CaptadorPortal() {
       }
     }
 
-    if (e.dataTransfer.files.length > 0) {
-      handleUpload(e.dataTransfer.files);
+    if (fallbackFiles.length > 0) {
+      handleUpload(fallbackFiles);
     }
   }, [handleUpload, getFilesFromEntry]);
 
