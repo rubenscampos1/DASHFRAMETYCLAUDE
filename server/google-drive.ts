@@ -143,6 +143,7 @@ export async function createResumableUpload(
           "Content-Type": "application/json; charset=UTF-8",
           "X-Upload-Content-Type": mimeType,
           "X-Upload-Content-Length": String(fileSize),
+          "Origin": origin, // Necessário para CORS — Google configura headers para este origin
         },
         body: JSON.stringify({
           name: fileName,
