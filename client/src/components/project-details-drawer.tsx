@@ -1749,7 +1749,7 @@ Para facilitar e evitar erros, siga o passo a passo:
                   )}
 
                   {/* Botão Notificar Cliente */}
-                  {!isEditing && ((projetoAtual.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0) || (projetoAtual.contatosEmail && projetoAtual.contatosEmail.length > 0)) && (
+                  {!isEditing && ((projetoAtual.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0) || (projetoAtual.contatosGrupos && projetoAtual.contatosGrupos.length > 0) || (projetoAtual.contatosEmail && projetoAtual.contatosEmail.length > 0)) && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -1758,7 +1758,7 @@ Para facilitar e evitar erros, siga o passo a passo:
                         setMensagemNotificacao(gerarMensagemPadrao(projetoAtual));
                         setAssuntoEmail(`Atualização - Projeto ${projetoAtual.titulo}`);
                         setNotificarCanais({
-                          whatsapp: !!(projetoAtual.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0),
+                          whatsapp: !!((projetoAtual.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0) || (projetoAtual.contatosGrupos && projetoAtual.contatosGrupos.length > 0)),
                           email: !!(projetoAtual.contatosEmail && projetoAtual.contatosEmail.length > 0),
                           audio: false,
                         });
@@ -2093,7 +2093,7 @@ Para facilitar e evitar erros, siga o passo a passo:
             <div>
               <label className="text-sm font-medium text-muted-foreground">Enviar por:</label>
               <div className="mt-2 flex gap-4">
-                {projetoAtual?.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0 && (
+                {((projetoAtual?.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0) || (projetoAtual?.contatosGrupos && projetoAtual.contatosGrupos.length > 0)) && (
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Checkbox
                       checked={notificarCanais.whatsapp}
@@ -2113,7 +2113,7 @@ Para facilitar e evitar erros, siga o passo a passo:
                     <span className="text-sm">Email</span>
                   </label>
                 )}
-                {projetoAtual?.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0 && (
+                {((projetoAtual?.contatosWhatsapp && projetoAtual.contatosWhatsapp.length > 0) || (projetoAtual?.contatosGrupos && projetoAtual.contatosGrupos.length > 0)) && (
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Checkbox
                       checked={notificarCanais.audio}
@@ -2134,6 +2134,12 @@ Para facilitar e evitar erros, siga o passo a passo:
                   <div key={`w-${i}`} className="flex items-center gap-2 text-sm">
                     <Phone className="h-3.5 w-3.5 text-green-600" />
                     <span>{num}</span>
+                  </div>
+                ))}
+                {notificarCanais.whatsapp && projetoAtual?.contatosGrupos?.map((grupo, i) => (
+                  <div key={`g-${i}`} className="flex items-center gap-2 text-sm">
+                    <UsersIcon className="h-3.5 w-3.5 text-green-600" />
+                    <span>Grupo: {grupo}</span>
                   </div>
                 ))}
                 {notificarCanais.email && projetoAtual?.contatosEmail?.map((email, i) => (
