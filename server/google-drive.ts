@@ -25,7 +25,9 @@ function getAuth() {
   if (authClient) return authClient;
 
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_SERVICE_ACCOUNT_KEY?.replace(/\\n/g, "\n");
+  let key = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || "";
+  // Limpar aspas que possam ter sido adicionadas no Render
+  key = key.replace(/^["']|["']$/g, "").replace(/\\n/g, "\n");
 
   if (!email || !key) {
     console.log("[Google Drive] Credenciais não configuradas");
