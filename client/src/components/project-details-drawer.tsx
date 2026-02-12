@@ -1853,38 +1853,13 @@ Para facilitar e evitar erros, siga o passo a passo:
                       </div>
                     )}
 
-                    {/* Uploads recebidos */}
+                    {/* Uploads recebidos — mensagem resumida */}
                     {captadorUploads.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {captadorUploads.length} arquivo(s) recebido(s)
-                        </p>
-                        <div className="space-y-1">
-                          {captadorUploads.slice(0, 5).map((upload: any) => (
-                            <div key={upload.id} className="flex items-center gap-2 p-1.5 text-xs">
-                              <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
-                              <span className="truncate flex-1">{upload.nomeOriginal}</span>
-                              <span className="text-muted-foreground flex-shrink-0">
-                                {upload.tamanho ? `${(upload.tamanho / (1024 * 1024)).toFixed(1)}MB` : ""}
-                              </span>
-                              {upload.publicUrl && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-5 w-5 p-0"
-                                  onClick={() => window.open(upload.publicUrl, "_blank")}
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                          {captadorUploads.length > 5 && (
-                            <p className="text-xs text-muted-foreground text-center">
-                              +{captadorUploads.length - 5} arquivo(s) mais
-                            </p>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded text-sm">
+                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span className="text-green-700 dark:text-green-400 font-medium">
+                          {captadorUploads.length} arquivo(s) recebido(s) no Drive
+                        </span>
                       </div>
                     )}
 

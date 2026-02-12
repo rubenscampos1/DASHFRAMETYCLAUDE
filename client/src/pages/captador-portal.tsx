@@ -16,6 +16,8 @@ import {
   User,
   Building2,
   FolderUp,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +85,7 @@ export default function CaptadorPortal() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [showUploads, setShowUploads] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery<CaptadorData>({
     queryKey: [`/api/captador/${token}`],
@@ -525,42 +528,54 @@ export default function CaptadorPortal() {
           </CardContent>
         </Card>
 
-        {/* Arquivos ja enviados */}
+        {/* Arquivos ja enviados — collapsible */}
         {uploads.length > 0 && (
           <Card>
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                Arquivos Enviados ({uploads.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-2">
-              <div className="space-y-2">
-                {uploads.map((upload) => (
-                  <div
-                    key={upload.id}
-                    className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 border"
-                  >
-                    {getFileIcon(upload.mimeType)}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{upload.nomeOriginal}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(upload.tamanho)}
-                        {upload.nomeCaptador && ` • ${upload.nomeCaptador}`}
-                        {" • "}
-                        {new Date(upload.createdAt).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                    <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                  </div>
-                ))}
+            <CardHeader
+              className="p-4 cursor-pointer select-none"
+              onClick={() => setShowUploads(prev => !prev)}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  {uploads.length} arquivo(s) enviado(s)
+                </CardTitle>
+                {showUploads ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
               </div>
-            </CardContent>
+            </CardHeader>
+            {showUploads && (
+              <CardContent className="p-4 pt-0">
+                <div className="space-y-2">
+                  {uploads.map((upload) => (
+                    <div
+                      key={upload.id}
+                      className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 border"
+                    >
+                      {getFileIcon(upload.mimeType)}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{upload.nomeOriginal}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(upload.tamanho)}
+                          {upload.nomeCaptador && ` • ${upload.nomeCaptador}`}
+                          {" • "}
+                          {new Date(upload.createdAt).toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                      <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            )}
           </Card>
         )}
 
