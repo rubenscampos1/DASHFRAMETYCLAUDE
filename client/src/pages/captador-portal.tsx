@@ -608,249 +608,266 @@ export default function CaptadorPortal() {
           </CardContent>
         </Card>
 
-        {/* Navegação de Pastas */}
-        {link.driveFolderId && (
-          <Card>
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <FolderOpen className="h-4 w-4 text-primary" />
-                Pastas
-              </CardTitle>
+        {/* ===== ÁREA UNIFICADA ESTILO DRIVE ===== */}
+        <Card>
+          {/* Toolbar: breadcrumb + ações */}
+          <CardHeader className="p-4 pb-3">
+            <div className="flex items-center justify-between gap-2">
               {/* Breadcrumb */}
-              {folderStack.length > 1 && (
-                <div className="flex items-center gap-1 flex-wrap mt-2 text-xs">
-                  {folderStack.map((crumb, i) => (
-                    <React.Fragment key={crumb.id}>
-                      {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
-                      {i < folderStack.length - 1 ? (
-                        <button
-                          onClick={() => navigateToBreadcrumb(i)}
-                          className="text-primary hover:underline font-medium"
-                        >
-                          {crumb.name}
-                        </button>
-                      ) : (
-                        <span className="text-foreground font-semibold">{crumb.name}</span>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              )}
-            </CardHeader>
-            <CardContent className="p-4 pt-2 space-y-3">
-              {/* Subfolders list */}
-              {loadingFolders ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Carregando pastas...
-                </div>
-              ) : subfolders.length > 0 ? (
-                <div className="grid gap-2">
-                  {subfolders.map((folder) => (
-                    <div
-                      key={folder.id}
-                      onClick={() => navigateToFolder(folder)}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-primary/5 hover:border-primary/30 cursor-pointer transition-all"
-                    >
-                      <FolderOpen className="h-5 w-5 text-primary flex-shrink-0" />
-                      <span className="text-sm font-medium flex-1 truncate">{folder.name}</span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+              <div className="flex items-center gap-1.5 flex-wrap text-sm min-w-0">
+                {folderStack.map((crumb, i) => (
+                  <React.Fragment key={crumb.id}>
+                    {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                    {i < folderStack.length - 1 ? (
+                      <button
+                        onClick={() => navigateToBreadcrumb(i)}
+                        className="text-primary hover:underline font-medium truncate max-w-[120px]"
+                      >
+                        {crumb.name}
+                      </button>
+                    ) : (
+                      <span className="text-foreground font-semibold truncate max-w-[200px]">{crumb.name}</span>
+                    )}
+                  </React.Fragment>
+                ))}
+                {folderStack.length === 0 && (
+                  <span className="text-foreground font-semibold">Arquivos</span>
+                )}
+              </div>
 
-              {/* Create folder */}
-              {showCreateFolder ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    placeholder="Nome da nova pasta"
-                    className="text-sm"
-                    onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
-                    autoFocus
-                  />
-                  <Button size="sm" onClick={handleCreateFolder} disabled={creatingFolder}>
-                    {creatingFolder ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
+              {/* Botões de ação */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {link.driveFolderId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCreateFolder(true)}
+                    disabled={showCreateFolder}
+                    className="h-8"
+                  >
+                    <FolderPlus className="h-3.5 w-3.5 mr-1.5" />
+                    <span className="hidden sm:inline">Nova Pasta</span>
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setShowCreateFolder(false); setNewFolderName(""); }}>
-                    Cancelar
-                  </Button>
-                </div>
-              ) : (
+                )}
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowCreateFolder(true)}
-                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="h-8"
                 >
-                  <FolderPlus className="h-4 w-4 mr-2" />
-                  Criar Pasta
+                  <Upload className="h-3.5 w-3.5 mr-1.5" />
+                  <span className="hidden sm:inline">Upload</span>
                 </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              </div>
+            </div>
 
-        {/* Upload area */}
-        <Card>
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Upload className="h-4 w-4 text-primary" />
-              Enviar Arquivos
-              {folderStack.length > 1 && (
-                <span className="text-xs font-normal text-muted-foreground ml-1">
-                  em "{folderStack[folderStack.length - 1].name}"
-                </span>
-              )}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Arraste ou clique para selecionar os arquivos de captação
-            </CardDescription>
+            {/* Criar pasta inline */}
+            {showCreateFolder && (
+              <div className="flex items-center gap-2 mt-3">
+                <Input
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Nome da nova pasta"
+                  className="text-sm h-8"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCreateFolder();
+                    if (e.key === "Escape") { setShowCreateFolder(false); setNewFolderName(""); }
+                  }}
+                  autoFocus
+                />
+                <Button size="sm" className="h-8" onClick={handleCreateFolder} disabled={creatingFolder}>
+                  {creatingFolder ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Criar"}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8" onClick={() => { setShowCreateFolder(false); setNewFolderName(""); }}>
+                  Cancelar
+                </Button>
+              </div>
+            )}
           </CardHeader>
-          <CardContent className="p-4 pt-2">
+
+          <CardContent className="p-4 pt-0">
+            {/* Inputs ocultos */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => e.target.files && handleUpload(e.target.files)}
+            />
+            <input
+              ref={folderInputRef}
+              type="file"
+              className="hidden"
+              {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
+              onChange={(e) => e.target.files && handleUpload(e.target.files)}
+            />
+
+            {/* Upload progress overlay */}
+            {uploading && (
+              <div className="mb-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      Enviando{currentFileName ? `: ${currentFileName}` : "..."}
+                    </p>
+                    <Progress value={uploadProgress} className="mt-1.5 h-1.5" />
+                  </div>
+                  <span className="text-sm font-medium text-primary flex-shrink-0">{uploadProgress}%</span>
+                </div>
+              </div>
+            )}
+
+            {/* Conteúdo: pastas + arquivos (estilo Drive) */}
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
-                isDragging
-                  ? "border-primary bg-primary/5 scale-[1.01]"
-                  : "border-muted-foreground/30"
-              } ${uploading ? "pointer-events-none opacity-50" : ""}`}
+              className={`min-h-[200px] rounded-lg transition-all ${
+                isDragging ? "bg-primary/5 ring-2 ring-primary/30 ring-dashed" : ""
+              }`}
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(e) => e.target.files && handleUpload(e.target.files)}
-              />
-              <input
-                ref={folderInputRef}
-                type="file"
-                className="hidden"
-                {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
-                onChange={(e) => e.target.files && handleUpload(e.target.files)}
-              />
-              {uploading ? (
-                <div className="space-y-3">
-                  <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
-                  <p className="text-sm text-muted-foreground">
-                    Enviando{currentFileName ? `: ${currentFileName}` : "..."}
-                  </p>
-                  <Progress value={uploadProgress} className="max-w-xs mx-auto" />
-                  <p className="text-xs text-muted-foreground">{uploadProgress}%</p>
+              {/* Loading */}
+              {loadingFolders && (
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando...
                 </div>
-              ) : (
-                <>
-                  <Upload className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-sm font-medium text-foreground">
-                    Arraste arquivos ou pastas aqui
+              )}
+
+              {/* Pastas */}
+              {!loadingFolders && subfolders.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Pastas</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {subfolders.map((folder) => (
+                      <div
+                        key={folder.id}
+                        onClick={() => navigateToFolder(folder)}
+                        className="flex items-center gap-2.5 p-3 rounded-lg border bg-card hover:bg-primary/5 hover:border-primary/30 cursor-pointer transition-all group"
+                      >
+                        <FolderOpen className="h-5 w-5 text-primary flex-shrink-0" />
+                        <span className="text-sm font-medium truncate">{folder.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Arquivos em grid com thumbnails */}
+              {!loadingFolders && currentFolderUploads.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                    Arquivos ({currentFolderUploads.length})
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1 mb-4">
-                    Vídeos, imagens, áudios, ZIPs — sem limite de tamanho
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {currentFolderUploads.map((upload) => (
+                      <div
+                        key={upload.id}
+                        className="rounded-lg border bg-card overflow-hidden group"
+                      >
+                        {/* Thumbnail ou ícone */}
+                        <div className="aspect-video bg-muted/50 flex items-center justify-center overflow-hidden">
+                          {upload.thumbnail ? (
+                            <img
+                              src={upload.thumbnail}
+                              alt={upload.nomeOriginal}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center gap-1">
+                              {upload.mimeType?.startsWith("video/") ? (
+                                <FileVideo className="h-8 w-8 text-primary/40" />
+                              ) : upload.mimeType?.startsWith("image/") ? (
+                                <FileImage className="h-8 w-8 text-green-500/40" />
+                              ) : upload.mimeType?.includes("zip") || upload.mimeType?.includes("rar") ? (
+                                <FileArchive className="h-8 w-8 text-yellow-500/40" />
+                              ) : (
+                                <File className="h-8 w-8 text-muted-foreground/40" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {/* Info */}
+                        <div className="p-2">
+                          <p className="text-xs font-medium truncate" title={upload.nomeOriginal}>
+                            {upload.nomeOriginal}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {formatFileSize(upload.tamanho)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Estado vazio + drop zone */}
+              {!loadingFolders && subfolders.length === 0 && currentFolderUploads.length === 0 && !uploading && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Upload className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Esta pasta está vazia
                   </p>
-                  <div className="flex items-center justify-center gap-3">
+                  <p className="text-xs text-muted-foreground/70 mt-1 mb-4">
+                    Arraste arquivos aqui ou use os botões acima
+                  </p>
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                      onClick={() => fileInputRef.current?.click()}
                     >
-                      <Upload className="h-4 w-4 mr-2" />
+                      <Upload className="h-3.5 w-3.5 mr-1.5" />
                       Selecionar Arquivos
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={(e) => { e.stopPropagation(); folderInputRef.current?.click(); }}
+                      onClick={() => folderInputRef.current?.click()}
                     >
-                      <FolderUp className="h-4 w-4 mr-2" />
+                      <FolderUp className="h-3.5 w-3.5 mr-1.5" />
                       Selecionar Pasta
                     </Button>
                   </div>
-                </>
+                </div>
+              )}
+
+              {/* Drop indicator (quando arrastando sobre área com conteúdo) */}
+              {isDragging && (subfolders.length > 0 || currentFolderUploads.length > 0) && (
+                <div className="mt-3 p-4 border-2 border-dashed border-primary/40 rounded-lg text-center bg-primary/5">
+                  <Upload className="h-6 w-6 text-primary/60 mx-auto mb-1" />
+                  <p className="text-xs text-primary font-medium">Solte para enviar</p>
+                </div>
               )}
             </div>
 
             {/* Arquivos recem enviados */}
-            {uploadedFiles.length > 0 && (
-              <div className="mt-4 space-y-1">
-                {uploadedFiles.map((name, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-green-600">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>{name}</span>
-                  </div>
-                ))}
+            {uploadedFiles.length > 0 && !uploading && (
+              <div className="mt-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30">
+                <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400 font-medium mb-1">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {uploadedFiles.length} arquivo(s) enviado(s)
+                </div>
+                <div className="space-y-0.5">
+                  {uploadedFiles.slice(0, 5).map((name, i) => (
+                    <p key={i} className="text-xs text-green-600 dark:text-green-500 truncate pl-6">{name}</p>
+                  ))}
+                  {uploadedFiles.length > 5 && (
+                    <p className="text-xs text-green-500/70 pl-6">+{uploadedFiles.length - 5} mais</p>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Arquivos desta pasta — collapsible */}
-        {currentFolderUploads.length > 0 && (
-          <Card>
-            <CardHeader
-              className="p-4 cursor-pointer select-none"
-              onClick={() => setShowUploads(prev => !prev)}
-            >
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  {currentFolderUploads.length} arquivo(s) nesta pasta
-                </CardTitle>
-                {showUploads ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-            </CardHeader>
-            {showUploads && (
-              <CardContent className="p-4 pt-0">
-                <div className="space-y-2">
-                  {currentFolderUploads.map((upload) => (
-                    <div
-                      key={upload.id}
-                      className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 border"
-                    >
-                      {upload.thumbnail ? (
-                        <img
-                          src={upload.thumbnail}
-                          alt={upload.nomeOriginal}
-                          className="h-10 w-14 object-cover rounded flex-shrink-0"
-                        />
-                      ) : (
-                        getFileIcon(upload.mimeType)
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{upload.nomeOriginal}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatFileSize(upload.tamanho)}
-                          {upload.nomeCaptador && ` • ${upload.nomeCaptador}`}
-                          {" • "}
-                          {new Date(upload.createdAt).toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
-                      <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        )}
-
-        {/* Total de arquivos no projeto (se diferente da pasta atual) */}
+        {/* Total de arquivos no projeto */}
         {uploads.length > 0 && uploads.length !== currentFolderUploads.length && (
           <p className="text-xs text-center text-muted-foreground">
-            Total no projeto: {uploads.length} arquivo(s) enviado(s)
+            Total no projeto: {uploads.length} arquivo(s)
           </p>
         )}
 
