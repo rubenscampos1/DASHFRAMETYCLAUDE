@@ -1938,6 +1938,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           nomeCaptador: u.nomeCaptador,
           observacao: u.observacao,
           driveFolderId: u.driveFolderId,
+          thumbnail: u.thumbnail,
           createdAt: u.createdAt,
         })),
       });
@@ -2095,7 +2096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Link não encontrado" });
       }
 
-      const { driveFileId, fileName, fileSize, mimeType, nomeCaptador, observacao, driveFolderId } = req.body;
+      const { driveFileId, fileName, fileSize, mimeType, nomeCaptador, observacao, driveFolderId, thumbnail } = req.body;
       if (!fileName) {
         return res.status(400).json({ message: "fileName é obrigatório" });
       }
@@ -2115,6 +2116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         nomeCaptador: nomeCaptador || link.nomeCaptador || undefined,
         observacao: observacao || undefined,
         driveFolderId: driveFolderId || null,
+        thumbnail: thumbnail || null,
       });
 
       console.log(`[Captador] Upload completo: ${fileName} (${driveFileId || "sem driveId"})`);

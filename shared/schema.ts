@@ -393,6 +393,7 @@ export const captadorUploads = pgTable("captador_uploads", {
   nomeCaptador: text("nome_captador"),
   observacao: text("observacao"),
   driveFolderId: text("drive_folder_id"),
+  thumbnail: text("thumbnail"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

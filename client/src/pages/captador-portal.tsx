@@ -57,6 +57,7 @@ interface CaptadorData {
     nomeCaptador: string | null;
     observacao: string | null;
     driveFolderId: string | null;
+    thumbnail: string | null;
     createdAt: string;
   }>;
 }
@@ -87,6 +88,69 @@ function getFileIcon(mimeType: string | null) {
   if (mimeType.includes("zip") || mimeType.includes("rar") || mimeType.includes("7z"))
     return <FileArchive className="h-5 w-5 text-yellow-500" />;
   return <File className="h-5 w-5 text-muted-foreground" />;
+}
+
+/**
+ * Gera thumbnail de um arquivo (vídeo ou imagem) no browser.
+ * Retorna base64 data URL ou null se não conseguir.
+ */
+async function generateThumbnail(file: File): Promise<string | null> {
+  try {
+    if (file.type.startsWith("image/")) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX = 160;
+          const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.6));
+          URL.revokeObjectURL(img.src);
+        };
+        img.onerror = () => { URL.revokeObjectURL(img.src); resolve(null); };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    if (file.type.startsWith("video/")) {
+      return new Promise((resolve) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.muted = true;
+        video.playsInline = true;
+
+        video.onloadeddata = () => {
+          // Seek to 1s or 25% of duration
+          video.currentTime = Math.min(1, video.duration * 0.25);
+        };
+
+        video.onseeked = () => {
+          const canvas = document.createElement("canvas");
+          const MAX = 160;
+          const scale = Math.min(MAX / video.videoWidth, MAX / video.videoHeight, 1);
+          canvas.width = video.videoWidth * scale;
+          canvas.height = video.videoHeight * scale;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.6));
+          URL.revokeObjectURL(video.src);
+        };
+
+        video.onerror = () => { URL.revokeObjectURL(video.src); resolve(null); };
+
+        // Timeout de 5s para não travar
+        setTimeout(() => { URL.revokeObjectURL(video.src); resolve(null); }, 5000);
+
+        video.src = URL.createObjectURL(file);
+      });
+    }
+  } catch {
+    // Ignora erro silenciosamente
+  }
+  return null;
 }
 
 export default function CaptadorPortal() {
@@ -278,7 +342,10 @@ export default function CaptadorPortal() {
           console.warn("Erro no upload direto, mas pode ter completado:", uploadErr.message);
         }
 
-        // 3. Confirmar upload no servidor (salva no banco)
+        // 3. Gerar thumbnail (não bloqueia o fluxo se falhar)
+        const thumbnail = await generateThumbnail(file);
+
+        // 4. Confirmar upload no servidor (salva no banco)
         await fetch(`/api/captador/${token}/complete-upload`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -290,6 +357,7 @@ export default function CaptadorPortal() {
             nomeCaptador: nomeCaptador.trim() || undefined,
             observacao: observacao.trim() || undefined,
             driveFolderId: currentFolderId,
+            thumbnail: thumbnail || undefined,
           }),
         });
 
@@ -747,7 +815,15 @@ export default function CaptadorPortal() {
                       key={upload.id}
                       className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 border"
                     >
-                      {getFileIcon(upload.mimeType)}
+                      {upload.thumbnail ? (
+                        <img
+                          src={upload.thumbnail}
+                          alt={upload.nomeOriginal}
+                          className="h-10 w-14 object-cover rounded flex-shrink-0"
+                        />
+                      ) : (
+                        getFileIcon(upload.mimeType)
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{upload.nomeOriginal}</p>
                         <p className="text-xs text-muted-foreground">
