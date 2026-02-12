@@ -205,6 +205,69 @@ export async function uploadFromServer(
   }
 }
 
+/**
+ * Cria subpasta dentro de uma pasta existente no Drive
+ */
+export async function createSubfolder(
+  folderName: string,
+  parentFolderId: string
+): Promise<{ id: string; name: string; url: string } | null> {
+  const drive = getDriveClient();
+  if (!drive) return null;
+
+  try {
+    const res = await drive.files.create({
+      supportsAllDrives: true,
+      requestBody: {
+        name: folderName,
+        mimeType: "application/vnd.google-apps.folder",
+        parents: [parentFolderId],
+      },
+      fields: "id, name, webViewLink",
+    });
+
+    const id = res.data.id!;
+    const name = res.data.name!;
+    const url = res.data.webViewLink || `https://drive.google.com/drive/folders/${id}`;
+    console.log(`[Google Drive] Subpasta criada: ${folderName} em ${parentFolderId} (${id})`);
+    return { id, name, url };
+  } catch (error: any) {
+    console.error("[Google Drive] Erro ao criar subpasta:", error.message);
+    return null;
+  }
+}
+
+/**
+ * Lista subpastas dentro de uma pasta do Drive
+ */
+export async function listFolderContents(
+  folderId: string
+): Promise<Array<{ id: string; name: string; url: string }>> {
+  const drive = getDriveClient();
+  if (!drive) return [];
+
+  try {
+    const res = await drive.files.list({
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      driveId: SHARED_DRIVE_ID,
+      corpora: "drive",
+      q: `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      fields: "files(id, name, webViewLink)",
+      orderBy: "name",
+    });
+
+    return (res.data.files || []).map((f) => ({
+      id: f.id!,
+      name: f.name!,
+      url: f.webViewLink || `https://drive.google.com/drive/folders/${f.id}`,
+    }));
+  } catch (error: any) {
+    console.error("[Google Drive] Erro ao listar pastas:", error.message);
+    return [];
+  }
+}
+
 export function isDriveConfigured(): boolean {
   return !!(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
 }

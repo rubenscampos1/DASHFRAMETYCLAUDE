@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -16,8 +16,11 @@ import {
   User,
   Building2,
   FolderUp,
+  FolderPlus,
+  FolderOpen,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +38,7 @@ interface CaptadorData {
     token: string;
     nomeCaptador: string | null;
     instrucoes: string | null;
+    driveFolderId: string | null;
     createdAt: string;
   };
   projeto: {
@@ -52,8 +56,20 @@ interface CaptadorData {
     mimeType: string | null;
     nomeCaptador: string | null;
     observacao: string | null;
+    driveFolderId: string | null;
     createdAt: string;
   }>;
+}
+
+interface DriveFolder {
+  id: string;
+  name: string;
+  url: string;
+}
+
+interface FolderBreadcrumb {
+  id: string;
+  name: string;
 }
 
 function formatFileSize(bytes: number | null): string {
@@ -86,6 +102,16 @@ export default function CaptadorPortal() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [showUploads, setShowUploads] = useState(false);
+  const [currentFileName, setCurrentFileName] = useState("");
+
+  // Folder navigation
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [folderStack, setFolderStack] = useState<FolderBreadcrumb[]>([]);
+  const [subfolders, setSubfolders] = useState<DriveFolder[]>([]);
+  const [loadingFolders, setLoadingFolders] = useState(false);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery<CaptadorData>({
     queryKey: [`/api/captador/${token}`],
@@ -93,7 +119,79 @@ export default function CaptadorPortal() {
     enabled: !!token,
   });
 
-  const [currentFileName, setCurrentFileName] = useState("");
+  // Initialize folder navigation when data loads
+  useEffect(() => {
+    if (data?.link?.driveFolderId && !currentFolderId) {
+      setCurrentFolderId(data.link.driveFolderId);
+      setFolderStack([{ id: data.link.driveFolderId, name: "Raiz" }]);
+    }
+  }, [data, currentFolderId]);
+
+  // Fetch subfolders when navigating
+  const fetchFolders = useCallback(async (folderId: string) => {
+    setLoadingFolders(true);
+    try {
+      const res = await fetch(`/api/captador/${token}/folders?parentId=${folderId}`);
+      if (res.ok) {
+        const { folders } = await res.json();
+        setSubfolders(folders);
+      }
+    } catch (err) {
+      console.error("Erro ao listar pastas:", err);
+    } finally {
+      setLoadingFolders(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (currentFolderId) {
+      fetchFolders(currentFolderId);
+    }
+  }, [currentFolderId, fetchFolders]);
+
+  // Folder navigation handlers
+  const navigateToFolder = useCallback((folder: DriveFolder) => {
+    setFolderStack(prev => [...prev, { id: folder.id, name: folder.name }]);
+    setCurrentFolderId(folder.id);
+    setShowUploads(false);
+    setUploadedFiles([]);
+  }, []);
+
+  const navigateToBreadcrumb = useCallback((index: number) => {
+    const target = folderStack[index];
+    setFolderStack(prev => prev.slice(0, index + 1));
+    setCurrentFolderId(target.id);
+    setShowUploads(false);
+    setUploadedFiles([]);
+  }, [folderStack]);
+
+  const handleCreateFolder = useCallback(async () => {
+    if (!newFolderName.trim() || creatingFolder) return;
+    setCreatingFolder(true);
+    try {
+      const res = await fetch(`/api/captador/${token}/create-folder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newFolderName.trim(),
+          parentId: currentFolderId,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: "Pasta criada!", description: `"${newFolderName.trim()}" criada com sucesso.` });
+        setNewFolderName("");
+        setShowCreateFolder(false);
+        if (currentFolderId) fetchFolders(currentFolderId);
+      } else {
+        const err = await res.json();
+        toast({ title: "Erro", description: err.message, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setCreatingFolder(false);
+    }
+  }, [newFolderName, creatingFolder, currentFolderId, token, toast, fetchFolders]);
 
   const handleUpload = useCallback(async (files: FileList | File[]) => {
     if (!data || uploading) return;
@@ -119,6 +217,7 @@ export default function CaptadorPortal() {
             fileName: file.name,
             mimeType: file.type || "application/octet-stream",
             fileSize: file.size,
+            folderId: currentFolderId,
           }),
         });
 
@@ -131,7 +230,6 @@ export default function CaptadorPortal() {
 
         // 2. Enviar arquivo DIRETO pro Google Drive (não passa pelo servidor)
         let driveFileId = "";
-        let uploadCompleted = false;
 
         try {
           driveFileId = await new Promise<string>((resolve, reject) => {
@@ -153,10 +251,9 @@ export default function CaptadorPortal() {
                   const response = JSON.parse(xhr.responseText);
                   resolve(response.id || "");
                 } catch {
-                  resolve(""); // Resposta OK mas não conseguiu parsear (CORS)
+                  resolve("");
                 }
               } else if (xhr.status === 0 && progressReached100) {
-                // CORS bloqueou a resposta mas o upload completou
                 resolve("");
               } else {
                 reject(new Error(`Google Drive respondeu com status ${xhr.status}`));
@@ -165,7 +262,6 @@ export default function CaptadorPortal() {
 
             xhr.addEventListener("error", () => {
               if (progressReached100) {
-                // Upload provavelmente completou mas CORS bloqueou a resposta
                 resolve("");
               } else {
                 reject(new Error("Falha de conexão com Google Drive"));
@@ -178,14 +274,11 @@ export default function CaptadorPortal() {
             xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
             xhr.send(file);
           });
-          uploadCompleted = true;
         } catch (uploadErr: any) {
-          // Se o progresso chegou perto de 100%, considerar como sucesso
           console.warn("Erro no upload direto, mas pode ter completado:", uploadErr.message);
         }
 
         // 3. Confirmar upload no servidor (salva no banco)
-        // Registra mesmo sem driveFileId — o arquivo já está no Drive
         await fetch(`/api/captador/${token}/complete-upload`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -196,6 +289,7 @@ export default function CaptadorPortal() {
             mimeType: file.type || "application/octet-stream",
             nomeCaptador: nomeCaptador.trim() || undefined,
             observacao: observacao.trim() || undefined,
+            driveFolderId: currentFolderId,
           }),
         });
 
@@ -225,7 +319,7 @@ export default function CaptadorPortal() {
 
     if (fileInputRef.current) fileInputRef.current.value = "";
     setTimeout(() => setUploadProgress(0), 2000);
-  }, [data, uploading, nomeCaptador, observacao, token, toast, refetch]);
+  }, [data, uploading, nomeCaptador, observacao, token, toast, refetch, currentFolderId]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -285,11 +379,19 @@ export default function CaptadorPortal() {
       }
     }
 
-    // Fallback para files normais
     if (e.dataTransfer.files.length > 0) {
       handleUpload(e.dataTransfer.files);
     }
   }, [handleUpload, getFilesFromEntry]);
+
+  // Filter uploads for current folder
+  const currentFolderUploads = data?.uploads.filter(u => {
+    const rootId = data.link.driveFolderId;
+    if (!currentFolderId || currentFolderId === rootId) {
+      return !u.driveFolderId || u.driveFolderId === rootId;
+    }
+    return u.driveFolderId === currentFolderId;
+  }) || [];
 
   // Loading state
   if (isLoading) {
@@ -438,12 +540,102 @@ export default function CaptadorPortal() {
           </CardContent>
         </Card>
 
+        {/* Navegação de Pastas */}
+        {link.driveFolderId && (
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FolderOpen className="h-4 w-4 text-primary" />
+                Pastas
+              </CardTitle>
+              {/* Breadcrumb */}
+              {folderStack.length > 1 && (
+                <div className="flex items-center gap-1 flex-wrap mt-2 text-xs">
+                  {folderStack.map((crumb, i) => (
+                    <React.Fragment key={crumb.id}>
+                      {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
+                      {i < folderStack.length - 1 ? (
+                        <button
+                          onClick={() => navigateToBreadcrumb(i)}
+                          className="text-primary hover:underline font-medium"
+                        >
+                          {crumb.name}
+                        </button>
+                      ) : (
+                        <span className="text-foreground font-semibold">{crumb.name}</span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="p-4 pt-2 space-y-3">
+              {/* Subfolders list */}
+              {loadingFolders ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando pastas...
+                </div>
+              ) : subfolders.length > 0 ? (
+                <div className="grid gap-2">
+                  {subfolders.map((folder) => (
+                    <div
+                      key={folder.id}
+                      onClick={() => navigateToFolder(folder)}
+                      className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-primary/5 hover:border-primary/30 cursor-pointer transition-all"
+                    >
+                      <FolderOpen className="h-5 w-5 text-primary flex-shrink-0" />
+                      <span className="text-sm font-medium flex-1 truncate">{folder.name}</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Create folder */}
+              {showCreateFolder ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    placeholder="Nome da nova pasta"
+                    className="text-sm"
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
+                    autoFocus
+                  />
+                  <Button size="sm" onClick={handleCreateFolder} disabled={creatingFolder}>
+                    {creatingFolder ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowCreateFolder(false); setNewFolderName(""); }}>
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCreateFolder(true)}
+                  className="w-full"
+                >
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  Criar Pasta
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Upload area */}
         <Card>
           <CardHeader className="p-4 pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Upload className="h-4 w-4 text-primary" />
               Enviar Arquivos
+              {folderStack.length > 1 && (
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  em "{folderStack[folderStack.length - 1].name}"
+                </span>
+              )}
             </CardTitle>
             <CardDescription className="text-xs">
               Arraste ou clique para selecionar os arquivos de captação
@@ -528,8 +720,8 @@ export default function CaptadorPortal() {
           </CardContent>
         </Card>
 
-        {/* Arquivos ja enviados — collapsible */}
-        {uploads.length > 0 && (
+        {/* Arquivos desta pasta — collapsible */}
+        {currentFolderUploads.length > 0 && (
           <Card>
             <CardHeader
               className="p-4 cursor-pointer select-none"
@@ -538,7 +730,7 @@ export default function CaptadorPortal() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  {uploads.length} arquivo(s) enviado(s)
+                  {currentFolderUploads.length} arquivo(s) nesta pasta
                 </CardTitle>
                 {showUploads ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -550,7 +742,7 @@ export default function CaptadorPortal() {
             {showUploads && (
               <CardContent className="p-4 pt-0">
                 <div className="space-y-2">
-                  {uploads.map((upload) => (
+                  {currentFolderUploads.map((upload) => (
                     <div
                       key={upload.id}
                       className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 border"
@@ -577,6 +769,13 @@ export default function CaptadorPortal() {
               </CardContent>
             )}
           </Card>
+        )}
+
+        {/* Total de arquivos no projeto (se diferente da pasta atual) */}
+        {uploads.length > 0 && uploads.length !== currentFolderUploads.length && (
+          <p className="text-xs text-center text-muted-foreground">
+            Total no projeto: {uploads.length} arquivo(s) enviado(s)
+          </p>
         )}
 
         {/* Footer */}

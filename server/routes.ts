@@ -1919,6 +1919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           token: link.token,
           nomeCaptador: link.nomeCaptador,
           instrucoes: link.instrucoes,
+          driveFolderId: link.driveFolderId,
           createdAt: link.createdAt,
         },
         projeto: {
@@ -1936,9 +1937,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mimeType: u.mimeType,
           nomeCaptador: u.nomeCaptador,
           observacao: u.observacao,
+          driveFolderId: u.driveFolderId,
           createdAt: u.createdAt,
         })),
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Listar subpastas dentro de uma pasta do projeto (público)
+  app.get("/api/captador/:token/folders", async (req, res, next) => {
+    try {
+      const link = await storage.getCaptadorLinkByToken(req.params.token);
+      if (!link) return res.status(404).json({ message: "Link não encontrado" });
+      if (!link.ativo) return res.status(410).json({ message: "Link desativado" });
+      if (link.expiraEm && new Date(link.expiraEm) < new Date()) {
+        return res.status(410).json({ message: "Link expirou" });
+      }
+
+      const { listFolderContents, isDriveConfigured } = await import("./google-drive");
+      if (!isDriveConfigured()) {
+        return res.status(500).json({ message: "Google Drive não configurado" });
+      }
+
+      const parentId = (req.query.parentId as string) || link.driveFolderId;
+      if (!parentId) {
+        return res.json({ folders: [] });
+      }
+
+      const folders = await listFolderContents(parentId);
+      res.json({ folders });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Criar subpasta dentro do projeto (público)
+  app.post("/api/captador/:token/create-folder", async (req, res, next) => {
+    try {
+      const link = await storage.getCaptadorLinkByToken(req.params.token);
+      if (!link) return res.status(404).json({ message: "Link não encontrado" });
+      if (!link.ativo) return res.status(410).json({ message: "Link desativado" });
+      if (link.expiraEm && new Date(link.expiraEm) < new Date()) {
+        return res.status(410).json({ message: "Link expirou" });
+      }
+
+      const { name, parentId } = req.body;
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return res.status(400).json({ message: "Nome da pasta é obrigatório" });
+      }
+
+      const { createSubfolder, isDriveConfigured } = await import("./google-drive");
+      if (!isDriveConfigured()) {
+        return res.status(500).json({ message: "Google Drive não configurado" });
+      }
+
+      const targetParentId = parentId || link.driveFolderId;
+      if (!targetParentId) {
+        return res.status(500).json({ message: "Pasta do projeto não encontrada no Drive" });
+      }
+
+      const folder = await createSubfolder(name.trim(), targetParentId);
+      if (!folder) {
+        return res.status(500).json({ message: "Falha ao criar pasta no Google Drive" });
+      }
+
+      console.log(`[Captador] Pasta criada: ${name} em ${targetParentId} → ${folder.id}`);
+      res.status(201).json(folder);
     } catch (error) {
       next(error);
     }
@@ -1958,7 +2024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(410).json({ message: "Este link de upload expirou" });
       }
 
-      const { fileName, mimeType, fileSize } = req.body;
+      const { fileName, mimeType, fileSize, folderId: targetFolderId } = req.body;
       if (!fileName || !mimeType || !fileSize) {
         return res.status(400).json({ message: "fileName, mimeType e fileSize são obrigatórios" });
       }
@@ -1978,7 +2044,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let folderId: string | undefined;
       let folderUrl: string | undefined;
 
-      if (link.driveFolderId) {
+      if (targetFolderId) {
+        // Captador escolheu uma subpasta específica
+        folderId = targetFolderId;
+      } else if (link.driveFolderId) {
         folderId = link.driveFolderId;
         folderUrl = link.driveFolderUrl || undefined;
       } else {
@@ -2026,7 +2095,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Link não encontrado" });
       }
 
-      const { driveFileId, fileName, fileSize, mimeType, nomeCaptador, observacao } = req.body;
+      const { driveFileId, fileName, fileSize, mimeType, nomeCaptador, observacao, driveFolderId } = req.body;
       if (!fileName) {
         return res.status(400).json({ message: "fileName é obrigatório" });
       }
@@ -2045,6 +2114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: mimeType || null,
         nomeCaptador: nomeCaptador || link.nomeCaptador || undefined,
         observacao: observacao || undefined,
+        driveFolderId: driveFolderId || null,
       });
 
       console.log(`[Captador] Upload completo: ${fileName} (${driveFileId || "sem driveId"})`);
