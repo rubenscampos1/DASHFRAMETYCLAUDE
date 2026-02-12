@@ -1037,8 +1037,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const numeros = projeto.contatosWhatsapp || [];
-      if (numeros.length === 0) {
-        return res.status(400).json({ message: "Projeto não possui contatos WhatsApp cadastrados" });
+      const grupos = projeto.contatosGrupos || [];
+      if (numeros.length === 0 && grupos.length === 0) {
+        return res.status(400).json({ message: "Projeto não possui contatos WhatsApp ou grupos cadastrados" });
       }
 
       const OPENCLAW_URL = process.env.OPENCLAW_URL || "https://framety.tail81fe5d.ts.net";
@@ -1047,6 +1048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enviados: string[] = [];
       const erros: { numero: string; erro: string }[] = [];
 
+      // Enviar para numeros individuais
       for (const numero of numeros) {
         try {
           const target = numero.startsWith("+") ? numero : `+${numero.replace(/\D/g, "")}`;
@@ -1079,6 +1081,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (err: any) {
           console.error(`[WhatsApp] Falha para ${numero}:`, err.message);
           erros.push({ numero, erro: err.message });
+        }
+      }
+
+      // Enviar para grupos WhatsApp (JIDs)
+      for (const grupoJid of grupos) {
+        try {
+          const response = await fetch(`${OPENCLAW_URL}/tools/invoke`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${OPENCLAW_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              tool: "message",
+              action: "send",
+              args: {
+                channel: "whatsapp",
+                target: grupoJid,
+                message: mensagem.trim(),
+              },
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`[WhatsApp Grupo] Enviado para ${grupoJid} - Projeto: ${projeto.titulo}`, result);
+            enviados.push(`grupo:${grupoJid}`);
+          } else {
+            const errorText = await response.text();
+            console.error(`[WhatsApp Grupo] Erro para ${grupoJid}:`, errorText);
+            erros.push({ numero: `grupo:${grupoJid}`, erro: errorText });
+          }
+        } catch (err: any) {
+          console.error(`[WhatsApp Grupo] Falha para ${grupoJid}:`, err.message);
+          erros.push({ numero: `grupo:${grupoJid}`, erro: err.message });
         }
       }
 
