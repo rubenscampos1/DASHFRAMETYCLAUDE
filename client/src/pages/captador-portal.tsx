@@ -15,6 +15,7 @@ import {
   Clock,
   User,
   Building2,
+  FolderUp,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +75,7 @@ export default function CaptadorPortal() {
   const { token } = useParams<{ token: string }>();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const [nomeCaptador, setNomeCaptador] = useState("");
   const [observacao, setObservacao] = useState("");
@@ -232,13 +234,59 @@ export default function CaptadorPortal() {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  // Extrair arquivos recursivamente de um diretório (drag & drop)
+  const getFilesFromEntry = useCallback(async (entry: FileSystemEntry): Promise<File[]> => {
+    if (entry.isFile) {
+      return new Promise((resolve) => {
+        (entry as FileSystemFileEntry).file((f) => resolve([f]), () => resolve([]));
+      });
+    }
+    if (entry.isDirectory) {
+      const reader = (entry as FileSystemDirectoryEntry).createReader();
+      const entries = await new Promise<FileSystemEntry[]>((resolve) => {
+        const allEntries: FileSystemEntry[] = [];
+        const readBatch = () => {
+          reader.readEntries((batch) => {
+            if (batch.length === 0) { resolve(allEntries); return; }
+            allEntries.push(...batch);
+            readBatch();
+          }, () => resolve(allEntries));
+        };
+        readBatch();
+      });
+      const files: File[] = [];
+      for (const e of entries) {
+        files.push(...(await getFilesFromEntry(e)));
+      }
+      return files;
+    }
+    return [];
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+
+    const items = e.dataTransfer.items;
+    if (items && items.length > 0) {
+      const allFiles: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry?.();
+        if (entry) {
+          allFiles.push(...(await getFilesFromEntry(entry)));
+        }
+      }
+      if (allFiles.length > 0) {
+        handleUpload(allFiles);
+        return;
+      }
+    }
+
+    // Fallback para files normais
     if (e.dataTransfer.files.length > 0) {
       handleUpload(e.dataTransfer.files);
     }
-  }, [handleUpload]);
+  }, [handleUpload, getFilesFromEntry]);
 
   // Loading state
   if (isLoading) {
@@ -403,11 +451,10 @@ export default function CaptadorPortal() {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              onClick={() => !uploading && fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
                 isDragging
                   ? "border-primary bg-primary/5 scale-[1.01]"
-                  : "border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/50"
+                  : "border-muted-foreground/30"
               } ${uploading ? "pointer-events-none opacity-50" : ""}`}
             >
               <input
@@ -415,6 +462,13 @@ export default function CaptadorPortal() {
                 type="file"
                 multiple
                 className="hidden"
+                onChange={(e) => e.target.files && handleUpload(e.target.files)}
+              />
+              <input
+                ref={folderInputRef}
+                type="file"
+                className="hidden"
+                {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
                 onChange={(e) => e.target.files && handleUpload(e.target.files)}
               />
               {uploading ? (
@@ -430,11 +484,29 @@ export default function CaptadorPortal() {
                 <>
                   <Upload className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
                   <p className="text-sm font-medium text-foreground">
-                    Arraste arquivos aqui ou clique para selecionar
+                    Arraste arquivos ou pastas aqui
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Vídeos, imagens, áudios, ZIPs — até 500MB por arquivo
+                  <p className="text-xs text-muted-foreground mt-1 mb-4">
+                    Vídeos, imagens, áudios, ZIPs — sem limite de tamanho
                   </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Selecionar Arquivos
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); folderInputRef.current?.click(); }}
+                    >
+                      <FolderUp className="h-4 w-4 mr-2" />
+                      Selecionar Pasta
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
