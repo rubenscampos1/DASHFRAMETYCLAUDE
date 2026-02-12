@@ -88,6 +88,8 @@ export default function CaptadorPortal() {
     enabled: !!token,
   });
 
+  const [currentFileName, setCurrentFileName] = useState("");
+
   const handleUpload = useCallback(async (files: FileList | File[]) => {
     if (!data || uploading) return;
 
@@ -101,24 +103,30 @@ export default function CaptadorPortal() {
 
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
-
-      // Aguardar entre uploads para não sobrecarregar o servidor
-      if (i > 0) {
-        await new Promise(r => setTimeout(r, 1000));
-      }
-
-      const formData = new FormData();
-      formData.append("file", file);
-      if (nomeCaptador.trim()) formData.append("nomeCaptador", nomeCaptador.trim());
-      if (observacao.trim()) formData.append("observacao", observacao.trim());
+      setCurrentFileName(file.name);
 
       try {
-        const xhr = new XMLHttpRequest();
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            xhr.abort();
-            reject(new Error(`Timeout ao enviar ${file.name}`));
-          }, 10 * 60 * 1000); // 10 min timeout
+        // 1. Pedir URL de upload ao servidor (leve, só metadados)
+        const initRes = await fetch(`/api/captador/${token}/init-upload`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            mimeType: file.type || "application/octet-stream",
+            fileSize: file.size,
+          }),
+        });
+
+        if (!initRes.ok) {
+          const err = await initRes.json().catch(() => ({ message: "Erro ao iniciar upload" }));
+          throw new Error(err.message);
+        }
+
+        const { uploadUrl } = await initRes.json();
+
+        // 2. Enviar arquivo DIRETO pro Google Drive (não passa pelo servidor)
+        const driveFileId = await new Promise<string>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
 
           xhr.upload.addEventListener("progress", (e) => {
             if (e.lengthComputable) {
@@ -129,30 +137,41 @@ export default function CaptadorPortal() {
           });
 
           xhr.addEventListener("load", () => {
-            clearTimeout(timeout);
             if (xhr.status >= 200 && xhr.status < 300) {
-              newUploaded.push(file.name);
-              resolve();
+              try {
+                const response = JSON.parse(xhr.responseText);
+                resolve(response.id || "");
+              } catch {
+                resolve("");
+              }
             } else {
-              let msg = `Erro ao enviar ${file.name}`;
-              try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
-              reject(new Error(msg));
+              reject(new Error(`Google Drive respondeu com status ${xhr.status}`));
             }
           });
 
-          xhr.addEventListener("error", () => {
-            clearTimeout(timeout);
-            reject(new Error(`Falha de conexão ao enviar ${file.name}`));
-          });
+          xhr.addEventListener("error", () => reject(new Error("Falha de conexão com Google Drive")));
+          xhr.addEventListener("abort", () => reject(new Error("Upload cancelado")));
 
-          xhr.addEventListener("abort", () => {
-            clearTimeout(timeout);
-            reject(new Error(`Upload de ${file.name} cancelado`));
-          });
-
-          xhr.open("POST", `/api/captador/${token}/upload`);
-          xhr.send(formData);
+          xhr.open("PUT", uploadUrl);
+          xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+          xhr.send(file);
         });
+
+        // 3. Confirmar upload no servidor (salva no banco)
+        await fetch(`/api/captador/${token}/complete-upload`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            driveFileId,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type || "application/octet-stream",
+            nomeCaptador: nomeCaptador.trim() || undefined,
+            observacao: observacao.trim() || undefined,
+          }),
+        });
+
+        newUploaded.push(file.name);
       } catch (err: any) {
         failed.push(file.name);
         toast({
@@ -164,6 +183,7 @@ export default function CaptadorPortal() {
     }
 
     setUploading(false);
+    setCurrentFileName("");
     setUploadProgress(100);
 
     if (newUploaded.length > 0) {
@@ -175,7 +195,6 @@ export default function CaptadorPortal() {
       refetch();
     }
 
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
     setTimeout(() => setUploadProgress(0), 2000);
   }, [data, uploading, nomeCaptador, observacao, token, toast, refetch]);
@@ -378,7 +397,9 @@ export default function CaptadorPortal() {
               {uploading ? (
                 <div className="space-y-3">
                   <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
-                  <p className="text-sm text-muted-foreground">Enviando arquivos...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Enviando{currentFileName ? `: ${currentFileName}` : "..."}
+                  </p>
                   <Progress value={uploadProgress} className="max-w-xs mx-auto" />
                   <p className="text-xs text-muted-foreground">{uploadProgress}%</p>
                 </div>

@@ -1944,8 +1944,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload de arquivo pelo captador (público)
-  app.post("/api/captador/:token/upload", captadorUploadMulter.single("file"), async (req, res, next) => {
+  // Iniciar upload direto pro Google Drive (público — só metadados, sem arquivo)
+  app.post("/api/captador/:token/init-upload", async (req, res, next) => {
     try {
       const link = await storage.getCaptadorLinkByToken(req.params.token);
       if (!link) {
@@ -1958,95 +1958,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(410).json({ message: "Este link de upload expirou" });
       }
 
-      if (!req.file) {
-        return res.status(400).json({ message: "Nenhum arquivo enviado" });
+      const { fileName, mimeType, fileSize } = req.body;
+      if (!fileName || !mimeType || !fileSize) {
+        return res.status(400).json({ message: "fileName, mimeType e fileSize são obrigatórios" });
       }
 
-      const { nomeCaptador, observacao } = req.body;
-      const file = req.file;
-      const filePath = file.path; // disk storage path
+      const { createResumableUpload, getOrCreateProjectFolder, isDriveConfigured } = await import("./google-drive");
 
-      // Upload para Google Drive (pasta do projeto)
-      let storagePath = "";
-      let publicUrl = "";
+      if (!isDriveConfigured()) {
+        return res.status(500).json({ message: "Google Drive não configurado no servidor" });
+      }
 
-      try {
-        const { uploadToCaptacoes, isDriveConfigured } = await import("./google-drive");
+      // Buscar/criar pasta do projeto no Drive
+      const projeto = await storage.getProjeto(link.projetoId);
+      const folderName = projeto
+        ? `SKY${projeto.sequencialId} - ${projeto.titulo}`
+        : `Captação ${link.projetoId}`;
 
-        if (isDriveConfigured()) {
-          // Buscar info do projeto para nome da pasta
-          const projeto = await storage.getProjeto(link.projetoId);
-          const folderName = projeto
-            ? `SKY${projeto.sequencialId} - ${projeto.titulo}`
-            : undefined;
+      let folderId: string | undefined;
+      let folderUrl: string | undefined;
 
-          const result = await uploadToCaptacoes(
-            filePath,
-            file.originalname,
-            file.mimetype,
-            folderName
-          );
-
-          if (result) {
-            storagePath = `drive:${result.fileId}`;
-            publicUrl = result.fileUrl;
-
-            // Atualizar link com pasta do Drive se ainda não tem
-            if (result.folderId && !link.driveFolderId) {
-              await storage.updateCaptadorLink(link.id, {
-                driveFolderId: result.folderId,
-                driveFolderUrl: result.folderUrl || undefined,
-              });
-            }
-
-            console.log(`[Captador] Upload Drive OK: ${file.originalname} → ${result.fileId} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
-          } else {
-            throw new Error("Upload para Google Drive falhou");
-          }
-        } else {
-          // Fallback: Supabase Storage se Drive não configurado
-          const { supabaseAdmin } = await import("./supabase-client");
-          if (supabaseAdmin) {
-            const bucketName = "captacoes";
-            storagePath = `${link.projetoId}/${link.id}/${Date.now()}-${file.originalname}`;
-            const fileBuffer = fs.readFileSync(filePath);
-
-            const { error } = await supabaseAdmin.storage
-              .from(bucketName)
-              .upload(storagePath, fileBuffer, {
-                contentType: file.mimetype,
-                upsert: false,
-              });
-
-            if (error) throw new Error(`Upload Supabase falhou: ${error.message}`);
-            publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${bucketName}/${storagePath}`;
-            console.log(`[Captador] Upload Supabase OK: ${storagePath}`);
-          } else {
-            throw new Error("Nenhum storage configurado (Drive ou Supabase)");
-          }
+      if (link.driveFolderId) {
+        folderId = link.driveFolderId;
+        folderUrl = link.driveFolderUrl || undefined;
+      } else {
+        const folder = await getOrCreateProjectFolder(folderName);
+        if (folder) {
+          folderId = folder.id;
+          folderUrl = folder.url;
+          // Salvar no link para não recriar
+          await storage.updateCaptadorLink(link.id, {
+            driveFolderId: folder.id,
+            driveFolderUrl: folder.url,
+          });
         }
-      } catch (uploadError: any) {
-        console.error("[Captador] Erro no upload:", uploadError.message);
-        return res.status(500).json({ message: "Falha ao fazer upload do arquivo" });
-      } finally {
-        // Limpar arquivo temporário do disco
-        try { fs.unlinkSync(filePath); } catch {}
       }
+
+      if (!folderId) {
+        return res.status(500).json({ message: "Falha ao criar/encontrar pasta no Google Drive" });
+      }
+
+      // Criar sessão de upload resumable
+      const origin = `${req.protocol}://${req.get("host")}`;
+      const uploadUrl = await createResumableUpload(fileName, mimeType, fileSize, folderId, origin);
+
+      if (!uploadUrl) {
+        return res.status(500).json({ message: "Falha ao criar sessão de upload no Google Drive" });
+      }
+
+      console.log(`[Captador] Init upload: ${fileName} (${(fileSize / 1024 / 1024).toFixed(1)}MB) → pasta ${folderId}`);
+
+      res.json({
+        uploadUrl,
+        folderId,
+        folderUrl,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Confirmar upload concluído (público — salva registro no banco)
+  app.post("/api/captador/:token/complete-upload", async (req, res, next) => {
+    try {
+      const link = await storage.getCaptadorLinkByToken(req.params.token);
+      if (!link) {
+        return res.status(404).json({ message: "Link não encontrado" });
+      }
+
+      const { driveFileId, fileName, fileSize, mimeType, nomeCaptador, observacao } = req.body;
+      if (!fileName) {
+        return res.status(400).json({ message: "fileName é obrigatório" });
+      }
+
+      const driveUrl = driveFileId
+        ? `https://drive.google.com/file/d/${driveFileId}/view`
+        : "";
 
       const upload = await storage.createCaptadorUpload({
         linkId: link.id,
         projetoId: link.projetoId,
-        nomeOriginal: file.originalname,
-        storagePath,
-        publicUrl,
-        tamanho: file.size,
-        mimeType: file.mimetype,
+        nomeOriginal: fileName,
+        storagePath: driveFileId ? `drive:${driveFileId}` : `local:${Date.now()}`,
+        publicUrl: driveUrl,
+        tamanho: fileSize || null,
+        mimeType: mimeType || null,
         nomeCaptador: nomeCaptador || link.nomeCaptador || undefined,
         observacao: observacao || undefined,
       });
 
+      console.log(`[Captador] Upload completo: ${fileName} (${driveFileId || "sem driveId"})`);
+
       res.status(201).json({
-        message: "Arquivo enviado com sucesso",
+        message: "Arquivo registrado com sucesso",
         upload: {
           id: upload.id,
           nomeOriginal: upload.nomeOriginal,
