@@ -1023,6 +1023,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Anunciar aprovação/reprovação no speaker do escritório via NUC Speaker Server
+  async function anunciarAprovacaoNoSpeaker(projeto: any, tipoEvento: string) {
+    try {
+      const NUC_SPEAKER_URL = process.env.NUC_SPEAKER_URL || "https://framety.tail81fe5d.ts.net:8443";
+
+      // Buscar nome do cliente se não estiver no objeto
+      let nomeCliente = projeto.cliente?.nome || "Cliente";
+      if (nomeCliente === "Cliente" && projeto.clienteId) {
+        try {
+          const cliente = await storage.getCliente(projeto.clienteId);
+          if (cliente) nomeCliente = cliente.nome;
+        } catch (_) {}
+      }
+
+      const nomeProjeto = projeto.titulo || "projeto";
+      const skyId = projeto.sequencialId ? `SKY${projeto.sequencialId}` : "";
+
+      const mensagens: Record<string, string> = {
+        musica: `Fala galera, tudo joia? ${nomeCliente} acabou de aprovar a música do projeto ${skyId} ${nomeProjeto}. Bora pra cima!`,
+        locucao: `Atenção equipe! ${nomeCliente} aprovou a locução do projeto ${skyId} ${nomeProjeto}. Mais uma etapa concluída!`,
+        roteiro: `Boa notícia pessoal! ${nomeCliente} aprovou o roteiro do projeto ${skyId} ${nomeProjeto}. Partiu próxima fase!`,
+        video: `Galera, olha isso! ${nomeCliente} aprovou o vídeo final do projeto ${skyId} ${nomeProjeto}. Projeto fechado com chave de ouro!`,
+        musica_reprovada: `Atenção equipe, ${nomeCliente} pediu alteração na música do projeto ${skyId} ${nomeProjeto}. Vamos ajustar!`,
+        locucao_reprovada: `Pessoal, ${nomeCliente} pediu alteração na locução do projeto ${skyId} ${nomeProjeto}. Bora resolver!`,
+        roteiro_reprovado: `Equipe, ${nomeCliente} pediu alteração no roteiro do projeto ${skyId} ${nomeProjeto}. Vamos revisar!`,
+        video_reprovado: `Atenção galera, ${nomeCliente} pediu alteração no vídeo do projeto ${skyId} ${nomeProjeto}. Vamos ajustar!`,
+      };
+
+      const texto = mensagens[tipoEvento] || `Novo evento no projeto ${skyId}`;
+      const textoTTS = texto.replace(/Framety/gi, "Freymeti");
+
+      // Enviar para o micro server no NUC que gera TTS e toca no speaker
+      const response = await fetch(`${NUC_SPEAKER_URL}/announce`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: textoTTS }),
+      });
+
+      if (response.ok) {
+        console.log(`[Speaker] Anuncio enviado: ${texto}`);
+      } else {
+        const err = await response.json().catch(() => ({}));
+        console.error(`[Speaker] Erro do NUC:`, err);
+      }
+    } catch (err) {
+      console.error("[Speaker] Erro ao anunciar aprovacao:", err);
+    }
+  }
+
   // Notificar cliente via WhatsApp (OpenClaw gateway)
   app.post("/api/projetos/:id/notificar-whatsapp", requireAuthOrToken, async (req, res, next) => {
     try {
@@ -2353,6 +2402,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
 
+      // Anunciar no speaker (fire-and-forget)
+      anunciarAprovacaoNoSpeaker(projeto, aprovado ? "musica" : "musica_reprovada");
+
       res.json({
         message: aprovado ? "Música aprovada com sucesso!" : "Solicitação de alteração enviada",
         musicaAprovada: projeto.musicaAprovada,
@@ -2378,6 +2430,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
 
+      // Anunciar no speaker (fire-and-forget)
+      anunciarAprovacaoNoSpeaker(projeto, aprovado ? "locucao" : "locucao_reprovada");
+
       res.json({
         message: aprovado ? "Locução aprovada com sucesso!" : "Solicitação de alteração enviada",
         locucaoAprovada: projeto.locucaoAprovada,
@@ -2402,6 +2457,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!projeto) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
+
+      // Anunciar no speaker (fire-and-forget)
+      anunciarAprovacaoNoSpeaker(projeto, aprovado ? "video" : "video_reprovado");
 
       res.json({
         message: aprovado ? "Vídeo aprovado com sucesso!" : "Solicitação de alteração enviada",
@@ -2438,6 +2496,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (wsServer) {
         wsServer.emitChange('projeto:updated', { id: projeto.id, projeto });
       }
+
+      // Anunciar no speaker (fire-and-forget)
+      anunciarAprovacaoNoSpeaker(projeto, aprovado ? "roteiro" : "roteiro_reprovado");
 
       res.json({
         message: aprovado ? "Roteiro aprovado com sucesso!" : "Solicitação de alteração enviada",
@@ -2497,6 +2558,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         wsServer.emitChange('projeto:updated', { id: projetoAtualizado.id, projeto: projetoAtualizado });
       }
 
+      // Anunciar no speaker (fire-and-forget)
+      anunciarAprovacaoNoSpeaker(projeto, aprovado ? "musica" : "musica_reprovada");
+
       res.json({
         message: aprovado ? "Música aprovada com sucesso!" : "Solicitação de alteração enviada",
         musica: musicaAtualizada,
@@ -2553,6 +2617,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         wsServer.emitChange('projeto:updated', { id: projetoAtualizado.id, projeto: projetoAtualizado });
       }
+
+      // Anunciar no speaker (fire-and-forget)
+      anunciarAprovacaoNoSpeaker(projeto, aprovado ? "locucao" : "locucao_reprovada");
 
       res.json({
         message: aprovado ? "Locutor aprovado com sucesso!" : "Solicitação de alteração enviada",
