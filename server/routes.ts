@@ -1072,6 +1072,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // Agradecer aprovação no grupo WhatsApp do projeto (fire-and-forget)
+  async function agradecerAprovacaoWhatsApp(projeto: any, tipoEvento: string) {
+    try {
+      const grupos = projeto.contatosGrupos || [];
+      if (grupos.length === 0) {
+        console.log("[WhatsApp Auto] Projeto sem grupos, pulando agradecimento.");
+        return;
+      }
+
+      const OPENCLAW_URL = process.env.OPENCLAW_URL || "https://framety.tail81fe5d.ts.net";
+      const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || "57bf11589000632b2c0009387429a69db0ad17c08802dd1b";
+
+      const mensagens: Record<string, string> = {
+        musica: "Música aprovada! 🎵 Obrigado pelo retorno, seguimos para a próxima etapa!\n— Equipe Framety",
+        locucao: "Locução aprovada! 🎤 Valeu pela confiança, partiu próxima fase!\n— Equipe Framety",
+        roteiro: "Roteiro aprovado! 📝 Obrigado pelo feedback, bora dar vida a esse projeto!\n— Equipe Framety",
+        video: "Vídeo aprovado! 🎬 Projeto finalizado com sucesso, obrigado pela parceria!\n— Equipe Framety",
+      };
+
+      const mensagem = mensagens[tipoEvento];
+      if (!mensagem) return; // Só envia para aprovações, não para reprovações
+
+      for (const grupoJid of grupos) {
+        try {
+          const response = await fetch(`${OPENCLAW_URL}/tools/invoke`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${OPENCLAW_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              tool: "message",
+              action: "send",
+              args: {
+                channel: "whatsapp",
+                target: grupoJid,
+                message: mensagem,
+              },
+            }),
+          });
+
+          if (response.ok) {
+            console.log(`[WhatsApp Auto] Agradecimento enviado para ${grupoJid} - ${tipoEvento}`);
+          } else {
+            const errorText = await response.text();
+            console.error(`[WhatsApp Auto] Erro para ${grupoJid}:`, errorText);
+          }
+        } catch (err: any) {
+          console.error(`[WhatsApp Auto] Falha para ${grupoJid}:`, err.message);
+        }
+      }
+    } catch (err) {
+      console.error("[WhatsApp Auto] Erro ao agradecer aprovacao:", err);
+    }
+  }
+
   // Notificar cliente via WhatsApp (OpenClaw gateway)
   app.post("/api/projetos/:id/notificar-whatsapp", requireAuthOrToken, async (req, res, next) => {
     try {
@@ -2402,8 +2458,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
 
-      // Anunciar no speaker (fire-and-forget)
+      // Anunciar no speaker e agradecer no WhatsApp (fire-and-forget)
       anunciarAprovacaoNoSpeaker(projeto, aprovado ? "musica" : "musica_reprovada");
+      if (aprovado) agradecerAprovacaoWhatsApp(projeto, "musica");
 
       res.json({
         message: aprovado ? "Música aprovada com sucesso!" : "Solicitação de alteração enviada",
@@ -2430,8 +2487,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
 
-      // Anunciar no speaker (fire-and-forget)
+      // Anunciar no speaker e agradecer no WhatsApp (fire-and-forget)
       anunciarAprovacaoNoSpeaker(projeto, aprovado ? "locucao" : "locucao_reprovada");
+      if (aprovado) agradecerAprovacaoWhatsApp(projeto, "locucao");
 
       res.json({
         message: aprovado ? "Locução aprovada com sucesso!" : "Solicitação de alteração enviada",
@@ -2458,8 +2516,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
 
-      // Anunciar no speaker (fire-and-forget)
+      // Anunciar no speaker e agradecer no WhatsApp (fire-and-forget)
       anunciarAprovacaoNoSpeaker(projeto, aprovado ? "video" : "video_reprovado");
+      if (aprovado) agradecerAprovacaoWhatsApp(projeto, "video");
 
       res.json({
         message: aprovado ? "Vídeo aprovado com sucesso!" : "Solicitação de alteração enviada",
@@ -2497,8 +2556,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         wsServer.emitChange('projeto:updated', { id: projeto.id, projeto });
       }
 
-      // Anunciar no speaker (fire-and-forget)
+      // Anunciar no speaker e agradecer no WhatsApp (fire-and-forget)
       anunciarAprovacaoNoSpeaker(projeto, aprovado ? "roteiro" : "roteiro_reprovado");
+      if (aprovado) agradecerAprovacaoWhatsApp(projeto, "roteiro");
 
       res.json({
         message: aprovado ? "Roteiro aprovado com sucesso!" : "Solicitação de alteração enviada",
@@ -2558,8 +2618,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         wsServer.emitChange('projeto:updated', { id: projetoAtualizado.id, projeto: projetoAtualizado });
       }
 
-      // Anunciar no speaker (fire-and-forget)
+      // Anunciar no speaker e agradecer no WhatsApp (fire-and-forget)
       anunciarAprovacaoNoSpeaker(projeto, aprovado ? "musica" : "musica_reprovada");
+      if (aprovado) agradecerAprovacaoWhatsApp(projeto, "musica");
 
       res.json({
         message: aprovado ? "Música aprovada com sucesso!" : "Solicitação de alteração enviada",
@@ -2618,8 +2679,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         wsServer.emitChange('projeto:updated', { id: projetoAtualizado.id, projeto: projetoAtualizado });
       }
 
-      // Anunciar no speaker (fire-and-forget)
+      // Anunciar no speaker e agradecer no WhatsApp (fire-and-forget)
       anunciarAprovacaoNoSpeaker(projeto, aprovado ? "locucao" : "locucao_reprovada");
+      if (aprovado) agradecerAprovacaoWhatsApp(projeto, "locucao");
 
       res.json({
         message: aprovado ? "Locutor aprovado com sucesso!" : "Solicitação de alteração enviada",
