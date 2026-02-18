@@ -3,7 +3,7 @@
  * Roda no NUC (Windows ou Ubuntu) e toca anuncios no speaker.
  *
  * Uso:
- *   node nuc-speaker-server.js
+ *   node nuc-speaker-server.cjs
  *
  * Endpoint:
  *   POST http://localhost:3456/announce
@@ -20,6 +20,40 @@ const PORT = process.env.PORT || 3456;
 const OPENCLAW_URL = (process.env.OPENCLAW_URL || "http://localhost:18789").trim();
 const OPENCLAW_TOKEN = (process.env.OPENCLAW_TOKEN || "57bf11589000632b2c0009387429a69db0ad17c08802dd1b").trim();
 
+// ========== FILA SEQUENCIAL ==========
+const queue = [];
+let processing = false;
+
+function enqueue(text) {
+  return new Promise((resolve, reject) => {
+    queue.push({ text, resolve, reject });
+    console.log(`[Queue] Adicionado na fila (${queue.length} pendente${queue.length > 1 ? "s" : ""}): ${text}`);
+    processQueue();
+  });
+}
+
+async function processQueue() {
+  if (processing || queue.length === 0) return;
+  processing = true;
+
+  while (queue.length > 0) {
+    const item = queue.shift();
+    try {
+      console.log(`[Queue] Processando: ${item.text}`);
+      const audioPath = await generateTTS(item.text);
+      console.log(`[Queue] Audio gerado: ${audioPath}`);
+      await playAudio(audioPath);
+      item.resolve(audioPath);
+    } catch (err) {
+      console.error(`[Queue] Erro: ${err.message}`);
+      item.reject(err);
+    }
+  }
+
+  processing = false;
+}
+
+// ========== PLAYER ==========
 function playAudio(filePath) {
   return new Promise((resolve, reject) => {
     const isWindows = os.platform() === "win32";
@@ -47,6 +81,7 @@ function playAudio(filePath) {
   });
 }
 
+// ========== TTS ==========
 async function generateTTS(text) {
   const res = await fetch(`${OPENCLAW_URL}/tools/invoke`, {
     method: "POST",
@@ -65,6 +100,7 @@ async function generateTTS(text) {
   return audioPath;
 }
 
+// ========== HTTP SERVER ==========
 const server = http.createServer(async (req, res) => {
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -89,12 +125,8 @@ const server = http.createServer(async (req, res) => {
 
         console.log(`[Announce] Recebido: ${text}`);
 
-        // 1. Gerar audio via TTS
-        const audioPath = await generateTTS(text);
-        console.log(`[Announce] Audio gerado: ${audioPath}`);
-
-        // 2. Tocar no speaker
-        await playAudio(audioPath);
+        // Enfileirar — responde imediato, toca na ordem
+        const audioPath = await enqueue(text);
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, audioPath }));
@@ -115,4 +147,5 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`[Speaker Server] OS: ${os.platform()} (${os.release()})`);
   console.log(`[Speaker Server] OpenClaw: ${OPENCLAW_URL}`);
   console.log(`[Speaker Server] POST /announce { "text": "..." }`);
+  console.log(`[Speaker Server] Fila sequencial ativada`);
 });
