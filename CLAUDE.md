@@ -283,6 +283,13 @@ npm run db:push    # Push do schema no banco
 - Tarefa agendada "Framety Services" no Windows (auto-start no logon)
 - Script `C:\Users\framety-ia\start-services.bat` sobe: gateway + speaker server + funnel
 - Testado em producao: aprovacao no portal → speaker toca corretamente
+- Implementacao do **Agradecimento automatico no WhatsApp**
+- Funcao `agradecerAprovacaoWhatsApp()` em `server/routes.ts` (logo apos anunciarAprovacaoNoSpeaker)
+- Quando cliente APROVA (musica, locucao, roteiro ou video), envia mensagem no grupo WhatsApp do projeto
+- Reprovacoes NAO disparam mensagem (tratamento interno pela equipe)
+- So envia se o projeto tiver `contatosGrupos` configurado
+- Fire-and-forget — nao atrasa resposta ao cliente
+- Mensagens: musica 🎵 / locucao 🎤 / roteiro 📝 / video 🎬 — todas assinadas "Equipe Framety"
 
 ---
 
@@ -327,6 +334,17 @@ Cliente aprova no portal
   timeout /t 3 /nobreak > nul
   tailscale funnel --bg --https=8443 http://localhost:3456
   ```
+
+### Agradecimento automatico no WhatsApp
+- **Funcao:** `agradecerAprovacaoWhatsApp()` em `server/routes.ts`
+- **Disparo:** Apenas quando `aprovado === true` (reprovacoes ignoradas)
+- **Requisito:** Projeto precisa ter `contatosGrupos` preenchido
+- **Canal:** WhatsApp via OpenClaw `tool: "message", action: "send", channel: "whatsapp"`
+- **Mensagens:**
+  - musica: "Música aprovada! 🎵 Obrigado pelo retorno, seguimos para a próxima etapa! — Equipe Framety"
+  - locucao: "Locução aprovada! 🎤 Valeu pela confiança, partiu próxima fase! — Equipe Framety"
+  - roteiro: "Roteiro aprovado! 📝 Obrigado pelo feedback, bora dar vida a esse projeto! — Equipe Framety"
+  - video: "Vídeo aprovado! 🎬 Projeto finalizado com sucesso, obrigado pela parceria! — Equipe Framety"
 
 ### ElevenLabs
 - **API Key:** `sk_eea4c2101a3afac48c78031c0d4fda7bd09b06d9694c5da6`
