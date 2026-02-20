@@ -56,6 +56,8 @@ import {
   roteiroComentarios,
   type RoteiroComentario,
   type InsertRoteiroComentario,
+  roteiroCenas,
+  type RoteiroCena,
   videosProjeto,
   videoComentarios,
   videoPastas,
@@ -222,6 +224,10 @@ export interface IStorage {
   // Roteiro Comentários
   getRoteiroComentarios(projetoId: string): Promise<RoteiroComentario[]>;
   createRoteiroComentarios(projetoId: string, comentarios: Array<{ secao: string; comentario: string; sugestao?: string }>): Promise<RoteiroComentario[]>;
+
+  // Roteiro Cenas
+  getRoteiroCenas(projetoId: string): Promise<RoteiroCena[]>;
+  salvarRoteiroCenas(projetoId: string, cenas: Array<{ titulo: string; locucao?: string; descricaoVisual?: string; ordem: number }>): Promise<RoteiroCena[]>;
 
   // Portal do Cliente
   getProjetoByClientToken(token: string): Promise<ProjetoWithRelations | undefined>;
@@ -1613,6 +1619,38 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return result;
+  }
+
+  // ========== ROTEIRO CENAS ==========
+
+  async getRoteiroCenas(projetoId: string): Promise<RoteiroCena[]> {
+    return await db
+      .select()
+      .from(roteiroCenas)
+      .where(eq(roteiroCenas.projetoId, projetoId))
+      .orderBy(asc(roteiroCenas.ordem));
+  }
+
+  async salvarRoteiroCenas(
+    projetoId: string,
+    cenas: Array<{ titulo: string; locucao?: string; descricaoVisual?: string; ordem: number }>
+  ): Promise<RoteiroCena[]> {
+    // Transaction: delete all existing cenas then insert new ones
+    return await db.transaction(async (tx) => {
+      await tx.delete(roteiroCenas).where(eq(roteiroCenas.projetoId, projetoId));
+
+      if (cenas.length === 0) return [];
+
+      const values = cenas.map(c => ({
+        projetoId,
+        ordem: c.ordem,
+        titulo: c.titulo,
+        locucao: c.locucao || null,
+        descricaoVisual: c.descricaoVisual || null,
+      }));
+
+      return await tx.insert(roteiroCenas).values(values).returning();
+    });
   }
 
   async aprovarRoteiro(

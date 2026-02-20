@@ -385,6 +385,18 @@ export const videoPastas = pgTable("video_pastas", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Cenas do Roteiro (editor integrado)
+export const roteiroCenas = pgTable("roteiro_cenas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projetoId: varchar("projeto_id").references(() => projetos.id, { onDelete: "cascade" }).notNull(),
+  ordem: integer("ordem").notNull(),
+  titulo: text("titulo").notNull(),
+  locucao: text("locucao"),
+  descricaoVisual: text("descricao_visual"),
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
 // Portal do Captador - Links de upload
 export const captadorLinks = pgTable("captador_links", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -469,6 +481,7 @@ export const projetosRelations = relations(projetos, ({ one, many }) => ({
   locutores: many(projetoLocutores),
   respostasNps: many(respostasNps),
   videos: many(videosProjeto),
+  roteiroCenas: many(roteiroCenas),
 }));
 
 export const logsDeStatusRelations = relations(logsDeStatus, ({ one }) => ({
@@ -534,6 +547,13 @@ export const amostrasLocutoresRelations = relations(amostrasLocutores, ({ one })
 export const roteiroComentariosRelations = relations(roteiroComentarios, ({ one }) => ({
   projeto: one(projetos, {
     fields: [roteiroComentarios.projetoId],
+    references: [projetos.id],
+  }),
+}));
+
+export const roteiroCenasRelations = relations(roteiroCenas, ({ one }) => ({
+  projeto: one(projetos, {
+    fields: [roteiroCenas.projetoId],
     references: [projetos.id],
   }),
 }));
@@ -905,6 +925,12 @@ export const insertRoteiroComentarioSchema = createInsertSchema(roteiroComentari
   criadoEm: true,
 });
 
+export const insertRoteiroCenaSchema = createInsertSchema(roteiroCenas).omit({
+  id: true,
+  criadoEm: true,
+  atualizadoEm: true,
+});
+
 export const insertProjetoMusicaSchema = createInsertSchema(projetoMusicas).omit({
   id: true,
   createdAt: true,
@@ -983,6 +1009,8 @@ export type AmostraLocutor = typeof amostrasLocutores.$inferSelect;
 export type InsertAmostraLocutor = z.infer<typeof insertAmostraLocutorSchema>;
 export type RoteiroComentario = typeof roteiroComentarios.$inferSelect;
 export type InsertRoteiroComentario = z.infer<typeof insertRoteiroComentarioSchema>;
+export type RoteiroCena = typeof roteiroCenas.$inferSelect;
+export type InsertRoteiroCena = z.infer<typeof insertRoteiroCenaSchema>;
 export type ProjetoMusica = typeof projetoMusicas.$inferSelect;
 export type InsertProjetoMusica = z.infer<typeof insertProjetoMusicaSchema>;
 export type ProjetoLocutor = typeof projetoLocutores.$inferSelect;

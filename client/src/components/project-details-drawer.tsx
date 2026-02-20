@@ -125,6 +125,33 @@ export function ProjectDetailsDrawer({
     enabled: !!projeto?.id,
   });
 
+  // Query para cenas do roteiro
+  const { data: roteiroCenas = [] } = useQuery<Array<{ id: string; projetoId: string; ordem: number; titulo: string; locucao: string | null; descricaoVisual: string | null }>>({
+    queryKey: ["/api/projetos", projeto?.id, "roteiro-cenas"],
+    enabled: !!projeto?.id,
+  });
+
+  // Estado do editor de roteiro
+  const [roteiroEditorOpen, setRoteiroEditorOpen] = useState(false);
+  const [cenasEditor, setCenasEditor] = useState<Array<{ titulo: string; locucao: string; descricaoVisual: string }>>([]);
+
+  // Mutation para salvar cenas do roteiro
+  const salvarCenasMutation = useMutation({
+    mutationFn: async (cenas: Array<{ titulo: string; locucao: string; descricaoVisual: string; ordem: number }>) => {
+      const res = await fetch(`/api/projetos/${projetoAtual?.id}/roteiro-cenas`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cenas }),
+      });
+      if (!res.ok) throw new Error("Erro ao salvar cenas");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos", projetoAtual?.id, "roteiro-cenas"] });
+      setRoteiroEditorOpen(false);
+    },
+  });
+
   // Sincronizar contatos locais quando projetoAtual muda
   useEffect(() => {
     if (projetoAtual) {
@@ -1660,6 +1687,41 @@ Para facilitar e evitar erros, siga o passo a passo:
                         ) : "—"}
                       </p>
                     )}
+                  </div>
+
+                  {/* Editor de Roteiro Integrado */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Roteiro (Cenas)
+                      </label>
+                      {roteiroCenas.length > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {roteiroCenas.length} {roteiroCenas.length === 1 ? "cena" : "cenas"}
+                        </Badge>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={() => {
+                        if (roteiroCenas.length > 0) {
+                          setCenasEditor(roteiroCenas.map(c => ({
+                            titulo: c.titulo,
+                            locucao: c.locucao || "",
+                            descricaoVisual: c.descricaoVisual || "",
+                          })));
+                        } else {
+                          setCenasEditor([{ titulo: "Cena 1", locucao: "", descricaoVisual: "" }]);
+                        }
+                        setRoteiroEditorOpen(true);
+                      }}
+                    >
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Editar Roteiro
+                    </Button>
                   </div>
                 </div>
 

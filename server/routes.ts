@@ -1938,6 +1938,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // ==========================================
+  // ROTEIRO CENAS (Editor Integrado)
+  // ==========================================
+
+  app.get("/api/projetos/:id/roteiro-cenas", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const cenas = await storage.getRoteiroCenas(req.params.id);
+      res.json(cenas);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/projetos/:id/roteiro-cenas", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const { cenas } = req.body;
+      if (!Array.isArray(cenas)) {
+        return res.status(400).json({ message: "cenas deve ser um array" });
+      }
+      const resultado = await storage.salvarRoteiroCenas(req.params.id, cenas);
+      res.json(resultado);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ==========================================
   // MÚSICAS DO PROJETO
   // ==========================================
 
@@ -2291,10 +2317,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Projeto não encontrado ou link inválido" });
       }
 
-      // Buscar músicas, locutores e comentários de roteiro do projeto
+      // Buscar músicas, locutores, comentários de roteiro e cenas do projeto
       const musicas = await storage.getProjetoMusicas(projeto.id);
       const locutores = await storage.getProjetoLocutores(projeto.id);
       const roteiroComentarios = await storage.getRoteiroComentarios(projeto.id);
+      const roteiroCenas = await storage.getRoteiroCenas(projeto.id);
 
       // Retornar apenas as informações necessárias para o cliente
       const projetoCliente = {
@@ -2323,6 +2350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         roteiroFeedback: projeto.roteiroFeedback,
         roteiroDataAprovacao: projeto.roteiroDataAprovacao,
         roteiroComentarios,
+        roteiroCenas,
         // URLs antigas para aprovação (mantidas para compatibilidade)
         musicaUrl: projeto.musicaUrl,
         musicaAprovada: projeto.musicaAprovada,
@@ -2371,17 +2399,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const projetoIds = projetos.map(p => p.id);
 
-      // Busca todas as músicas, locutores e comentários de roteiro em lote (batch)
-      const [musicasPorProjeto, locutoresPorProjeto, ...roteiroComentariosResults] = await Promise.all([
+      // Busca todas as músicas, locutores, comentários de roteiro e cenas em lote (batch)
+      const [musicasPorProjeto, locutoresPorProjeto, ...batchResults] = await Promise.all([
         storage.getProjetosMusicasForProjetos(projetoIds),
         storage.getProjetosLocutoresForProjetos(projetoIds),
-        ...projetoIds.map(id => storage.getRoteiroComentarios(id)),
+        ...projetoIds.flatMap(id => [storage.getRoteiroComentarios(id), storage.getRoteiroCenas(id)]),
       ]);
 
-      // Agrupar comentários de roteiro por projetoId
+      // Agrupar comentários de roteiro e cenas por projetoId
       const roteiroComentariosPorProjeto: Record<string, any[]> = {};
+      const roteiroCenasPorProjeto: Record<string, any[]> = {};
       projetoIds.forEach((id, index) => {
-        roteiroComentariosPorProjeto[id] = roteiroComentariosResults[index] || [];
+        roteiroComentariosPorProjeto[id] = batchResults[index * 2] || [];
+        roteiroCenasPorProjeto[id] = batchResults[index * 2 + 1] || [];
       });
 
       // Mapeia projetos anexando músicas/locutores do resultado batch
@@ -2409,6 +2439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         roteiroFeedback: projeto.roteiroFeedback,
         roteiroDataAprovacao: projeto.roteiroDataAprovacao,
         roteiroComentarios: roteiroComentariosPorProjeto[projeto.id] || [],
+        roteiroCenas: roteiroCenasPorProjeto[projeto.id] || [],
         // URLs antigas para aprovação (mantidas para compatibilidade)
         musicaUrl: projeto.musicaUrl,
         musicaAprovada: projeto.musicaAprovada,
@@ -4065,13 +4096,10 @@ WhatsApp continua funcionando normalmente via tool "message" com channel "whatsa
                 ? `SKY${projetosCliente[0].sequencialId}`
                 : "";
 
-              // 1. Notificar equipe via Speaker
-              anunciarAprovacaoNoSpeaker(
-                { titulo: projetoNome, sequencialId: projetosCliente[0]?.sequencialId, clienteId: cliente.id },
-                "nova_versao"
-              );
+              // Apenas log — Speaker e WhatsApp desativados para evitar disparos indevidos
+              console.log(`[Frame.io Polling] Nova versão registrada: ${updatedFile.name} (cliente: ${cliente.nome}, projeto: ${projetoNome})`);
 
-              // 2. Emitir WebSocket para dashboard
+              // Emitir WebSocket para dashboard (notificação interna apenas)
               const wsServer = (app as any).wsServer;
               if (wsServer) {
                 wsServer.emitChange('video:new_version', {
@@ -4080,18 +4108,6 @@ WhatsApp continua funcionando normalmente via tool "message" com channel "whatsa
                   projetoTitulo: projetoNome,
                   skyId,
                 });
-              }
-
-              // 3. Notificar cliente via WhatsApp (se tem projeto com grupos)
-              for (const projeto of projetosCliente) {
-                const grupos = (projeto as any).contatosGrupos || [];
-                if (grupos.length === 0) continue;
-
-                const portalUrl = (cliente as any).portalToken
-                  ? `https://frametyboard.com/portal/cliente/${(cliente as any).portalToken}`
-                  : "https://frametyboard.com";
-
-                notificarNovaVersaoWhatsApp(grupos, projeto.titulo, portalUrl);
               }
           }
 
