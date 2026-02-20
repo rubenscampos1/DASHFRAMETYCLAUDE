@@ -2321,7 +2321,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const musicas = await storage.getProjetoMusicas(projeto.id);
       const locutores = await storage.getProjetoLocutores(projeto.id);
       const roteiroComentarios = await storage.getRoteiroComentarios(projeto.id);
-      const roteiroCenas = await storage.getRoteiroCenas(projeto.id);
+      let roteiroCenas: any[] = [];
+      try { roteiroCenas = await storage.getRoteiroCenas(projeto.id); } catch (e) { /* tabela pode não existir */ }
 
       // Retornar apenas as informações necessárias para o cliente
       const projetoCliente = {
@@ -2399,20 +2400,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const projetoIds = projetos.map(p => p.id);
 
-      // Busca todas as músicas, locutores, comentários de roteiro e cenas em lote (batch)
-      const [musicasPorProjeto, locutoresPorProjeto, ...batchResults] = await Promise.all([
+      // Busca todas as músicas, locutores e comentários de roteiro em lote (batch)
+      const [musicasPorProjeto, locutoresPorProjeto, ...roteiroComentariosResults] = await Promise.all([
         storage.getProjetosMusicasForProjetos(projetoIds),
         storage.getProjetosLocutoresForProjetos(projetoIds),
-        ...projetoIds.flatMap(id => [storage.getRoteiroComentarios(id), storage.getRoteiroCenas(id)]),
+        ...projetoIds.map(id => storage.getRoteiroComentarios(id)),
       ]);
 
-      // Agrupar comentários de roteiro e cenas por projetoId
+      // Agrupar comentários de roteiro por projetoId
       const roteiroComentariosPorProjeto: Record<string, any[]> = {};
-      const roteiroCenasPorProjeto: Record<string, any[]> = {};
       projetoIds.forEach((id, index) => {
-        roteiroComentariosPorProjeto[id] = batchResults[index * 2] || [];
-        roteiroCenasPorProjeto[id] = batchResults[index * 2 + 1] || [];
+        roteiroComentariosPorProjeto[id] = roteiroComentariosResults[index] || [];
       });
+
+      // Buscar cenas do roteiro (protegido - tabela pode não existir ainda)
+      const roteiroCenasPorProjeto: Record<string, any[]> = {};
+      try {
+        const cenasResults = await Promise.all(projetoIds.map(id => storage.getRoteiroCenas(id)));
+        projetoIds.forEach((id, index) => {
+          roteiroCenasPorProjeto[id] = cenasResults[index] || [];
+        });
+      } catch (e) {
+        console.log("[Portal] Tabela roteiro_cenas ainda não existe, ignorando.");
+        projetoIds.forEach(id => { roteiroCenasPorProjeto[id] = []; });
+      }
 
       // Mapeia projetos anexando músicas/locutores do resultado batch
       const projetosComDetalhes = projetos.map(projeto => ({

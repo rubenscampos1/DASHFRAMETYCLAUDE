@@ -2568,6 +2568,145 @@ Para facilitar e evitar erros, siga o passo a passo:
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog Editor de Roteiro (Cenas) */}
+      <Dialog open={roteiroEditorOpen} onOpenChange={setRoteiroEditorOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-purple-600" />
+              Editor de Roteiro — {projetoAtual?.titulo}
+            </DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 max-h-[60vh] pr-4">
+            <div className="space-y-4">
+              {cenasEditor.map((cena, index) => (
+                <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase">Cena {index + 1}</span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        disabled={index === 0}
+                        onClick={() => {
+                          const arr = [...cenasEditor];
+                          [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+                          setCenasEditor(arr);
+                        }}
+                      >
+                        ↑
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        disabled={index === cenasEditor.length - 1}
+                        onClick={() => {
+                          const arr = [...cenasEditor];
+                          [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+                          setCenasEditor(arr);
+                        }}
+                      >
+                        ↓
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                        disabled={cenasEditor.length <= 1}
+                        onClick={() => {
+                          setCenasEditor(cenasEditor.filter((_, i) => i !== index));
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Titulo</label>
+                    <Input
+                      value={cena.titulo}
+                      onChange={(e) => {
+                        const arr = [...cenasEditor];
+                        arr[index] = { ...arr[index], titulo: e.target.value };
+                        setCenasEditor(arr);
+                      }}
+                      placeholder="Ex: Cena 1 - Abertura"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Descricao Visual</label>
+                    <Textarea
+                      value={cena.descricaoVisual}
+                      onChange={(e) => {
+                        const arr = [...cenasEditor];
+                        arr[index] = { ...arr[index], descricaoVisual: e.target.value };
+                        setCenasEditor(arr);
+                      }}
+                      placeholder="O que aparece na tela (drone, fachada, areas comuns...)"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Locucao</label>
+                    <Textarea
+                      value={cena.locucao}
+                      onChange={(e) => {
+                        const arr = [...cenasEditor];
+                        arr[index] = { ...arr[index], locucao: e.target.value };
+                        setCenasEditor(arr);
+                      }}
+                      placeholder="Texto da narracao..."
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="flex justify-between items-center pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCenasEditor([...cenasEditor, { titulo: `Cena ${cenasEditor.length + 1}`, locucao: "", descricaoVisual: "" }]);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Cena
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setRoteiroEditorOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                disabled={salvarCenasMutation.isPending}
+                onClick={() => {
+                  const cenasComOrdem = cenasEditor.map((c, i) => ({
+                    ...c,
+                    ordem: i,
+                  }));
+                  salvarCenasMutation.mutate(cenasComOrdem);
+                }}
+              >
+                {salvarCenasMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Salvar Roteiro
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

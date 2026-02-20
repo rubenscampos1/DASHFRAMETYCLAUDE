@@ -85,6 +85,7 @@ interface ProjetoCliente {
   roteiroFeedback: string | null;
   roteiroDataAprovacao: string | null;
   roteiroComentarios: RoteiroComentario[];
+  roteiroCenas: Array<{ id: string; ordem: number; titulo: string; locucao: string | null; descricaoVisual: string | null }>;
 }
 
 export default function ClientePortal() {
@@ -103,6 +104,7 @@ export default function ClientePortal() {
   const [videoFeedback, setVideoFeedback] = useState("");
   const [roteiroFeedback, setRoteiroFeedback] = useState("");
   const [roteiroComentariosLocal, setRoteiroComentariosLocal] = useState<Array<{ secao: string; comentario: string; sugestao: string }>>([]);
+  const [cenasComentarios, setCenasComentarios] = useState<Record<string, string>>({});
 
   // Estado para controlar questionário NPS
   const [mostrarQuestionarioNps, setMostrarQuestionarioNps] = useState(false);
@@ -1185,8 +1187,8 @@ export default function ClientePortal() {
           </Card>
         )}
 
-        {/* Aprovação de Roteiro (Split View) */}
-        {projeto.roteiroLink && (
+        {/* Aprovação de Roteiro */}
+        {(projeto.roteiroCenas?.length > 0 || projeto.roteiroLink) && (
           <Card>
             <CardHeader className="p-4 space-y-1">
               <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1205,9 +1207,209 @@ export default function ClientePortal() {
             <CardContent className="space-y-4 p-4">
               {projeto.roteiroAprovado === null ? (
                 <>
-                  {/* Roteiro: iframe grande + botão abrir externo */}
-                  <div className="space-y-3">
-                    {/* Botão para abrir no Google Docs (sempre visível) */}
+                  {/* Layout com cenas integradas (2 colunas) */}
+                  {projeto.roteiroCenas?.length > 0 ? (
+                    <div className="space-y-4">
+                      {projeto.roteiroCenas
+                        .sort((a, b) => a.ordem - b.ordem)
+                        .map((cena) => (
+                        <div key={cena.id} className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-4 border rounded-lg overflow-hidden">
+                          <div className="p-4 space-y-2">
+                            <h4 className="font-semibold text-sm uppercase tracking-wide text-primary">{cena.titulo}</h4>
+                            {cena.descricaoVisual && (
+                              <div className="text-sm">
+                                <span className="font-medium text-muted-foreground">Visual: </span>
+                                <span className="whitespace-pre-wrap">{cena.descricaoVisual}</span>
+                              </div>
+                            )}
+                            {cena.locucao && (
+                              <div className="text-sm">
+                                <span className="font-medium text-muted-foreground">Locucao: </span>
+                                <span className="whitespace-pre-wrap italic">{cena.locucao}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-4 bg-muted/30 border-t md:border-t-0 md:border-l">
+                            <label className="text-xs font-medium text-muted-foreground">Comentario:</label>
+                            <Textarea
+                              placeholder="Observacoes sobre esta cena..."
+                              value={cenasComentarios[cena.titulo] || ""}
+                              onChange={(e) => setCenasComentarios(prev => ({ ...prev, [cena.titulo]: e.target.value }))}
+                              rows={3}
+                              className="resize-none text-sm mt-1"
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                      <Separator />
+
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold">Feedback geral (opcional)</h4>
+                        <Textarea
+                          placeholder="Observacoes gerais sobre o roteiro..."
+                          value={roteiroFeedback}
+                          onChange={(e) => setRoteiroFeedback(e.target.value)}
+                          rows={2}
+                          className="resize-none text-sm"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    /* Layout legado: iframe Google Docs */
+                    <div className="space-y-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => window.open(projeto.roteiroLink!, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Abrir Roteiro no Google Docs
+                      </Button>
+
+                      <div className="bg-muted/30 rounded-xl overflow-hidden border" style={{ height: '70vh', minHeight: '500px' }}>
+                        <iframe
+                          src={getGoogleDocsPreviewUrl(projeto.roteiroLink)}
+                          className="w-full h-full border-0"
+                          title="Roteiro"
+                          sandbox="allow-scripts allow-same-origin"
+                        />
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-semibold">O que achou do roteiro?</h4>
+                        <Textarea
+                          placeholder="Escreva aqui seu feedback, observações ou o que gostaria de alterar..."
+                          value={roteiroFeedback}
+                          onChange={(e) => setRoteiroFeedback(e.target.value)}
+                          rows={3}
+                          className="resize-none text-sm"
+                        />
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">
+                              Quer detalhar alterações por trecho? (opcional)
+                            </p>
+                            <Button variant="outline" size="sm" onClick={addRoteiroComentario} className="text-xs h-7">
+                              + Adicionar trecho
+                            </Button>
+                          </div>
+                          {roteiroComentariosLocal.map((c, index) => (
+                            <div key={index} className="bg-muted/30 rounded-lg p-3 space-y-2 border">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-muted-foreground shrink-0">Trecho {index + 1}</span>
+                                <input
+                                  type="text"
+                                  placeholder="Ex: Introdução, Cena 1, Minuto 2:30..."
+                                  value={c.secao}
+                                  onChange={(e) => updateRoteiroComentario(index, 'secao', e.target.value)}
+                                  className="flex-1 text-sm bg-background border rounded-md px-2 py-1 focus:ring-2 focus:ring-primary/50 outline-none"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                                  onClick={() => removeRoteiroComentario(index)}
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <Textarea
+                                placeholder="O que gostaria de mudar neste trecho?"
+                                value={c.comentario}
+                                onChange={(e) => updateRoteiroComentario(index, 'comentario', e.target.value)}
+                                rows={2}
+                                className="resize-none text-sm"
+                              />
+                              <input
+                                type="text"
+                                placeholder="Sugestão de texto alternativo (opcional)"
+                                value={c.sugestao}
+                                onChange={(e) => updateRoteiroComentario(index, 'sugestao', e.target.value)}
+                                className="w-full text-sm bg-background border rounded-md px-2 py-1 focus:ring-2 focus:ring-primary/50 outline-none"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Botões Aprovar / Solicitar Alterações */}
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <Button
+                      onClick={() => {
+                        const comentariosCenas = Object.entries(cenasComentarios)
+                          .filter(([_, v]) => v.trim())
+                          .map(([secao, comentario]) => ({ secao, comentario, sugestao: "" }));
+                        const comentariosLegado = roteiroComentariosLocal.filter(c => c.secao && c.comentario);
+                        aprovarRoteiroMutation.mutate({
+                          aprovado: true,
+                          feedback: roteiroFeedback,
+                          comentarios: [...comentariosCenas, ...comentariosLegado],
+                        });
+                      }}
+                      disabled={aprovarRoteiroMutation.isPending}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white h-11"
+                    >
+                      {aprovarRoteiroMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                      )}
+                      Aprovar Roteiro
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const comentariosCenas = Object.entries(cenasComentarios)
+                          .filter(([_, v]) => v.trim())
+                          .map(([secao, comentario]) => ({ secao, comentario, sugestao: "" }));
+                        const comentariosLegado = roteiroComentariosLocal.filter(c => c.secao && c.comentario);
+                        aprovarRoteiroMutation.mutate({
+                          aprovado: false,
+                          feedback: roteiroFeedback,
+                          comentarios: [...comentariosCenas, ...comentariosLegado],
+                        });
+                      }}
+                      disabled={aprovarRoteiroMutation.isPending || (!roteiroFeedback.trim() && Object.values(cenasComentarios).every(v => !v.trim()) && roteiroComentariosLocal.filter(c => c.secao && c.comentario).length === 0)}
+                      variant="destructive"
+                      className="flex-1 h-11"
+                    >
+                      {aprovarRoteiroMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <XCircle className="h-4 w-4 mr-2" />
+                      )}
+                      Solicitar Alteracoes
+                    </Button>
+                  </div>
+                  {!roteiroFeedback.trim() && Object.values(cenasComentarios).every(v => !v.trim()) && roteiroComentariosLocal.filter(c => c.secao && c.comentario).length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Para solicitar alteracoes, escreva um feedback ou comente nas cenas
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-3">
+                  {/* Já respondido - mostrar cenas ou link */}
+                  {projeto.roteiroCenas?.length > 0 ? (
+                    <div className="space-y-3">
+                      {projeto.roteiroCenas.sort((a, b) => a.ordem - b.ordem).map((cena) => (
+                        <div key={cena.id} className="border rounded-lg p-3 space-y-1">
+                          <h4 className="font-semibold text-sm uppercase tracking-wide text-primary">{cena.titulo}</h4>
+                          {cena.descricaoVisual && (
+                            <p className="text-sm"><span className="font-medium text-muted-foreground">Visual: </span>{cena.descricaoVisual}</p>
+                          )}
+                          {cena.locucao && (
+                            <p className="text-sm italic"><span className="font-medium text-muted-foreground not-italic">Locucao: </span>{cena.locucao}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : projeto.roteiroLink ? (
                     <Button
                       variant="outline"
                       size="sm"
@@ -1217,136 +1419,7 @@ export default function ClientePortal() {
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Abrir Roteiro no Google Docs
                     </Button>
-
-                    {/* iframe do Google Docs — grande e legível */}
-                    <div className="bg-muted/30 rounded-xl overflow-hidden border" style={{ height: '70vh', minHeight: '500px' }}>
-                      <iframe
-                        src={getGoogleDocsPreviewUrl(projeto.roteiroLink)}
-                        className="w-full h-full border-0"
-                        title="Roteiro"
-                        sandbox="allow-scripts allow-same-origin"
-                      />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Feedback e Comentários — layout limpo embaixo */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold">O que achou do roteiro?</h4>
-
-                    {/* Feedback geral */}
-                    <Textarea
-                      placeholder="Escreva aqui seu feedback, observações ou o que gostaria de alterar..."
-                      value={roteiroFeedback}
-                      onChange={(e) => setRoteiroFeedback(e.target.value)}
-                      rows={3}
-                      className="resize-none text-sm"
-                    />
-
-                    {/* Comentários por trecho (colapsável) */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-muted-foreground">
-                          Quer detalhar alterações por trecho? (opcional)
-                        </p>
-                        <Button variant="outline" size="sm" onClick={addRoteiroComentario} className="text-xs h-7">
-                          + Adicionar trecho
-                        </Button>
-                      </div>
-
-                      {roteiroComentariosLocal.map((c, index) => (
-                        <div key={index} className="bg-muted/30 rounded-lg p-3 space-y-2 border">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-muted-foreground shrink-0">Trecho {index + 1}</span>
-                            <input
-                              type="text"
-                              placeholder="Ex: Introdução, Cena 1, Minuto 2:30..."
-                              value={c.secao}
-                              onChange={(e) => updateRoteiroComentario(index, 'secao', e.target.value)}
-                              className="flex-1 text-sm bg-background border rounded-md px-2 py-1 focus:ring-2 focus:ring-primary/50 outline-none"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
-                              onClick={() => removeRoteiroComentario(index)}
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <Textarea
-                            placeholder="O que gostaria de mudar neste trecho?"
-                            value={c.comentario}
-                            onChange={(e) => updateRoteiroComentario(index, 'comentario', e.target.value)}
-                            rows={2}
-                            className="resize-none text-sm"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Sugestão de texto alternativo (opcional)"
-                            value={c.sugestao}
-                            onChange={(e) => updateRoteiroComentario(index, 'sugestao', e.target.value)}
-                            className="w-full text-sm bg-background border rounded-md px-2 py-1 focus:ring-2 focus:ring-primary/50 outline-none"
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Botões de ação */}
-                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                      <Button
-                        onClick={() => aprovarRoteiroMutation.mutate({
-                          aprovado: true,
-                          feedback: roteiroFeedback,
-                          comentarios: roteiroComentariosLocal.filter(c => c.secao && c.comentario),
-                        })}
-                        disabled={aprovarRoteiroMutation.isPending}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white h-11"
-                      >
-                        {aprovarRoteiroMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                        )}
-                        Aprovar Roteiro
-                      </Button>
-                      <Button
-                        onClick={() => aprovarRoteiroMutation.mutate({
-                          aprovado: false,
-                          feedback: roteiroFeedback,
-                          comentarios: roteiroComentariosLocal.filter(c => c.secao && c.comentario),
-                        })}
-                        disabled={aprovarRoteiroMutation.isPending || (!roteiroFeedback.trim() && roteiroComentariosLocal.filter(c => c.secao && c.comentario).length === 0)}
-                        variant="destructive"
-                        className="flex-1 h-11"
-                      >
-                        {aprovarRoteiroMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <XCircle className="h-4 w-4 mr-2" />
-                        )}
-                        Solicitar Alterações
-                      </Button>
-                    </div>
-                    {!roteiroFeedback.trim() && roteiroComentariosLocal.filter(c => c.secao && c.comentario).length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        Para solicitar alterações, escreva um feedback ou adicione comentários por trecho
-                      </p>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => window.open(projeto.roteiroLink!, '_blank')}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Abrir Roteiro no Google Docs
-                  </Button>
+                  ) : null}
                   {projeto.roteiroFeedback && (
                     <Alert className="p-3">
                       <FileText className="h-4 w-4" />
@@ -1472,6 +1545,7 @@ export default function ClientePortal() {
           !projeto.locucaoUrl &&
           !projeto.videoFinalUrl &&
           !projeto.roteiroLink &&
+          (!projeto.roteiroCenas || projeto.roteiroCenas.length === 0) &&
           (!projeto.musicas || projeto.musicas.length === 0) &&
           (!projeto.locutores || projeto.locutores.length === 0) && (
             <Card>
