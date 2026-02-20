@@ -108,8 +108,8 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
 
         // Se o status mudou, reordenar para o card aparecer primeiro na nova coluna
         if (movedProject.status !== newStatus) {
-          // Atualizar o status do projeto
-          const updatedProject = { ...movedProject, status: newStatus };
+          // Atualizar o status e o timestamp do projeto
+          const updatedProject = { ...movedProject, status: newStatus, statusChangedAt: new Date().toISOString() };
 
           // Remover o projeto da lista antiga e adicionar no início
           const withoutMoved = old.filter(p => p.id !== id);
@@ -266,10 +266,17 @@ export function KanbanBoard({ filters }: KanbanBoardProps) {
   });
 
   // Memoizar agrupamento de projetos por status para evitar recalcular em cada render
+  // Ordenar por statusChangedAt DESC dentro de cada coluna para que o card movido mais recentemente fique no topo
   const projectsByStatus = useMemo(() => {
     const grouped: Record<string, ProjetoKanbanLight[]> = {};
     statusColumns.forEach(column => {
-      grouped[column.id] = projetos.filter(projeto => projeto.status === column.id);
+      grouped[column.id] = projetos
+        .filter(projeto => projeto.status === column.id)
+        .sort((a, b) => {
+          const dateA = a.statusChangedAt ? new Date(a.statusChangedAt).getTime() : 0;
+          const dateB = b.statusChangedAt ? new Date(b.statusChangedAt).getTime() : 0;
+          return dateB - dateA;
+        });
     });
     return grouped;
   }, [projetos]);

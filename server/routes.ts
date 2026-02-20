@@ -1049,6 +1049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         locucao_reprovada: `Pessoal, ${nomeCliente} pediu alteração na locução do projeto ${skyId} ${nomeProjeto}. Bora resolver!`,
         roteiro_reprovado: `Equipe, ${nomeCliente} pediu alteração no roteiro do projeto ${skyId} ${nomeProjeto}. Vamos revisar!`,
         video_reprovado: `Atenção galera, ${nomeCliente} pediu alteração no vídeo do projeto ${skyId} ${nomeProjeto}. Vamos ajustar!`,
+        nova_versao: `Atenção equipe! Nova versão do vídeo foi enviada pro projeto ${skyId} ${nomeProjeto} do cliente ${nomeCliente}. Corre lá pra conferir!`,
       };
 
       const texto = mensagens[tipoEvento] || `Novo evento no projeto ${skyId}`;
@@ -1394,34 +1395,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const token = nanoid(16);
-      let driveFolderId: string | undefined;
-      let driveFolderUrl: string | undefined;
 
-      // Criar pasta no Google Drive via API direta
-      try {
-        const { createDriveFolder, isDriveConfigured } = await import("./google-drive");
-        if (isDriveConfigured()) {
-          const folderName = `SKY${projeto.sequencialId} - ${projeto.titulo}`;
-          const folder = await createDriveFolder(folderName);
-          if (folder) {
-            driveFolderId = folder.id;
-            driveFolderUrl = folder.url;
-            console.log(`[Captador] Pasta criada no Drive: ${folderName} (${folder.id})`);
-          }
-        } else {
-          console.warn("[Captador] Google Drive não configurado — pasta não será criada");
-        }
-      } catch (driveError: any) {
-        console.warn("[Captador] Erro ao criar pasta no Drive (continuando sem Drive):", driveError.message);
-      }
-
+      // Criar o link imediatamente (sem esperar o Drive)
       const link = await storage.createCaptadorLink({
         projetoId: projeto.id,
         token,
         nomeCaptador: nomeCaptador || undefined,
         instrucoes: instrucoes || undefined,
-        driveFolderId: driveFolderId || undefined,
-        driveFolderUrl: driveFolderUrl || undefined,
         criadoPorId: req.user?.id,
         ativo: true,
       });
@@ -1431,6 +1411,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...link,
         url: `${origin}/captador/${token}`,
       });
+
+      // Criar pasta no Google Drive fire-and-forget (não trava a resposta)
+      (async () => {
+        try {
+          const { createDriveFolder, isDriveConfigured } = await import("./google-drive");
+          if (isDriveConfigured()) {
+            const folderName = `SKY${projeto.sequencialId} - ${projeto.titulo}`;
+            const folder = await createDriveFolder(folderName);
+            if (folder) {
+              // Atualizar o link com os dados do Drive
+              await storage.updateCaptadorLink(link.id, {
+                driveFolderId: folder.id,
+                driveFolderUrl: folder.url,
+              });
+              console.log(`[Captador] Pasta criada no Drive: ${folderName} (${folder.id})`);
+            }
+          }
+        } catch (driveError: any) {
+          console.warn("[Captador] Erro ao criar pasta no Drive:", driveError.message);
+        }
+      })();
     } catch (error) {
       next(error);
     }
@@ -2310,6 +2311,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         empreendimento: projeto.empreendimento,
         // Link do Frame.io para o cliente visualizar o vídeo
         linkFrameIo: projeto.linkFrameIo,
+        frameIoShareUrl: projeto.frameIoShareUrl,
+        frameIoFileId: projeto.frameIoFileId,
+        clientToken: projeto.clientToken,
         // Arrays de músicas e locutores para aprovação
         musicas,
         locutores,
@@ -2393,6 +2397,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tipoVideo: projeto.tipoVideo,
         empreendimento: projeto.empreendimento,
         linkFrameIo: projeto.linkFrameIo,
+        frameIoShareUrl: projeto.frameIoShareUrl,
+        frameIoFileId: projeto.frameIoFileId,
         clientToken: projeto.clientToken, // Token individual do projeto (para compatibilidade)
         // Arrays de músicas e locutores para aprovação (vem do batch)
         musicas: musicasPorProjeto[projeto.id] || [],
@@ -2692,6 +2698,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Download do vídeo do Frame.io (público, via token do projeto)
+  app.get("/api/cliente/projeto/:token/download-video", async (req, res, next) => {
+    try {
+      const projeto = await storage.getProjetoByClientToken(req.params.token);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+      if (!projeto.frameIoFileId) {
+        return res.status(404).json({ message: "Nenhum vídeo vinculado ao projeto" });
+      }
+
+      const { frameio } = await import("./frameio");
+      const file = await frameio.getFile(projeto.frameIoFileId);
+
+      // Frame.io V4 retorna original_url (URL temporária S3 para download)
+      const downloadUrl = (file as any).original_url || (file as any).download_url || file.view_url;
+      if (!downloadUrl) {
+        return res.status(404).json({ message: "URL de download não disponível" });
+      }
+
+      res.redirect(downloadUrl);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Rota para verificar se já respondeu NPS
   app.get("/api/cliente/projeto/:token/nps/verificar", async (req, res, next) => {
     try {
@@ -2799,30 +2831,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== ROTAS DE PASTAS DE VÍDEOS (Sistema Frame.io-like) ==========
 
-  // Listar todos os clientes com estatísticas de vídeos (Grid de Clientes)
+  // Listar todos os clientes com Frame.io vinculado (Grid de Clientes)
   app.get("/api/videos/clientes", requireAuthOrToken, async (req, res, next) => {
     try {
       const clientes = await storage.getClientesComEstatisticasVideos();
-      res.json(clientes);
+      // Filtrar apenas clientes com Frame.io project vinculado, ou todos se query param ?all=true
+      const showAll = req.query.all === "true";
+      const resultado = showAll
+        ? clientes
+        : clientes.filter((c: any) => c.frameIoProjectId);
+      res.json(resultado);
     } catch (error) {
       next(error);
     }
   });
 
-  // Criar nova pasta em um cliente
+  // Criar nova pasta em um cliente (cria também no Frame.io)
   app.post("/api/clientes/:clienteId/pastas", requireAuthOrToken, async (req, res, next) => {
     try {
+      const { clienteId } = req.params;
+      const { nome, parentFrameIoFolderId } = req.body;
+
+      let frameIoFolderId: string | undefined;
+
+      // Se o cliente tem Frame.io vinculado, criar pasta lá também
+      const cliente = await storage.getCliente(clienteId);
+      if (cliente?.frameIoProjectId) {
+        try {
+          const { frameio } = await import("./frameio");
+
+          // Determinar pasta pai no Frame.io
+          let parentFolderId = parentFrameIoFolderId;
+          if (!parentFolderId) {
+            // Usar root folder do projeto
+            const project = await frameio.getProject(cliente.frameIoProjectId);
+            parentFolderId = project.root_folder_id;
+          }
+
+          const frameIoFolder = await frameio.createFolder(parentFolderId, nome);
+          frameIoFolderId = frameIoFolder.id;
+        } catch (err) {
+          console.error("Erro ao criar pasta no Frame.io:", err);
+        }
+      }
+
       const pastaData = {
         ...req.body,
-        clienteId: req.params.clienteId,
+        clienteId,
+        frameIoFolderId,
       };
 
       const pasta = await storage.createVideoPasta(pastaData);
 
-      // Emitir evento WebSocket
       const wsServer = (req.app as any).wsServer;
       if (wsServer) {
-        wsServer.emitChange('pasta:created', { clienteId: req.params.clienteId, pastaId: pasta.id });
+        wsServer.emitChange('pasta:created', { clienteId, pastaId: pasta.id });
       }
 
       res.json(pasta);
@@ -2831,21 +2894,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Listar pastas de um cliente
+  // Listar pastas de um cliente (do Frame.io)
   app.get("/api/clientes/:clienteId/pastas", requireAuthOrToken, async (req, res, next) => {
     try {
+      const { clienteId } = req.params;
+      const source = req.query.source;
+
+      // Se source=frameio, buscar direto do Frame.io
+      if (source === "frameio") {
+        console.log(`[Frame.io] Buscando pastas do cliente ${clienteId}...`);
+        const cliente = await storage.getCliente(clienteId);
+        console.log(`[Frame.io] Cliente: ${cliente?.nome}, frameIoProjectId: ${cliente?.frameIoProjectId}`);
+        if (!cliente?.frameIoProjectId) {
+          return res.json([]);
+        }
+
+        const { frameio } = await import("./frameio");
+        const project = await frameio.getProject(cliente.frameIoProjectId);
+        const children = await frameio.listFolderChildren(project.root_folder_id);
+
+        // Retornar apenas pastas no formato esperado pelo frontend
+        const pastas = children
+          .filter((c: any) => c.type === "folder")
+          .map((folder: any) => ({
+            id: folder.id,
+            clienteId,
+            nome: folder.name,
+            frameIoFolderId: folder.id,
+            totalVideos: folder.item_count || 0,
+            totalStorage: 0,
+            createdAt: folder.inserted_at,
+            updatedAt: folder.updated_at,
+          }));
+
+        return res.json(pastas);
+      }
+
+      // Default: buscar do banco local
       const includeSubpastas = req.query.includeSubpastas !== 'false';
-      const pastas = await storage.getVideoPastasByClienteId(req.params.clienteId, includeSubpastas);
+      const pastas = await storage.getVideoPastasByClienteId(clienteId, includeSubpastas);
       res.json(pastas);
     } catch (error) {
       next(error);
     }
   });
 
-  // Obter pasta por ID (com vídeos e subpastas)
+  // Obter pasta por ID (com vídeos e subpastas — suporta Frame.io folder ID direto)
   app.get("/api/pastas/:pastaId", requireAuthOrToken, async (req, res, next) => {
     try {
-      const pasta = await storage.getVideoPastaById(req.params.pastaId);
+      const { pastaId } = req.params;
+      const source = req.query.source;
+      console.log(`[Frame.io] GET /api/pastas/${pastaId} source=${source} query=`, req.query);
+
+      // Se source=frameio, o pastaId é na verdade um Frame.io folder ID
+      if (source === "frameio") {
+        const { frameio } = await import("./frameio");
+        const folder = await frameio.getFolder(pastaId);
+        const children = await frameio.listFolderChildren(pastaId);
+
+        // Buscar nome do cliente se clienteId foi passado
+        let clienteObj: { id: string; nome: string } | null = null;
+        const clienteId = req.query.clienteId as string;
+        if (clienteId) {
+          try {
+            const cliente = await storage.getCliente(clienteId);
+            if (cliente) clienteObj = { id: cliente.id, nome: cliente.nome };
+          } catch (_) {}
+        }
+
+        const subpastas = children
+          .filter((c: any) => c.type === "folder")
+          .map((f: any) => ({
+            id: f.id,
+            nome: f.name,
+            frameIoFolderId: f.id,
+            totalVideos: f.item_count || 0,
+            totalStorage: 0,
+            createdAt: f.inserted_at,
+            updatedAt: f.updated_at,
+          }));
+
+        const videos = children
+          .filter((c: any) => c.type === "file" || c.type === "version_stack")
+          .map((f: any) => {
+            // Para version_stacks, extrair dados do head_version
+            const hv = f.head_version;
+            const status = hv?.status || f.status;
+            return {
+              id: f.id,
+              titulo: f.name,
+              frameIoFileId: hv?.id || f.id,
+              status: status === "transcoded" ? "ready" : (status || "ready"),
+              thumbnailUrl: f.thumb_540 || f.cover_url || null,
+              videoUrl: f.view_url || null,
+              duration: f.duration ? Math.round(f.duration) : null,
+              fileSize: hv?.file_size || f.file_size || 0,
+              width: f.width || null,
+              height: f.height || null,
+              mediaType: hv?.media_type || f.media_type || null,
+              createdAt: f.created_at || f.inserted_at,
+              updatedAt: f.updated_at,
+            };
+          });
+
+        return res.json({
+          id: pastaId,
+          nome: folder.name,
+          frameIoFolderId: pastaId,
+          cliente: clienteObj,
+          subpastas,
+          videos,
+        });
+      }
+
+      // Default: buscar do banco local
+      const pasta = await storage.getVideoPastaById(pastaId);
       if (!pasta) {
         return res.status(404).json({ message: "Pasta não encontrada" });
       }
@@ -3004,7 +3167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Criar comentário em vídeo
+  // Criar comentário em vídeo (sync com Frame.io)
   app.post("/api/videos/:id/comentarios", requireAuthOrToken, async (req, res, next) => {
     try {
       const comentarioData = {
@@ -3014,6 +3177,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const comentario = await storage.createVideoComentario(comentarioData);
+
+      // Sync com Frame.io (fire-and-forget)
+      const video = await storage.getVideoById(req.params.id);
+      if (video?.frameIoFileId) {
+        import("./frameio").then(({ frameio }) => {
+          const autorNome = req.body.autorNome || req.user?.nome || "Equipe";
+          frameio.createComment(
+            video.frameIoFileId!,
+            `[${autorNome}] ${req.body.texto}`,
+            req.body.timestamp
+          ).then(fioComment => {
+            // Salvar o ID do comentário do Frame.io
+            storage.updateVideoComentario(comentario.id, {
+              frameIoCommentId: fioComment.id,
+            }).catch(err => console.error("Erro ao salvar frameIoCommentId:", err));
+          }).catch(err => console.error("Erro ao sincronizar comentário com Frame.io:", err));
+        });
+      }
 
       // Emitir evento WebSocket
       const wsServer = (req.app as any).wsServer;
@@ -3070,40 +3251,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ========== ROTAS DE UPLOAD DE VÍDEO (Bunny.net) ==========
+  // ========== ROTAS DE UPLOAD DE VÍDEO (Frame.io V4) ==========
 
   // Iniciar upload de vídeo em uma pasta
   app.post("/api/pastas/:pastaId/videos/upload-init", requireAuthOrToken, async (req, res, next) => {
     try {
       const { pastaId } = req.params;
-      const { titulo, descricao } = req.body;
+      const { titulo, descricao, fileSize, mediaType } = req.body;
 
-      // Importar bunnyStream aqui para evitar problemas de inicialização
-      const { bunnyStream } = await import("./bunny");
+      // 1. Buscar pasta para pegar o frameIoFolderId
+      const pasta = await storage.getVideoPastaById(pastaId);
+      if (!pasta) {
+        return res.status(404).json({ message: "Pasta não encontrada" });
+      }
 
-      // 1. Criar vídeo no Bunny.net
-      const bunnyVideo = await bunnyStream.createVideo(titulo);
-      console.log("Resposta do Bunny.net:", bunnyVideo);
+      if (!pasta.frameIoFolderId) {
+        return res.status(400).json({ message: "Pasta não está vinculada ao Frame.io" });
+      }
 
-      // 2. Criar registro no banco de dados
+      // 2. Criar arquivo no Frame.io (retorna upload_url)
+      const { frameio } = await import("./frameio");
+      const frameIoFile = await frameio.createFileForUpload(
+        pasta.frameIoFolderId,
+        titulo || "video.mp4",
+        fileSize || 0,
+        mediaType || "video/mp4"
+      );
+      console.log("Resposta do Frame.io:", frameIoFile.id);
+
+      // 3. Criar registro no banco de dados
       const video = await storage.createVideoInPasta({
         pastaId,
         titulo,
         descricao,
-        bunnyVideoId: bunnyVideo.guid,  // Bunny.net usa 'guid' como ID
-        bunnyGuid: bunnyVideo.guid,
-        bunnyLibraryId: process.env.BUNNY_LIBRARY_ID,
+        frameIoFileId: frameIoFile.id,
+        frameIoFolderId: pasta.frameIoFolderId,
         status: "uploading",
         uploadedById: req.user!.id,
+        thumbnailUrl: frameIoFile.cover_url || frameIoFile.thumb_540 || null,
       });
 
-      // 3. Retornar dados para o frontend fazer upload direto
+      // 4. Retornar dados para o frontend fazer upload direto
       res.json({
         videoId: video.id,
-        bunnyVideoId: bunnyVideo.guid,  // Bunny.net usa 'guid' não 'videoId'
-        uploadUrl: bunnyStream.getUploadUrl(bunnyVideo.guid),
+        frameIoFileId: frameIoFile.id,
+        uploadUrl: frameIoFile.upload_url,
         uploadHeaders: {
-          "AccessKey": process.env.BUNNY_API_KEY,
           "Content-Type": "application/octet-stream",
         },
       });
@@ -3113,34 +3306,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Atualizar status do vídeo após upload
+  // Atualizar status do vídeo após upload (busca metadata do Frame.io)
   app.patch("/api/videos/:videoId/status", requireAuthOrToken, async (req, res, next) => {
     try {
       const { videoId } = req.params;
       const { status } = req.body;
 
-      // Se o status for "processing", buscar informações do Bunny.net
+      // Se o status for "processing" ou "ready", buscar informações do Frame.io
       if (status === "processing" || status === "ready") {
         const video = await storage.getVideoById(videoId);
-        if (!video || !video.bunnyVideoId) {
+        if (!video) {
           return res.status(404).json({ message: "Vídeo não encontrado" });
         }
 
-        const { bunnyStream } = await import("./bunny");
-        const bunnyVideo = await bunnyStream.getVideo(video.bunnyVideoId);
+        const updates: any = { status };
 
-        // Atualizar com informações completas do Bunny.net
-        const updatedVideo = await storage.updateVideoProjeto(videoId, {
-          status: bunnyVideo.status === 4 ? "ready" : "processing",
-          thumbnailUrl: bunnyStream.getThumbnailUrl(video.bunnyGuid!),
-          videoUrl: bunnyStream.getVideoUrl(video.bunnyGuid!),
-          duration: bunnyVideo.length,
-          fileSize: bunnyVideo.storageSize,
-          width: bunnyVideo.width,
-          height: bunnyVideo.height,
-        });
+        // Se tem Frame.io file ID, buscar metadata atualizada
+        if (video.frameIoFileId) {
+          try {
+            const { frameio } = await import("./frameio");
+            const frameIoFile = await frameio.getFile(video.frameIoFileId);
+            updates.status = "ready";
+            updates.thumbnailUrl = frameIoFile.cover_url || frameIoFile.thumb_540 || video.thumbnailUrl;
+            updates.videoUrl = frameIoFile.view_url || video.videoUrl;
+            updates.duration = frameIoFile.duration ? Math.round(frameIoFile.duration) : video.duration;
+            updates.fileSize = frameIoFile.file_size || video.fileSize;
+            updates.width = frameIoFile.width || video.width;
+            updates.height = frameIoFile.height || video.height;
+          } catch (err) {
+            console.error("Erro ao buscar metadata do Frame.io:", err);
+          }
+        }
 
-        // Emitir evento WebSocket
+        const updatedVideo = await storage.updateVideoProjeto(videoId, updates);
+
         const wsServer = (req.app as any).wsServer;
         if (wsServer) {
           wsServer.emitChange('video:updated', { videoId: updatedVideo.id });
@@ -3152,7 +3351,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Atualizar apenas o status
       const updatedVideo = await storage.updateVideoProjeto(videoId, { status });
 
-      // Emitir evento WebSocket
       const wsServer = (req.app as any).wsServer;
       if (wsServer) {
         wsServer.emitChange('video:updated', { videoId: updatedVideo.id });
@@ -3165,10 +3363,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Listar vídeos de uma pasta
+  // Listar vídeos de uma pasta (suporta Frame.io folder ID)
   app.get("/api/pastas/:pastaId/videos", requireAuthOrToken, async (req, res, next) => {
     try {
-      const videos = await storage.getVideosByPastaId(req.params.pastaId);
+      const { pastaId } = req.params;
+      const source = req.query.source;
+
+      if (source === "frameio") {
+        const { frameio } = await import("./frameio");
+        const children = await frameio.listFolderChildren(pastaId);
+
+        const videos = children
+          .filter((c: any) => c.type === "file" || c.type === "version_stack")
+          .map((f: any) => {
+            const hv = f.head_version;
+            const status = hv?.status || f.status;
+            return {
+              id: f.id,
+              titulo: f.name,
+              frameIoFileId: hv?.id || f.id,
+              frameIoFolderId: pastaId,
+              status: status === "transcoded" ? "ready" : (status || "ready"),
+              thumbnailUrl: f.thumb_540 || f.cover_url || null,
+              videoUrl: f.view_url || null,
+              duration: f.duration ? Math.round(f.duration) : null,
+              fileSize: hv?.file_size || f.file_size || 0,
+              width: f.width || null,
+              height: f.height || null,
+              mediaType: hv?.media_type || f.media_type || null,
+              versao: 1,
+              aprovado: null,
+              createdAt: f.created_at || f.inserted_at,
+              updatedAt: f.updated_at,
+            };
+          });
+
+        return res.json(videos);
+      }
+
+      const videos = await storage.getVideosByPastaId(pastaId);
       res.json(videos);
     } catch (error) {
       next(error);
@@ -3186,14 +3419,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Vídeo não encontrado" });
       }
 
-      // 2. Deletar do Bunny.net se tiver bunnyVideoId
-      if (video.bunnyVideoId) {
+      // 2. Deletar do Frame.io se tiver frameIoFileId
+      if (video.frameIoFileId) {
         try {
-          const { bunnyStream } = await import("./bunny");
-          await bunnyStream.deleteVideo(video.bunnyVideoId);
+          const { frameio } = await import("./frameio");
+          await frameio.deleteFile(video.frameIoFileId);
         } catch (error) {
-          console.error("Erro ao deletar do Bunny.net:", error);
-          // Continua mesmo se falhar no Bunny (pode já ter sido deletado)
+          console.error("Erro ao deletar do Frame.io:", error);
         }
       }
 
@@ -3428,6 +3660,505 @@ WhatsApp continua funcionando normalmente via tool "message" com channel "whatsa
       next(error);
     }
   });
+
+  // ==========================================
+  // FRAME.IO V4 — ADMIN ROUTES
+  // ==========================================
+
+  // Status da autenticação Frame.io
+  app.get("/api/admin/frameio/status", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const { frameio } = await import("./frameio");
+      const status = await frameio.getStatus();
+      res.json(status);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // URL para iniciar OAuth flow
+  app.get("/api/admin/frameio/auth-url", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const { frameio } = await import("./frameio");
+      const url = frameio.getAuthUrl();
+      res.json({ url });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Callback OAuth — trocar code por tokens
+  app.post("/api/admin/frameio/auth-callback", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ message: "code é obrigatório" });
+      }
+
+      const { frameio } = await import("./frameio");
+      await frameio.exchangeCodeForTokens(code);
+      const status = await frameio.getStatus();
+      res.json({ message: "Autenticação Frame.io realizada com sucesso!", ...status });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Listar projetos do Frame.io
+  app.get("/api/admin/frameio/projects", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const { frameio } = await import("./frameio");
+      const projects = await frameio.listProjects();
+      res.json(projects);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Sincronizar clientes ↔ projetos Frame.io (por nome)
+  app.post("/api/admin/frameio/sync-projects", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const { frameio } = await import("./frameio");
+      const projects = await frameio.listProjects();
+      const allClientes = await storage.getClientes();
+
+      const results: { clienteId: string; clienteNome: string; projectId: string; projectNome: string }[] = [];
+      const unmatched: string[] = [];
+
+      for (const project of projects) {
+        const projectNameUpper = project.name.toUpperCase().trim();
+
+        // Tentar match por nome (case-insensitive, trim)
+        const matchedCliente = allClientes.find((c: any) => {
+          const nomeUpper = c.nome.toUpperCase().trim();
+          return nomeUpper === projectNameUpper ||
+                 nomeUpper.includes(projectNameUpper) ||
+                 projectNameUpper.includes(nomeUpper);
+        });
+
+        if (matchedCliente) {
+          // Atualizar o cliente com o frameIoProjectId
+          await storage.updateCliente(matchedCliente.id, {
+            frameIoProjectId: project.id,
+          });
+
+          results.push({
+            clienteId: matchedCliente.id,
+            clienteNome: matchedCliente.nome,
+            projectId: project.id,
+            projectNome: project.name,
+          });
+        } else {
+          unmatched.push(project.name);
+        }
+      }
+
+      res.json({
+        message: `${results.length} clientes vinculados ao Frame.io`,
+        vinculados: results,
+        naoEncontrados: unmatched,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Vincular manualmente um cliente a um projeto Frame.io
+  app.post("/api/admin/frameio/link-client", requireAuthOrToken, requireRole(["Admin"]), async (req, res, next) => {
+    try {
+      const { clienteId, frameIoProjectId } = req.body;
+      if (!clienteId || !frameIoProjectId) {
+        return res.status(400).json({ message: "clienteId e frameIoProjectId são obrigatórios" });
+      }
+
+      await storage.updateCliente(clienteId, { frameIoProjectId });
+      res.json({ message: "Cliente vinculado ao Frame.io com sucesso" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Buscar root_folder_id do projeto Frame.io vinculado ao cliente
+  app.get("/api/admin/frameio/clientes/:clienteId/root-folder", requireAuthOrToken, requireRole(["Admin", "Gestor"]), async (req, res, next) => {
+    try {
+      const cliente = await storage.getCliente(req.params.clienteId);
+      if (!cliente?.frameIoProjectId) {
+        return res.status(400).json({ message: "Cliente não tem Frame.io vinculado" });
+      }
+      const { frameio } = await import("./frameio");
+      const project = await frameio.getProject(cliente.frameIoProjectId);
+      res.json({ rootFolderId: project.root_folder_id, projectName: project.name });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Selecionar vídeo do Frame.io para um projeto (cria share link e salva)
+  app.post("/api/admin/frameio/projetos/:projetoId/select-video", requireAuthOrToken, requireRole(["Admin", "Gestor"]), async (req, res, next) => {
+    try {
+      const { fileId } = req.body;
+      if (!fileId) {
+        return res.status(400).json({ message: "fileId é obrigatório" });
+      }
+
+      const projeto = await storage.getProjeto(req.params.projetoId);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+
+      const cliente = projeto.clienteId ? await storage.getCliente(projeto.clienteId) : null;
+      if (!cliente?.frameIoProjectId) {
+        return res.status(400).json({ message: "Cliente não tem Frame.io vinculado" });
+      }
+
+      const { frameio } = await import("./frameio");
+      const { type: itemType, name: itemName } = req.body;
+
+      // Resolver o arquivo real (version_stack → buscar versão mais recente)
+      let actualFileId = fileId;
+      let fileName = itemName || "video";
+
+      if (itemType === "version_stack") {
+        try {
+          const children = await frameio.listFolderChildren(fileId);
+          const latestFile = children.find((c: any) => c.type === "file");
+          if (latestFile) {
+            actualFileId = latestFile.id;
+            fileName = itemName || latestFile.name;
+          }
+        } catch {
+          // Se falhar, usar o fileId original
+        }
+      }
+
+      // Buscar nome do arquivo
+      try {
+        const fileDetails = await frameio.getFile(actualFileId);
+        fileName = fileDetails.name || fileName;
+      } catch {}
+
+      // Salvar referência do arquivo no projeto (share é vinculado separadamente via link-share)
+      const frameIoLink = `https://next.frame.io/project/${cliente.frameIoProjectId}/view/${actualFileId}`;
+      const updated = await storage.updateProjeto(req.params.projetoId, {
+        linkFrameIo: frameIoLink,
+        frameIoFileId: actualFileId,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Listar shares de um projeto Frame.io (via clienteId)
+  app.get("/api/admin/frameio/clientes/:clienteId/shares", requireAuthOrToken, requireRole(["Admin", "Gestor"]), async (req, res, next) => {
+    try {
+      const cliente = await storage.getCliente(req.params.clienteId);
+      if (!cliente?.frameIoProjectId) {
+        return res.status(400).json({ message: "Cliente não tem Frame.io vinculado" });
+      }
+      const { frameio } = await import("./frameio");
+      const shares = await frameio.listShares(cliente.frameIoProjectId);
+      res.json(shares);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Vincular share existente a um projeto
+  app.post("/api/admin/frameio/projetos/:projetoId/link-share", requireAuthOrToken, requireRole(["Admin", "Gestor"]), async (req, res, next) => {
+    try {
+      const { shareUrl, shareName } = req.body;
+      if (!shareUrl) {
+        return res.status(400).json({ message: "shareUrl é obrigatório" });
+      }
+      const projeto = await storage.getProjeto(req.params.projetoId);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado" });
+      }
+      const updated = await storage.updateProjeto(req.params.projetoId, {
+        frameIoShareUrl: shareUrl,
+        linkFrameIo: shareUrl,
+      });
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Buscar conteúdo de uma pasta do Frame.io (para navegação direta)
+  app.get("/api/admin/frameio/folders/:folderId/children", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const { frameio } = await import("./frameio");
+      const children = await frameio.listFolderChildren(req.params.folderId);
+      res.json(children);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Polling de comentários do Frame.io — detecta novos e sincroniza
+  app.post("/api/admin/frameio/sync-comments/:videoId", requireAuthOrToken, async (req, res, next) => {
+    try {
+      const video = await storage.getVideoById(req.params.videoId);
+      if (!video?.frameIoFileId) {
+        return res.status(400).json({ message: "Vídeo não tem Frame.io file ID" });
+      }
+
+      const { frameio } = await import("./frameio");
+      const frameIoComments = await frameio.listComments(video.frameIoFileId);
+
+      // Buscar comentários locais com frameIoCommentId
+      const localComments = video.comentarios || [];
+      const syncedIds = new Set(
+        localComments
+          .filter((c: any) => c.frameIoCommentId)
+          .map((c: any) => c.frameIoCommentId)
+      );
+
+      // Criar comentários novos vindos do Frame.io
+      const newComments = [];
+      for (const fioComment of frameIoComments) {
+        if (!syncedIds.has(fioComment.id)) {
+          const comentario = await storage.createVideoComentario({
+            videoId: video.id,
+            autorNome: fioComment.owner?.name || "Frame.io",
+            texto: fioComment.text,
+            timestamp: fioComment.timestamp ? Math.round(fioComment.timestamp) : 0,
+            frameIoCommentId: fioComment.id,
+          });
+          newComments.push(comentario);
+        }
+      }
+
+      // Se tem comentários novos, notificar
+      if (newComments.length > 0) {
+        // Speaker notification (fire-and-forget)
+        const NUC_SPEAKER_URL = process.env.NUC_SPEAKER_URL || "https://framety.tail81fe5d.ts.net:8443";
+        fetch(`${NUC_SPEAKER_URL}/announce`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: `Atenção equipe, ${newComments.length} comentário${newComments.length > 1 ? 's' : ''} novo${newComments.length > 1 ? 's' : ''} no Frame.io do vídeo ${video.titulo}`,
+          }),
+        }).catch(err => console.error("Erro speaker:", err));
+
+        // WebSocket notification
+        const wsServer = (req.app as any).wsServer;
+        if (wsServer) {
+          wsServer.emitChange('frameio:comment:new', {
+            videoId: video.id,
+            count: newComments.length,
+          });
+        }
+      }
+
+      res.json({
+        synced: newComments.length,
+        total: frameIoComments.length,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ==================== FRAME.IO POLLING: DETECTAR NOVAS VERSOES ====================
+
+  async function checkFrameIoUpdates() {
+    try {
+      const { frameio } = await import("./frameio");
+
+      // Verificar se Frame.io está autenticado
+      const status = await frameio.getStatus();
+      if (!status.authenticated) {
+        console.log("[Frame.io Polling] Frame.io não autenticado, pulando check.");
+        return;
+      }
+
+      // Buscar todos os clientes com frameIoProjectId
+      const todosClientes = await storage.getClientes();
+      const clientesFrameIo = todosClientes.filter(c => c.frameIoProjectId);
+
+      if (clientesFrameIo.length === 0) return;
+
+      console.log(`[Frame.io Polling] Verificando ${clientesFrameIo.length} clientes...`);
+
+      for (const cliente of clientesFrameIo) {
+        try {
+          const lastChecked = (cliente as any).frameIoLastCheckedAt
+            ? new Date((cliente as any).frameIoLastCheckedAt)
+            : new Date(0); // Se nunca checou, considera tudo como "antigo"
+
+          // Buscar projeto no Frame.io
+          const project = await frameio.getProject(cliente.frameIoProjectId!);
+
+          // Buscar recursivamente (raiz + 1 nível de subpastas) para encontrar arquivos atualizados
+          const rootChildren = await frameio.listFolderChildren(project.root_folder_id);
+          let updatedFile: any = null;
+
+          // Checar arquivos na raiz
+          for (const item of rootChildren) {
+            if (item.type === "file") {
+              const fileUpdatedAt = new Date(item.updated_at || item.inserted_at);
+              if (fileUpdatedAt > lastChecked) {
+                updatedFile = item;
+                break;
+              }
+            }
+          }
+
+          // Se não achou na raiz, checar dentro das subpastas que foram atualizadas recentemente
+          if (!updatedFile) {
+            for (const item of rootChildren) {
+              if (item.type !== "folder") continue;
+              const folderUpdatedAt = new Date(item.updated_at || item.inserted_at);
+              // Se a pasta não foi atualizada desde o último check, pular
+              if (folderUpdatedAt <= lastChecked) continue;
+
+              try {
+                const subChildren = await frameio.listFolderChildren(item.id);
+                for (const sub of subChildren) {
+                  if (sub.type === "file") {
+                    const subUpdatedAt = new Date(sub.updated_at || sub.inserted_at);
+                    if (subUpdatedAt > lastChecked) {
+                      updatedFile = sub;
+                      break;
+                    }
+                  }
+                  // Checar 1 nível a mais (subsubpastas)
+                  if (sub.type === "folder") {
+                    const subFolderUpdatedAt = new Date(sub.updated_at || sub.inserted_at);
+                    if (subFolderUpdatedAt <= lastChecked) continue;
+                    try {
+                      const subSubChildren = await frameio.listFolderChildren(sub.id);
+                      for (const ssItem of subSubChildren) {
+                        if (ssItem.type === "file") {
+                          const ssUpdatedAt = new Date(ssItem.updated_at || ssItem.inserted_at);
+                          if (ssUpdatedAt > lastChecked) {
+                            updatedFile = ssItem;
+                            break;
+                          }
+                        }
+                      }
+                    } catch (_) {}
+                  }
+                  if (updatedFile) break;
+                }
+              } catch (_) {}
+              if (updatedFile) break;
+            }
+          }
+
+          if (updatedFile) {
+              console.log(`[Frame.io Polling] Nova versão detectada: ${updatedFile.name} (cliente: ${cliente.nome})`);
+
+              // Buscar projetos deste cliente
+              const allProjetos = await storage.getProjetos();
+              const projetosCliente = allProjetos.filter(
+                (p: any) => p.clienteId === cliente.id
+              );
+
+              const projetoNome = projetosCliente.length > 0
+                ? projetosCliente[0].titulo
+                : cliente.nome;
+              const skyId = projetosCliente.length > 0 && projetosCliente[0].sequencialId
+                ? `SKY${projetosCliente[0].sequencialId}`
+                : "";
+
+              // 1. Notificar equipe via Speaker
+              anunciarAprovacaoNoSpeaker(
+                { titulo: projetoNome, sequencialId: projetosCliente[0]?.sequencialId, clienteId: cliente.id },
+                "nova_versao"
+              );
+
+              // 2. Emitir WebSocket para dashboard
+              const wsServer = (app as any).wsServer;
+              if (wsServer) {
+                wsServer.emitChange('video:new_version', {
+                  clienteNome: cliente.nome,
+                  videoName: updatedFile.name,
+                  projetoTitulo: projetoNome,
+                  skyId,
+                });
+              }
+
+              // 3. Notificar cliente via WhatsApp (se tem projeto com grupos)
+              for (const projeto of projetosCliente) {
+                const grupos = (projeto as any).contatosGrupos || [];
+                if (grupos.length === 0) continue;
+
+                const portalUrl = (cliente as any).portalToken
+                  ? `https://frametyboard.com/portal/cliente/${(cliente as any).portalToken}`
+                  : "https://frametyboard.com";
+
+                notificarNovaVersaoWhatsApp(grupos, projeto.titulo, portalUrl);
+              }
+          }
+
+          // Atualizar timestamp do último check
+          await storage.updateCliente(cliente.id, {
+            frameIoLastCheckedAt: new Date(),
+          } as any);
+
+        } catch (err: any) {
+          console.error(`[Frame.io Polling] Erro ao verificar cliente ${cliente.nome}:`, err.message);
+        }
+      }
+
+      console.log("[Frame.io Polling] Check concluído.");
+    } catch (err: any) {
+      console.error("[Frame.io Polling] Erro geral:", err.message);
+    }
+  }
+
+  // Notificar cliente via WhatsApp sobre nova versão
+  async function notificarNovaVersaoWhatsApp(grupos: string[], projetoTitulo: string, portalUrl: string) {
+    try {
+      const OPENCLAW_URL = process.env.OPENCLAW_URL || "https://framety.tail81fe5d.ts.net";
+      const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || "57bf11589000632b2c0009387429a69db0ad17c08802dd1b";
+
+      const mensagem = `Olá! Uma nova versão do vídeo do projeto *${projetoTitulo}* está disponível para revisão.\n\nAcesse o portal para conferir: ${portalUrl}\n\n— Equipe Framety`;
+
+      for (const grupoJid of grupos) {
+        try {
+          const response = await fetch(`${OPENCLAW_URL}/tools/invoke`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${OPENCLAW_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              tool: "message",
+              action: "send",
+              args: {
+                channel: "whatsapp",
+                target: grupoJid,
+                message: mensagem,
+              },
+            }),
+          });
+
+          if (response.ok) {
+            console.log(`[WhatsApp Nova Versão] Notificação enviada para ${grupoJid}`);
+          } else {
+            const errorText = await response.text();
+            console.error(`[WhatsApp Nova Versão] Erro para ${grupoJid}:`, errorText);
+          }
+        } catch (err: any) {
+          console.error(`[WhatsApp Nova Versão] Falha para ${grupoJid}:`, err.message);
+        }
+      }
+    } catch (err: any) {
+      console.error("[WhatsApp Nova Versão] Erro:", err.message);
+    }
+  }
+
+  // Iniciar polling a cada 5 minutos
+  const FRAMEIO_POLL_INTERVAL = 5 * 60 * 1000; // 5 minutos
+  setInterval(() => checkFrameIoUpdates(), FRAMEIO_POLL_INTERVAL);
+  // Primeira verificação 30 segundos após iniciar o servidor
+  setTimeout(() => checkFrameIoUpdates(), 30 * 1000);
+  console.log("[Frame.io Polling] Timer configurado: verificação a cada 5 minutos");
 
   const httpServer = createServer(app);
   return httpServer;

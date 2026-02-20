@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getApprovalDetails } from "@/lib/approval-utils";
-import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2, Copy, ExternalLink, FileText, Mail, Phone, Users as UsersIcon, Plus, Minus, Eye, CheckCircle, XCircle, Loader2, Send, Mic, Camera } from "lucide-react";
+import { X, Edit2, Save, MessageCircle, Calendar, Clock, Link as LinkIcon, User, Building2, Tag as TagIcon, AlertCircle, Trash2, Copy, ExternalLink, FileText, Mail, Phone, Users as UsersIcon, Plus, Minus, Eye, CheckCircle, XCircle, Loader2, Send, Mic, Camera, Film } from "lucide-react";
 
 import {
   Drawer,
@@ -74,6 +74,11 @@ export function ProjectDetailsDrawer({
   const [mensagemNotificacao, setMensagemNotificacao] = useState("");
   const [notificarCanais, setNotificarCanais] = useState<{ whatsapp: boolean; email: boolean; audio: boolean }>({ whatsapp: true, email: true, audio: false });
   const [assuntoEmail, setAssuntoEmail] = useState("");
+  const [templateSelecionado, setTemplateSelecionado] = useState<string>("geral");
+  const [frameIoBrowserOpen, setFrameIoBrowserOpen] = useState(false);
+  const [frameIoItems, setFrameIoItems] = useState<any[]>([]);
+  const [frameIoLoading, setFrameIoLoading] = useState(false);
+  const [frameIoSelecting, setFrameIoSelecting] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -458,6 +463,83 @@ Para facilitar e evitar erros, siga o passo a passo:
 👉 www.framety.com.br/tutorial`;
   }
 
+  // ===== TEMPLATES DE NOTIFICAÇÃO =====
+  const TEMPLATES_NOTIFICACAO = [
+    {
+      id: "geral",
+      label: "Geral",
+      gerarMensagem: (proj: ProjetoWithRelations) => ({
+        assunto: `Atualização - Projeto ${proj.titulo}`,
+        mensagem: gerarMensagemPadrao(proj),
+      }),
+    },
+    {
+      id: "musica",
+      label: "Música",
+      gerarMensagem: (proj: ProjetoWithRelations) => {
+        const linkPortal = proj.cliente?.portalToken
+          ? `${window.location.origin}/portal/cliente/${proj.cliente.portalToken}`
+          : "[INSERIR LINK AQUI]";
+        return {
+          assunto: `Aprovação de Música - ${proj.titulo}`,
+          mensagem: `*APROVAÇÃO DE MÚSICA*\n\nOlá! Tudo bem?\n\nAs opções de música para o projeto *"${proj.titulo}"* já estão disponíveis para sua aprovação.\n\nPor favor, acesse o link abaixo, ouça as opções e escolha a que mais combina com o projeto:\n\n${linkPortal}\n\nQualquer dúvida, estamos à disposição!\n\n— Equipe Framety`,
+        };
+      },
+    },
+    {
+      id: "locucao",
+      label: "Locução",
+      gerarMensagem: (proj: ProjetoWithRelations) => {
+        const linkPortal = proj.cliente?.portalToken
+          ? `${window.location.origin}/portal/cliente/${proj.cliente.portalToken}`
+          : "[INSERIR LINK AQUI]";
+        return {
+          assunto: `Aprovação de Locução - ${proj.titulo}`,
+          mensagem: `*APROVAÇÃO DE LOCUÇÃO*\n\nOlá! Tudo bem?\n\nAs opções de locução/narração para o projeto *"${proj.titulo}"* estão prontas para sua avaliação.\n\nAcesse o link abaixo para ouvir e aprovar:\n\n${linkPortal}\n\nEstamos à disposição para qualquer ajuste!\n\n— Equipe Framety`,
+        };
+      },
+    },
+    {
+      id: "roteiro",
+      label: "Roteiro",
+      gerarMensagem: (proj: ProjetoWithRelations) => {
+        const linkPortal = proj.cliente?.portalToken
+          ? `${window.location.origin}/portal/cliente/${proj.cliente.portalToken}`
+          : "[INSERIR LINK AQUI]";
+        return {
+          assunto: `Aprovação de Roteiro - ${proj.titulo}`,
+          mensagem: `*APROVAÇÃO DE ROTEIRO*\n\nOlá! Tudo bem?\n\nO roteiro do projeto *"${proj.titulo}"* está pronto para sua revisão e aprovação.\n\nAcesse o link abaixo para ler e deixar seus comentários:\n\n${linkPortal}\n\nSe tiver sugestões de ajustes, pode comentar diretamente no portal!\n\n— Equipe Framety`,
+        };
+      },
+    },
+    {
+      id: "video",
+      label: "Vídeo",
+      gerarMensagem: (proj: ProjetoWithRelations) => {
+        const linkPortal = proj.cliente?.portalToken
+          ? `${window.location.origin}/portal/cliente/${proj.cliente.portalToken}`
+          : "[INSERIR LINK AQUI]";
+        return {
+          assunto: `Aprovação de Vídeo - ${proj.titulo}`,
+          mensagem: `*APROVAÇÃO DE VÍDEO*\n\nOlá! Tudo bem?\n\nA versão do vídeo do projeto *"${proj.titulo}"* está disponível para sua aprovação.\n\nAcesse o link abaixo para assistir e deixar seus comentários:\n\n${linkPortal}\n\n*Vai solicitar ajustes?*\nPara facilitar e evitar erros, siga o passo a passo:\nwww.framety.com.br/tutorial\n\n— Equipe Framety`,
+        };
+      },
+    },
+    {
+      id: "lembrete",
+      label: "Lembrete",
+      gerarMensagem: (proj: ProjetoWithRelations) => {
+        const linkPortal = proj.cliente?.portalToken
+          ? `${window.location.origin}/portal/cliente/${proj.cliente.portalToken}`
+          : "[INSERIR LINK AQUI]";
+        return {
+          assunto: `Lembrete - Pendência no Projeto ${proj.titulo}`,
+          mensagem: `*LEMBRETE DE PENDÊNCIA*\n\nOlá! Tudo bem?\n\nPassando para lembrar que o projeto *"${proj.titulo}"* possui uma pendência de aprovação da sua parte.\n\nPor favor, acesse o portal quando puder para dar andamento:\n\n${linkPortal}\n\nPrecisamos da sua aprovação para seguir com as próximas etapas. Qualquer dúvida, é só chamar!\n\n— Equipe Framety`,
+        };
+      },
+    },
+  ];
+
   // ===== CAPTADOR =====
   const [showCaptadorDialog, setShowCaptadorDialog] = useState(false);
   const [captadorNome, setCaptadorNome] = useState("");
@@ -482,6 +564,11 @@ Para facilitar e evitar erros, siga o passo a passo:
       setShowCaptadorDialog(false);
       setCaptadorNome("");
       setCaptadorInstrucoes("");
+      // Atualizar cache diretamente com o novo link + forçar refetch
+      queryClient.setQueryData(
+        [`/api/projetos/${projetoAtual?.id}/captador-links`],
+        (old: any[]) => [...(old || []), data]
+      );
       refetchCaptadorLinks();
       const url = data.url || `${window.location.origin}/captador/${data.token}`;
       navigator.clipboard.writeText(url).catch(() => {});
@@ -852,6 +939,53 @@ Para facilitar e evitar erros, siga o passo a passo:
       "Cancelado": "bg-red-100 text-red-800"
     };
     return statusColors[status] || "bg-gray-100 text-gray-800";
+  };
+
+  // === Frame.io Browser Functions ===
+  const clienteDoProjetoFrameIo = useMemo(() => {
+    if (!projetoAtual?.clienteId) return null;
+    const c = clientes.find((cl: Cliente) => cl.id === projetoAtual.clienteId);
+    return c?.frameIoProjectId ? c : null;
+  }, [projetoAtual?.clienteId, clientes]);
+
+  const openFrameIoBrowser = async () => {
+    if (!clienteDoProjetoFrameIo) return;
+    setFrameIoBrowserOpen(true);
+    setFrameIoLoading(true);
+    setFrameIoItems([]);
+    try {
+      // Carregar shares existentes do cliente
+      const resp = await apiRequest("GET", `/api/admin/frameio/clientes/${clienteDoProjetoFrameIo.id}/shares`);
+      const shares = await resp.json();
+      setFrameIoItems(shares);
+    } catch (err: any) {
+      toast({ title: "Erro ao carregar shares do Frame.io", description: err.message, variant: "destructive" });
+      setFrameIoBrowserOpen(false);
+    } finally {
+      setFrameIoLoading(false);
+    }
+  };
+
+  const selectFrameIoShare = async (shareUrl: string, shareName: string) => {
+    if (!projetoAtual?.id) return;
+    setFrameIoSelecting(true);
+    try {
+      const resp = await apiRequest("POST", `/api/admin/frameio/projetos/${projetoAtual.id}/link-share`, { shareUrl, shareName });
+      const updatedProjeto = await resp.json();
+      toast({ title: "Share vinculado com sucesso!", description: `"${shareName}" foi salvo no projeto.` });
+      setFrameIoBrowserOpen(false);
+      queryClient.setQueryData(["/api/projetos", projetoAtual.id], (old: any) => ({
+        ...(old || projetoAtual),
+        ...updatedProjeto,
+      }));
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projetos/light"] });
+      refetchProjeto();
+    } catch (err: any) {
+      toast({ title: "Erro ao vincular share", description: err.message, variant: "destructive" });
+    } finally {
+      setFrameIoSelecting(false);
+    }
   };
 
   if (!projetoAtual) return null;
@@ -1441,6 +1575,18 @@ Para facilitar e evitar erros, siga o passo a passo:
                         ) : "—"}
                       </p>
                     )}
+                    {clienteDoProjetoFrameIo && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 w-full text-purple-700 border-purple-300 hover:bg-purple-50 dark:text-purple-400 dark:border-purple-800 dark:hover:bg-purple-950"
+                        onClick={openFrameIoBrowser}
+                      >
+                        <Film className="h-4 w-4 mr-2" />
+                        Selecionar do Frame.io
+                      </Button>
+                    )}
                   </div>
 
                   <div>
@@ -1755,6 +1901,7 @@ Para facilitar e evitar erros, siga o passo a passo:
                       size="sm"
                       className="w-full mt-3 text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-950"
                       onClick={() => {
+                        setTemplateSelecionado("geral");
                         setMensagemNotificacao(gerarMensagemPadrao(projetoAtual));
                         setAssuntoEmail(`Atualização - Projeto ${projetoAtual.titulo}`);
                         setNotificarCanais({
@@ -2126,6 +2273,34 @@ Para facilitar e evitar erros, siga o passo a passo:
               </div>
             </div>
 
+            {/* Templates de mensagem */}
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Modelo de mensagem:</label>
+              <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                {TEMPLATES_NOTIFICACAO.map((tmpl) => (
+                  <button
+                    key={tmpl.id}
+                    type="button"
+                    className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors whitespace-nowrap ${
+                      templateSelecionado === tmpl.id
+                        ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-400"
+                        : "border-gray-200 bg-white hover:bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-750 dark:text-gray-400"
+                    }`}
+                    onClick={() => {
+                      if (projetoAtual) {
+                        const { assunto, mensagem } = tmpl.gerarMensagem(projetoAtual);
+                        setMensagemNotificacao(mensagem);
+                        setAssuntoEmail(assunto);
+                        setTemplateSelecionado(tmpl.id);
+                      }
+                    }}
+                  >
+                    {tmpl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Destinatários */}
             <div>
               <label className="text-sm font-medium text-muted-foreground">Destinatários:</label>
@@ -2264,6 +2439,71 @@ Para facilitar e evitar erros, siga o passo a passo:
               Gerar Link
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Frame.io Shares Browser Dialog */}
+      <Dialog open={frameIoBrowserOpen} onOpenChange={setFrameIoBrowserOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Film className="h-5 w-5 text-purple-600" />
+              Selecionar Share do Frame.io
+            </DialogTitle>
+            <p className="text-sm text-gray-500 mt-1">
+              Escolha um share link existente para vincular ao projeto
+            </p>
+          </DialogHeader>
+
+          <ScrollArea className="h-[400px] border rounded-md">
+            {frameIoLoading ? (
+              <div className="flex items-center justify-center h-full p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+                <span className="ml-2 text-gray-500">Carregando shares...</span>
+              </div>
+            ) : frameIoItems.length === 0 ? (
+              <div className="flex items-center justify-center h-full p-8 text-gray-500">
+                Nenhum share encontrado para este cliente
+              </div>
+            ) : (
+              <div className="divide-y">
+                {frameIoItems
+                  .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""))
+                  .map((share: any) => (
+                    <div
+                      key={share.id}
+                      className="grid px-3 py-3 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      style={{ gridTemplateColumns: "1fr auto" }}
+                    >
+                      <div className="flex items-start gap-2 min-w-0">
+                        <Film className="h-5 w-5 text-purple-500 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium break-words block">{share.name}</span>
+                          {share.short_url && (
+                            <span className="text-xs text-gray-400 break-all">{share.short_url}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-start ml-2 pt-0.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-purple-700 border-purple-300 hover:bg-purple-50 whitespace-nowrap"
+                          onClick={() => selectFrameIoShare(share.short_url, share.name)}
+                          disabled={frameIoSelecting || !share.short_url}
+                        >
+                          {frameIoSelecting ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            "Vincular"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </>

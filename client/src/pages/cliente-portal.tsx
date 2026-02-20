@@ -60,6 +60,9 @@ interface ProjetoCliente {
   } | null;
   // Link do Frame.io para visualizar o vídeo
   linkFrameIo: string | null;
+  frameIoShareUrl: string | null;
+  frameIoFileId: string | null;
+  clientToken: string;
   // Novo sistema com múltiplas músicas e locutores
   musicas: ProjetoMusica[];
   locutores: ProjetoLocutorWithRelations[];
@@ -571,16 +574,16 @@ export default function ClientePortal() {
         </Card>
 
         {/* Botão para visualizar vídeo no Frame.io */}
-        {projeto.linkFrameIo && (
+        {(projeto.frameIoShareUrl || projeto.linkFrameIo) && (
           <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
-            <CardContent className="p-4">
+            <CardContent className="p-4 space-y-3">
               <Button
                 size="default"
                 className="w-full gap-2 shadow-lg sm:text-base text-sm"
-                onClick={() => window.open(projeto.linkFrameIo!, '_blank')}
+                onClick={() => window.open(projeto.frameIoShareUrl || projeto.linkFrameIo!, '_blank')}
               >
                 <Video className="h-4 w-4" />
-                Clique e veja seu vídeo
+                {projeto.frameIoShareUrl ? "Assistir e comentar" : "Clique e veja seu vídeo"}
                 <ExternalLink className="h-4 w-4" />
               </Button>
             </CardContent>

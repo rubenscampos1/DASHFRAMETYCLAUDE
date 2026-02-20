@@ -56,6 +56,8 @@ interface ProjetoCliente {
     nome: string;
   } | null;
   linkFrameIo: string | null;
+  frameIoShareUrl: string | null;
+  frameIoFileId: string | null;
   clientToken: string;
   musicas: ProjetoMusica[];
   locutores: ProjetoLocutorWithRelations[];
@@ -704,19 +706,41 @@ export default function PortalUnificado() {
           </CardHeader>
         </Card>
 
-        {/* Botão para visualizar vídeo no Frame.io */}
-        {projeto.linkFrameIo && (
+        {/* Player Frame.io embutido ou botão externo */}
+        {(projeto.frameIoShareUrl || projeto.linkFrameIo) && (
           <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
-            <CardContent className="p-4">
-              <Button
-                size="default"
-                className="w-full gap-2 shadow-lg sm:text-base text-sm"
-                onClick={() => window.open(projeto.linkFrameIo!, '_blank')}
-              >
-                <Video className="h-4 w-4" />
-                Clique e veja seu vídeo
-                <ExternalLink className="h-4 w-4" />
-              </Button>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="p-1.5 rounded-lg bg-primary/10">
+                  <Video className="h-4 w-4 text-primary" />
+                </div>
+                <span className="font-semibold text-sm">Vídeo do Projeto</span>
+              </div>
+              {projeto.frameIoShareUrl ? (
+                <div className="space-y-2">
+                  <Button
+                    size="default"
+                    className="w-full gap-2 shadow-lg sm:text-base text-sm"
+                    onClick={() => window.open(projeto.frameIoShareUrl!, '_blank')}
+                  >
+                    <Video className="h-4 w-4" />
+                    Assistir e comentar
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : projeto.linkFrameIo ? (
+                <div className="space-y-2">
+                  <Button
+                    size="default"
+                    className="w-full gap-2 shadow-lg sm:text-base text-sm"
+                    onClick={() => window.open(projeto.linkFrameIo!, '_blank')}
+                  >
+                    <Video className="h-4 w-4" />
+                    Clique e veja seu vídeo
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         )}

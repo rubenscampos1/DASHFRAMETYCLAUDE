@@ -2043,6 +2043,15 @@ export class DatabaseStorage implements IStorage {
     return updatedComentario;
   }
 
+  async updateVideoComentario(comentarioId: string, updates: Partial<{ frameIoCommentId: string }>): Promise<VideoComentario> {
+    const [updated] = await db
+      .update(videoComentarios)
+      .set(updates)
+      .where(eq(videoComentarios.id, comentarioId))
+      .returning();
+    return updated;
+  }
+
   async deleteVideoComentario(comentarioId: string): Promise<void> {
     await db.delete(videoComentarios).where(eq(videoComentarios.id, comentarioId));
   }
@@ -2144,6 +2153,7 @@ export class DatabaseStorage implements IStorage {
     empresa: string | null;
     backgroundColor: string;
     textColor: string;
+    frameIoProjectId: string | null;
     totalPastas: number;
     totalVideos: number;
     totalStorage: number;
@@ -2156,13 +2166,14 @@ export class DatabaseStorage implements IStorage {
         c.empresa,
         c.background_color as "backgroundColor",
         c.text_color as "textColor",
+        c.frame_io_project_id as "frameIoProjectId",
         COUNT(DISTINCT vp.id) as "totalPastas",
         COALESCE(SUM(vp.total_videos), 0) as "totalVideos",
         COALESCE(SUM(vp.total_storage), 0) as "totalStorage",
         MAX(vp.updated_at) as "ultimaAtualizacao"
       FROM clientes c
       LEFT JOIN video_pastas vp ON vp.cliente_id = c.id
-      GROUP BY c.id, c.nome, c.empresa, c.background_color, c.text_color
+      GROUP BY c.id, c.nome, c.empresa, c.background_color, c.text_color, c.frame_io_project_id
       ORDER BY c.nome
     `);
     return result.rows as any;

@@ -61,6 +61,8 @@ export const clientes = pgTable("clientes", {
   backgroundColor: text("background_color").notNull().default("#3b82f6"),
   textColor: text("text_color").notNull().default("#ffffff"),
   portalToken: text("portal_token").unique(), // Token único para portal unificado do cliente
+  frameIoProjectId: text("frame_io_project_id"), // ID do projeto no Frame.io V4
+  frameIoLastCheckedAt: timestamp("frame_io_last_checked_at"), // Último check de polling do Frame.io
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -101,6 +103,8 @@ export const projetos = pgTable("projetos", {
   dataInterna: timestamp("data_interna"),
   dataMeeting: timestamp("data_meeting"),
   linkFrameIo: text("link_frame_io"),
+  frameIoShareUrl: text("frame_io_share_url"), // URL do share link Frame.io para embed no portal
+  frameIoFileId: text("frame_io_file_id"), // ID do arquivo selecionado no Frame.io (para download)
   caminho: text("caminho"),
   referencias: text("referencias"), // links simples, várias linhas
   informacoesAdicionais: text("informacoes_adicionais"), // texto livre
@@ -300,6 +304,17 @@ export const tokensAcesso = pgTable("tokens_acesso", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Tokens Adobe IMS para Frame.io V4
+export const frameioTokens = pgTable("frameio_tokens", {
+  id: varchar("id").primaryKey(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  accessTokenExpiresAt: timestamp("access_token_expires_at").notNull(),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at").notNull(),
+  requiresReauth: boolean("requires_reauth").default(false),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Sistema de Vídeos (Frame.io-like com Bunny.net)
 export const videoStatusEnum = pgEnum("video_status", ["uploading", "processing", "ready", "failed"]);
 
@@ -309,10 +324,13 @@ export const videosProjeto = pgTable("videos_projeto", {
   pastaId: varchar("pasta_id").references((): any => videoPastas.id, { onDelete: "cascade" }), // FK para pasta (opcional inicialmente, depois será obrigatório)
   titulo: text("titulo").notNull(),
   descricao: text("descricao"),
-  // Dados do Bunny.net
+  // Dados do Bunny.net (legado)
   bunnyVideoId: text("bunny_video_id").unique(), // ID do vídeo no Bunny Stream
   bunnyLibraryId: text("bunny_library_id"), // ID da biblioteca do Bunny
   bunnyGuid: text("bunny_guid"), // GUID do vídeo no Bunny
+  // Dados do Frame.io V4
+  frameIoFileId: text("frame_io_file_id"), // ID do arquivo no Frame.io
+  frameIoFolderId: text("frame_io_folder_id"), // ID da pasta no Frame.io
   status: videoStatusEnum("status").notNull().default("uploading"),
   // URLs e metadata
   thumbnailUrl: text("thumbnail_url"), // URL da thumbnail
@@ -340,6 +358,7 @@ export const videoComentarios = pgTable("video_comentarios", {
   autorNome: text("autor_nome"), // nome do autor (para clientes não autenticados)
   texto: text("texto").notNull(),
   timestamp: integer("timestamp").notNull(), // timestamp do vídeo em segundos
+  frameIoCommentId: text("frame_io_comment_id"), // Para sync bidirecional com Frame.io
   // Status do comentário
   resolvido: boolean("resolvido").default(false), // marca comentário como resolvido
   resolvidoPorId: varchar("resolvido_por_id").references(() => users.id), // quem resolveu
@@ -358,6 +377,7 @@ export const videoPastas = pgTable("video_pastas", {
   cor: text("cor").default("#3b82f6"), // cor para identificação visual
   icone: text("icone"), // emoji ou nome de ícone
   ordem: integer("ordem").default(0), // para ordenação customizada
+  frameIoFolderId: text("frame_io_folder_id"), // Mapeamento pasta local ↔ Frame.io
   // Contadores desnormalizados para performance
   totalVideos: integer("total_videos").default(0),
   totalStorage: integer("total_storage").default(0), // em bytes
@@ -992,6 +1012,7 @@ export type CaptadorLink = typeof captadorLinks.$inferSelect;
 export type InsertCaptadorLink = z.infer<typeof insertCaptadorLinkSchema>;
 export type CaptadorUpload = typeof captadorUploads.$inferSelect;
 export type InsertCaptadorUpload = z.infer<typeof insertCaptadorUploadSchema>;
+export type FrameioToken = typeof frameioTokens.$inferSelect;
 
 // Extended types with relations
 export type ProjetoWithRelations = Projeto & {

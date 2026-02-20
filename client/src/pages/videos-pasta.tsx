@@ -19,6 +19,10 @@ import {
   Download,
   Share2,
   Loader2,
+  Folder,
+  ExternalLink,
+  Film,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +66,7 @@ interface VideoPasta {
   descricao?: string | null;
   cor: string;
   clienteId: string;
+  frameIoFolderId?: string | null;
   totalVideos: number;
   totalStorage: number;
 }
@@ -85,13 +90,23 @@ interface VideoProjeto {
   comentarios?: any[];
 }
 
+interface SubpastaInfo {
+  id: string;
+  nome: string;
+  frameIoFolderId?: string;
+  totalVideos?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface VideoPastaWithRelations extends VideoPasta {
-  cliente: {
+  cliente?: {
     id: string;
     nome: string;
-    empresa: string | null;
-  };
+    empresa?: string | null;
+  } | null;
   videos: VideoProjeto[];
+  subpastas?: SubpastaInfo[];
 }
 
 type ViewMode = "grid" | "list";
@@ -176,8 +191,17 @@ export default function VideosPasta() {
   const [isUploading, setIsUploading] = useState(false);
 
   const { data: pasta, isLoading } = useQuery<VideoPastaWithRelations>({
-    queryKey: [`/api/pastas/${pastaId}`],
+    queryKey: [`/api/pastas/${pastaId}`, "frameio"],
     queryFn: async () => {
+      // Tentar buscar do Frame.io primeiro
+      const responseFrameIo = await fetch(`/api/pastas/${pastaId}?source=frameio&clienteId=${clienteId}`, {
+        credentials: "include",
+      });
+      if (responseFrameIo.ok) {
+        const data = await responseFrameIo.json();
+        if (data.videos || data.subpastas) return data;
+      }
+      // Fallback: buscar do banco local
       const response = await fetch(`/api/pastas/${pastaId}`, {
         credentials: "include",
       });
@@ -258,7 +282,7 @@ export default function VideosPasta() {
     setUploadProgress(0);
 
     try {
-      // 1. Inicializar upload (criar vídeo no Bunny.net e banco de dados)
+      // 1. Inicializar upload (criar arquivo no Frame.io e banco de dados)
       const initResponse = await fetch(`/api/pastas/${pastaId}/videos/upload-init`, {
         method: "POST",
         headers: {
@@ -268,6 +292,8 @@ export default function VideosPasta() {
         body: JSON.stringify({
           titulo: uploadTitle,
           descricao: uploadDescription || undefined,
+          fileSize: uploadFile.size,
+          mediaType: uploadFile.type || "video/mp4",
         }),
       });
 
@@ -278,7 +304,7 @@ export default function VideosPasta() {
       const { videoId, uploadUrl, uploadHeaders } = await initResponse.json();
       console.log("Upload inicializado:", { videoId, uploadUrl });
 
-      // 2. Upload direto para Bunny CDN com progresso
+      // 2. Upload direto para Frame.io com progresso
       const xhr = new XMLHttpRequest();
 
       xhr.upload.addEventListener("progress", (e) => {
@@ -351,10 +377,10 @@ export default function VideosPasta() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar />
       <motion.div
-        className={mainContentClass}
+        className={`${mainContentClass} flex-1 overflow-y-auto`}
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -370,7 +396,7 @@ export default function VideosPasta() {
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   <BreadcrumbLink href={`/videos/${clienteId}`}>
-                    {pasta?.cliente.nome || "Carregando..."}
+                    {pasta?.cliente?.nome || "Carregando..."}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 {breadcrumb.map((item, index) => (
@@ -498,8 +524,34 @@ export default function VideosPasta() {
             </div>
           )}
 
+          {/* Subpastas */}
+          {!isLoading && (pasta?.subpastas || []).length > 0 && (
+            <motion.div variants={containerVariants}>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pastas</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+                {(pasta?.subpastas || []).map((sub) => (
+                  <Link key={sub.id} href={`/videos/${clienteId}/pastas/${sub.id}`}>
+                    <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group border-2 border-transparent hover:border-blue-500/30">
+                      <CardContent className="p-5 flex items-center gap-4">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                          <Folder className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold line-clamp-1">{sub.nome}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {sub.totalVideos ? `${sub.totalVideos} itens` : "Pasta"}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
           {/* Empty State */}
-          {!isLoading && filteredVideos.length === 0 && (
+          {!isLoading && filteredVideos.length === 0 && (pasta?.subpastas || []).length === 0 && (
             <motion.div
               variants={itemVariants}
               className="flex flex-col items-center justify-center py-12"
@@ -530,12 +582,16 @@ export default function VideosPasta() {
                 <motion.div key={video.id} variants={itemVariants}>
                   <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group overflow-hidden">
                     <div
-                      className="relative w-full h-48 bg-gray-200 dark:bg-gray-800 overflow-hidden"
+                      className="relative w-full h-48 overflow-hidden"
                       onClick={() => {
-                        toast({
-                          title: "Player de vídeo",
-                          description: "Player será implementado em breve",
-                        });
+                        if (video.videoUrl) {
+                          window.open(video.videoUrl, '_blank');
+                        } else {
+                          toast({
+                            title: "Vídeo indisponível",
+                            description: "Este vídeo ainda não possui URL de visualização",
+                          });
+                        }
                       }}
                     >
                       {video.thumbnailUrl ? (
@@ -545,18 +601,28 @@ export default function VideosPasta() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Video className="h-12 w-12 text-muted-foreground" />
+                        <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-black flex items-center justify-center relative">
+                          <div className="absolute inset-0 opacity-10">
+                            <div className="absolute top-4 left-4 w-16 h-10 border border-white/20 rounded" />
+                            <div className="absolute bottom-4 right-4 w-20 h-12 border border-white/20 rounded" />
+                            <div className="absolute top-1/2 left-1/3 w-12 h-8 border border-white/20 rounded" />
+                          </div>
+                          <Film className="h-10 w-10 text-white/30" />
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center">
-                          <Play className="h-8 w-8 text-black ml-1" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-300 flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 scale-75 group-hover:scale-100 shadow-xl">
+                          <Play className="h-7 w-7 text-black ml-0.5" />
                         </div>
                       </div>
                       {video.duration && (
-                        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-md font-mono">
                           {formatDuration(video.duration)}
+                        </div>
+                      )}
+                      {video.fileSize && video.fileSize > 0 && (
+                        <div className="absolute top-2 right-2 bg-black/60 text-white/80 text-xs px-2 py-0.5 rounded-md">
+                          {formatBytes(video.fileSize)}
                         </div>
                       )}
                     </div>
@@ -581,10 +647,12 @@ export default function VideosPasta() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Download className="h-4 w-4 mr-2" />
-                              Download
-                            </DropdownMenuItem>
+                            {video.videoUrl && (
+                              <DropdownMenuItem onClick={() => window.open(video.videoUrl!, '_blank')}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ver no Frame.io
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem>
                               <Share2 className="h-4 w-4 mr-2" />
                               Compartilhar
